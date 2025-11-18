@@ -1,0 +1,443 @@
+"""
+Order Generator (Multi-Thread)
+Gerencia múltiplas estratégias em threads independentes
+"""
+
+import time
+from typing import Dict, List
+from loguru import logger
+
+from core.mt5_connector import MT5Connector
+from core.config_manager import ConfigManager
+from core.risk_manager import RiskManager
+from core.strategy_executor import StrategyExecutor
+from analysis.technical_analyzer import TechnicalAnalyzer
+from analysis.news_analyzer import NewsAnalyzer
+from strategies.strategy_manager import StrategyManager
+from notifications.telegram_bot import TelegramNotifier
+
+
+class OrderGenerator:
+    """
+    Gerador de ordens multi-thread
+    Cada estratégia executa em thread independente
+    """
+    
+    def __init__(self):
+        """Inicializa Order Generator"""
+        
+        # Carregar configurações
+        self.config_manager = ConfigManager()
+        self.config = self.config_manager.config
+        
+        # Componentes compartilhados
+        self.mt5 = MT5Connector(self.config)
+        self.risk_manager = RiskManager(self.config, self.mt5)
+        self.technical_analyzer = TechnicalAnalyzer(self.mt5, self.config)
+        self.news_analyzer = NewsAnalyzer(self.config)
+        self.strategy_manager = StrategyManager(self.config)
+        self.telegram = TelegramNotifier(self.config)
+        
+        # Criar executors para cada estratégia
+        self.executors: List[StrategyExecutor] = []
+        self._create_strategy_executors()
+        
+        # Estado
+        self.running = False
+        
+        logger.info(
+            f"OrderGenerator inicializado com "
+            f"{len(self.executors)} estratégias independentes"
+        )
+    
+    def _create_strategy_executors(self):
+        """Cria executors para cada estratégia ativa"""
+        for name, strategy in self.strategy_manager.strategies.items():
+            if strategy.is_enabled():
+                executor = StrategyExecutor(
+                    strategy_name=name,
+                    strategy_instance=strategy,
+                    config=self.config,
+                    mt5=self.mt5,
+                    risk_manager=self.risk_manager,
+                    technical_analyzer=self.technical_analyzer,
+                    news_analyzer=self.news_analyzer
+                )
+                self.executors.append(executor)
+                logger.info(f"Executor criado para: {name}")
+    
+    def start(self):
+        """Inicia todos os executors"""
+        if self.running:
+            logger.warning("OrderGenerator já está executando")
+            return
+        
+        self.running = True
+        logger.info("Iniciando OrderGenerator (multi-thread)...")
+        
+        # Conectar MT5
+        if not self.mt5.is_connected():
+            if not self.mt5.connect():
+                logger.error("Falha ao conectar MT5")
+                self.running = False
+                return
+        
+        # Iniciar cada executor
+        for executor in self.executors:
+            executor.start()
+        
+        logger.success(
+            f"✅ OrderGenerator iniciado! "
+            f"{len(self.executors)} estratégias operando"
+        )
+        
+        # Loop principal (apenas mantém vivo)
+        try:
+            while self.running:
+                time.sleep(60)
+        except KeyboardInterrupt:
+            logger.info("Interrupção detectada")
+            self.stop()
+    
+    def stop(self):
+        """Para todos os executors"""
+        if not self.running:
+            return
+        
+        logger.info("Parando OrderGenerator...")
+        self.running = False
+        
+        # Parar cada executor
+        for executor in self.executors:
+            executor.stop()
+        
+        logger.success("OrderGenerator parado")
+    
+    def status(self):
+        """Exibe status de todas as estratégias"""
+        logger.info("=" * 80)
+        logger.info("STATUS DO ORDER GENERATOR (MULTI-THREAD)")
+        logger.info("=" * 80)
+        
+        logger.info(f"Running: {self.running}")
+        logger.info(f"Executors ativos: {len(self.executors)}")
+        
+        for executor in self.executors:
+            status = "🟢 Rodando" if executor.running else "🔴 Parado"
+            logger.info(
+                f"  [{executor.strategy_name}] {status} - "
+                f"Ciclo: {executor.cycle_seconds}s - "
+                f"Max Pos: {executor.max_positions} - "
+                f"Magic: {executor.magic_number}"
+            )
+        
+        logger.info("=" * 80)
+    
+    def is_trading_hours(self) -> bool:
+        """
+        Verifica se está dentro do horário de trading
+        
+        Returns:
+            True se pode operar
+        """
+        now = datetime.now(timezone.utc)
+        current_time = now.hour * 60 + now.minute
+        
+        # Converter horários para minutos
+        start_time = self.start_hour * 60 + self.start_minute
+        end_time = self.end_hour * 60 + self.end_minute
+        
+        # Horário cruza meia-noite (ex: 18:30 até 16:30 do dia seguinte)
+        if start_time > end_time:
+            return current_time >= start_time or current_time <= end_time
+        else:
+            return start_time <= current_time <= end_time
+    
+    def should_skip_cycle(self) -> tuple[bool, str]:
+        """
+        Verifica se deve pular este ciclo
+        
+        Returns:
+            (should_skip, reason)
+        """
+        
+        # Verificar se está habilitado
+        if not self.enabled:
+            return True, "OrderGenerator desabilitado"
+        
+        # Verificar horário de trading
+        if not self.is_trading_hours():
+            return True, "Fora do horário de trading"
+        
+        # Verificar conexão MT5
+        if not self.mt5.is_connected():
+            logger.warning("MT5 desconectado, tentando reconectar...")
+            if not self.mt5.connect():
+                return True, "MT5 desconectado"
+        
+        # Verificar se há janela de bloqueio de notícias
+        if self.news_analyzer.is_news_blocking_window(self.avoid_news_minutes):
+            return True, "Janela de bloqueio de notícias ativa"
+        
+        return False, ""
+    
+    def gather_analysis_data(self) -> Optional[Dict]:
+        """
+        Coleta dados de análise técnica e notícias
+        
+        Returns:
+            Dicionário com análises ou None se falhar
+        """
+        try:
+            # Análise técnica multi-timeframe
+            technical_analysis = self.technical_analyzer.analyze_multi_timeframe()
+            
+            if not technical_analysis:
+                logger.warning("Falha ao obter análise técnica")
+                return None
+            
+            # Análise de notícias
+            news_analysis = self.news_analyzer.get_news_signal()
+            
+            return {
+                'technical': technical_analysis,
+                'news': news_analysis,
+                'timestamp': datetime.now(timezone.utc)
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro ao coletar análises: {e}")
+            return None
+    
+    def execute_strategies(self, analysis_data: Dict) -> Optional[Dict]:
+        """
+        Executa estratégias e retorna sinal de consenso
+        
+        Args:
+            analysis_data: Dados de análise (técnica + notícias)
+            
+        Returns:
+            Sinal de trading ou None
+        """
+        try:
+            technical = analysis_data.get('technical')
+            news = analysis_data.get('news')
+            
+            # Buscar melhor sinal (estratégias independentes)
+            signal = self.strategy_manager.get_best_signal(
+                technical, news
+            )
+            
+            if signal:
+                logger.info(
+                    f"Sinal gerado: {signal['action']} "
+                    f"(confiança: {signal['confidence']:.2%}) - "
+                    f"{signal['strategy']}"
+                )
+            
+            return signal
+            
+        except Exception as e:
+            logger.error(f"Erro ao executar estratégias: {e}")
+            return None
+    
+    def validate_with_risk_manager(self, signal: Dict) -> Optional[Dict]:
+        """
+        Valida sinal com Risk Manager
+        
+        Args:
+            signal: Sinal de trading
+            
+        Returns:
+            Parâmetros da ordem ou None se rejeitado
+        """
+        try:
+            action = signal.get('action')
+            
+            # Verificar se pode abrir posição
+            if not self.risk_manager.can_open_position(action):
+                logger.info(
+                    f"Risk Manager rejeitou abertura de posição {action}"
+                )
+                return None
+            
+            # Calcular tamanho da posição
+            volume = self.risk_manager.calculate_position_size()
+            
+            if volume <= 0:
+                logger.warning("Volume calculado inválido")
+                return None
+            
+            # Calcular Stop Loss e Take Profit
+            sl = self.risk_manager.calculate_stop_loss(action)
+            tp = self.risk_manager.calculate_take_profit(action)
+            
+            if sl is None or tp is None:
+                logger.warning("Falha ao calcular SL/TP")
+                return None
+            
+            return {
+                'action': action,
+                'volume': volume,
+                'stop_loss': sl,
+                'take_profit': tp,
+                'confidence': signal.get('confidence', 0),
+                'strategy': signal.get('strategy', 'Unknown'),
+                'reason': signal.get('reason', ''),
+                'details': signal.get('details', {})
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro na validação com Risk Manager: {e}")
+            return None
+    
+    def place_order(self, order_params: Dict) -> bool:
+        """
+        Executa ordem no MT5
+        
+        Args:
+            order_params: Parâmetros da ordem
+            
+        Returns:
+            True se ordem executada com sucesso
+        """
+        try:
+            action = order_params['action']
+            volume = order_params['volume']
+            sl = order_params['stop_loss']
+            tp = order_params['take_profit']
+            
+            # Comentário com informações da estratégia
+            comment = (
+                f"{order_params['strategy']} - "
+                f"Conf: {order_params['confidence']:.1%}"
+            )
+            
+            # Executar ordem
+            result = self.mt5.place_order(
+                action=action,
+                volume=volume,
+                stop_loss=sl,
+                take_profit=tp,
+                comment=comment[:31]  # MT5 limite de 31 caracteres
+            )
+            
+            if result['success']:
+                logger.success(
+                    f"Ordem {action} executada: Ticket {result['ticket']} | "
+                    f"Volume: {volume} | SL: {sl} | TP: {tp}"
+                )
+                
+                # Notificar via Telegram
+                self.telegram.send_trade_signal(
+                    action=action,
+                    price=result.get('price', 0),
+                    volume=volume,
+                    stop_loss=sl,
+                    take_profit=tp,
+                    confidence=order_params['confidence'],
+                    strategy=order_params['strategy'],
+                    reason=order_params['reason']
+                )
+                
+                return True
+            else:
+                logger.error(f"Falha ao executar ordem: {result['error']}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Erro ao executar ordem: {e}")
+            return False
+    
+    def execute_cycle(self):
+        """Executa um ciclo completo de análise e geração de ordem"""
+        
+        logger.info("=" * 60)
+        logger.info(f"Iniciando ciclo - {datetime.now(timezone.utc)}")
+        
+        # Verificar se deve pular
+        should_skip, reason = self.should_skip_cycle()
+        if should_skip:
+            logger.info(f"Ciclo pulado: {reason}")
+            return
+        
+        # 1. Coletar análises
+        logger.info("Coletando análises técnicas e notícias...")
+        analysis_data = self.gather_analysis_data()
+        
+        if not analysis_data:
+            logger.warning("Falha ao coletar análises, pulando ciclo")
+            return
+        
+        # 2. Executar estratégias
+        logger.info("Executando estratégias...")
+        signal = self.execute_strategies(analysis_data)
+        
+        if not signal or signal.get('action') == 'HOLD':
+            logger.info("Nenhum sinal de trading válido gerado")
+            return
+        
+        # 3. Validar com Risk Manager
+        logger.info("Validando com Risk Manager...")
+        order_params = self.validate_with_risk_manager(signal)
+        
+        if not order_params:
+            logger.info("Ordem rejeitada pelo Risk Manager")
+            return
+        
+        # 4. Executar ordem
+        logger.info(
+            f"Executando ordem {order_params['action']} "
+            f"(volume: {order_params['volume']})..."
+        )
+        success = self.place_order(order_params)
+        
+        if success:
+            logger.success("Ciclo concluído com sucesso - Ordem executada")
+        else:
+            logger.error("Ciclo concluído - Falha ao executar ordem")
+        
+        self.last_execution = datetime.now(timezone.utc)
+    
+    def start(self):
+        """Inicia loop de execução"""
+        
+        if self.running:
+            logger.warning("OrderGenerator já está executando")
+            return
+        
+        logger.info("Iniciando OrderGenerator...")
+        self.running = True
+        
+        try:
+            while self.running:
+                try:
+                    self.execute_cycle()
+                except Exception as e:
+                    logger.error(f"Erro no ciclo: {e}")
+                
+                # Aguardar próximo ciclo
+                logger.info(f"Aguardando {self.cycle_interval}s...")
+                time.sleep(self.cycle_interval)
+                
+        except KeyboardInterrupt:
+            logger.info("Interrupção pelo usuário")
+        finally:
+            self.stop()
+    
+    def stop(self):
+        """Para execução"""
+        logger.info("Parando OrderGenerator...")
+        self.running = False
+        
+        # Desconectar MT5
+        if self.mt5.is_connected():
+            self.mt5.disconnect()
+        
+        logger.info("OrderGenerator parado")
+
+
+if __name__ == "__main__":
+    # Executar Order Generator
+    generator = OrderGenerator()
+    generator.start()

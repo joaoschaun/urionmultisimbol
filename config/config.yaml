@@ -72,6 +72,9 @@ strategies:
   trend_following:
     enabled: true
     timeframe: H1
+    cycle_seconds: 900  # 15 minutos
+    max_positions: 2
+    min_confidence: 0.65
     ema_fast: 12
     ema_slow: 26
     adx_threshold: 25
@@ -80,6 +83,9 @@ strategies:
   mean_reversion:
     enabled: true
     timeframe: M15
+    cycle_seconds: 600  # 10 minutos
+    max_positions: 2
+    min_confidence: 0.70
     bollinger_period: 20
     bollinger_std: 2
     rsi_period: 14
@@ -89,12 +95,18 @@ strategies:
   breakout:
     enabled: true
     timeframe: M30
+    cycle_seconds: 1800  # 30 minutos
+    max_positions: 2
+    min_confidence: 0.75
     support_resistance_lookback: 50
     breakout_confirmation_candles: 2
     volume_threshold: 1.5
   
   news_trading:
     enabled: true
+    cycle_seconds: 300  # 5 minutos
+    max_positions: 2
+    min_confidence: 0.80
     high_impact_only: true
     min_sentiment_confidence: 0.7
     trade_on_prediction: true
@@ -102,6 +114,9 @@ strategies:
   scalping:
     enabled: true
     timeframe: M5
+    cycle_seconds: 60  # 1 minuto (rápido!)
+    max_positions: 2
+    min_confidence: 0.60
     max_spread_pips: 3
     min_momentum: 0.0002
     rsi_min: 40
