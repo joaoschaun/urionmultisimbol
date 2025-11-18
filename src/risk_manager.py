@@ -40,12 +40,10 @@ class RiskManager:
         
         # Trading configuration
         self.trading_config = config.get('trading', {})
-        self.max_daily_trades = self.trading_config.get('max_daily_trades', 10)
         self.max_open_positions = self.trading_config.get('max_open_positions', 3)
         self.symbol = self.trading_config.get('symbol', 'XAUUSD')
         
         # Tracking
-        self.daily_trades = 0
         self.daily_profit = 0.0
         self.last_reset_date = datetime.now().date()
         self.peak_balance = 0.0
@@ -54,13 +52,13 @@ class RiskManager:
         logger.info(f"Max risk per trade: {self.max_risk_per_trade * 100}%")
         logger.info(f"Max drawdown: {self.max_drawdown * 100}%")
         logger.info(f"Max daily loss: {self.max_daily_loss * 100}%")
+        logger.info(f"Max simultaneous positions: {self.max_open_positions}")
     
     def reset_daily_stats(self):
         """Reset daily statistics"""
         today = datetime.now().date()
         if today > self.last_reset_date:
             logger.info("Resetting daily statistics")
-            self.daily_trades = 0
             self.daily_profit = 0.0
             self.last_reset_date = today
     
@@ -259,14 +257,7 @@ class RiskManager:
         """
         self.reset_daily_stats()
         
-        # Check daily trade limit
-        if self.daily_trades >= self.max_daily_trades:
-            return {
-                'allowed': False,
-                'reason': f'Daily trade limit reached ({self.max_daily_trades})'
-            }
-        
-        # Check max open positions
+        # Check max open positions (CRITICAL - Always enforced)
         open_positions = self.mt5.get_open_positions(symbol)
         if len(open_positions) >= self.max_open_positions:
             return {
@@ -356,13 +347,11 @@ class RiskManager:
             profit: Trade profit/loss
         """
         self.reset_daily_stats()
-        self.daily_trades += 1
         self.daily_profit += profit
         
         logger.info(
             f"Trade registered: Profit=${profit:.2f}, "
-            f"Daily: {self.daily_trades}/{self.max_daily_trades} trades, "
-            f"P/L=${self.daily_profit:.2f}"
+            f"Daily P/L=${self.daily_profit:.2f}"
         )
     
     def get_risk_stats(self) -> Dict[str, Any]:
@@ -393,15 +382,17 @@ class RiskManager:
             'current_drawdown': current_drawdown,
             'current_drawdown_percent': current_drawdown * 100,
             'max_drawdown_percent': self.max_drawdown * 100,
-            'daily_trades': self.daily_trades,
-            'max_daily_trades': self.max_daily_trades,
             'daily_profit': self.daily_profit,
             'max_daily_loss': balance * self.max_daily_loss,
             'daily_loss_remaining': (balance * self.max_daily_loss) + self.daily_profit,
             'risk_per_trade_percent': self.max_risk_per_trade * 100,
-            'can_trade': self.daily_trades < self.max_daily_trades and \
-                        self.daily_profit > -(balance * self.max_daily_loss) and \
-                        current_drawdown < self.max_drawdown
+            'open_positions': len(self.mt5.get_open_positions(self.symbol)),
+            'max_open_positions': self.max_open_positions,
+            'can_trade': (
+                self.daily_profit > -(balance * self.max_daily_loss) and
+                current_drawdown < self.max_drawdown and
+                len(self.mt5.get_open_positions(self.symbol)) < self.max_open_positions
+            )
         }
     
     def calculate_trailing_stop(

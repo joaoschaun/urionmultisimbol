@@ -46,7 +46,7 @@ def main():
     print(f"Peak Balance: ${stats['peak_balance']:.2f}")
     print(f"Current Drawdown: {stats['current_drawdown_percent']:.2f}%")
     print(f"Max Drawdown: {stats['max_drawdown_percent']:.2f}%")
-    print(f"\nDaily Trades: {stats['daily_trades']}/{stats['max_daily_trades']}")
+    print(f"\nOpen Positions: {stats['open_positions']}/{stats['max_open_positions']}")
     print(f"Daily P/L: ${stats['daily_profit']:.2f}")
     print(f"Max Daily Loss: ${stats['max_daily_loss']:.2f}")
     print(f"Daily Loss Remaining: ${stats['daily_loss_remaining']:.2f}")
@@ -139,7 +139,8 @@ def main():
    Max Risk per Trade: {stats['risk_per_trade_percent']:.1f}%
    Max Daily Loss: {stats['max_daily_loss'] / stats['balance'] * 100:.1f}%
    Max Drawdown: {stats['max_drawdown_percent']:.1f}%
-   Daily Trades Limit: {stats['max_daily_trades']}
+   Max Simultaneous Positions: {stats['max_open_positions']}
+   Current Open Positions: {stats['open_positions']}
    
 ✅ VALIDATION: {'APPROVED' if validation['allowed'] else 'REJECTED'}
    Reason: {validation['reason']}

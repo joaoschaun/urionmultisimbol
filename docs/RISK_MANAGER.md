@@ -118,8 +118,7 @@ risk:
   break_even_trigger: 15         # Trigger em pips
 
 trading:
-  max_daily_trades: 10
-  max_open_positions: 3
+  max_open_positions: 3  # CRÍTICO: Limite de posições simultâneas
   spread_threshold: 30
 ```
 
@@ -153,8 +152,9 @@ if validation['allowed']:
 
 ## Proteções Implementadas
 
-### 1. Limite de Trades Diários
-Impede overtrading limitando número de operações por dia.
+### 1. Posições Simultâneas (CRÍTICO)
+**Sempre ativo** - Limita número de posições abertas simultaneamente (padrão: 3).
+Esta é a proteção mais importante para evitar overexposure.
 
 ### 2. Perda Diária Máxima
 Para de operar se perda diária atingir limite (padrão 5%).

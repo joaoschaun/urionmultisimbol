@@ -22,7 +22,6 @@ def mock_config():
         },
         'trading': {
             'symbol': 'XAUUSD',
-            'max_daily_trades': 10,
             'max_open_positions': 3,
             'max_lot_size': 1.0,
             'spread_threshold': 30
@@ -75,7 +74,6 @@ def test_risk_manager_initialization(risk_manager):
     assert risk_manager.max_risk_per_trade == 0.02
     assert risk_manager.max_drawdown == 0.15
     assert risk_manager.max_daily_loss == 0.05
-    assert risk_manager.daily_trades == 0
     assert risk_manager.daily_profit == 0.0
 
 
@@ -146,20 +144,6 @@ def test_can_open_position_allowed(risk_manager):
     assert 'passed' in result['reason'].lower()
 
 
-def test_can_open_position_daily_limit(risk_manager):
-    """Test position validation - daily limit reached"""
-    risk_manager.daily_trades = 10
-    
-    result = risk_manager.can_open_position(
-        symbol='XAUUSD',
-        order_type='BUY',
-        lot_size=0.01
-    )
-    
-    assert result['allowed'] is False
-    assert 'daily trade limit' in result['reason'].lower()
-
-
 def test_can_open_position_max_positions(risk_manager, mock_mt5):
     """Test position validation - max positions reached"""
     # Mock 3 open positions
@@ -181,12 +165,10 @@ def test_register_trade(risk_manager):
     """Test trade registration"""
     risk_manager.register_trade(profit=100.0)
     
-    assert risk_manager.daily_trades == 1
     assert risk_manager.daily_profit == 100.0
     
     risk_manager.register_trade(profit=-50.0)
     
-    assert risk_manager.daily_trades == 2
     assert risk_manager.daily_profit == 50.0
 
 
@@ -197,7 +179,8 @@ def test_get_risk_stats(risk_manager):
     assert 'balance' in stats
     assert 'equity' in stats
     assert 'current_drawdown' in stats
-    assert 'daily_trades' in stats
+    assert 'open_positions' in stats
+    assert 'max_open_positions' in stats
     assert 'can_trade' in stats
     assert stats['can_trade'] is True
 
