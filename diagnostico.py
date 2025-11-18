@@ -149,30 +149,31 @@ def main():
         
         logger.info(f"   Estratégias carregadas: {len(strategy_manager.strategies)}")
         
-        for strategy in strategy_manager.strategies:
-            logger.info(f"   • {strategy.name}: Ativa = {strategy.enabled}")
+        # Iterar sobre os valores (objetos) do dicionário
+        for name, strategy in strategy_manager.strategies.items():
+            logger.info(f"   • {name}: Ativa = {strategy.is_enabled()}")
         
-        # Testar geração de sinal
-        market_data = {
-            'symbol': 'XAUUSD',
-            'timeframe': 'M15',
-            'technical': analysis if analysis else {},
-            'news': {'impact': 'low'}
-        }
-        
-        signal = strategy_manager.generate_signal(market_data)
-        
-        if signal:
-            logger.success(f"✅ Sinal gerado: {signal.get('type')} com confiança {signal.get('confidence', 0):.1%}")
+        # Testar geração de sinal com análise técnica
+        if analysis:
+            signals = strategy_manager.analyze_all(analysis)
+            
+            if signals:
+                logger.success(f"✅ {len(signals)} sinais gerados!")
+                for sig in signals:
+                    logger.info(f"   • {sig.get('strategy')}: {sig.get('action')} (confiança: {sig.get('confidence', 0):.1%})")
+            else:
+                logger.warning("⚠️ Nenhum sinal gerado pelas estratégias")
+                logger.warning("   Possíveis razões:")
+                logger.warning("   - Condições de mercado não favoráveis")
+                logger.warning("   - Nenhuma estratégia teve sinal forte o suficiente")
+                logger.warning("   - Filtros de qualidade bloquearam sinais fracos")
         else:
-            logger.warning("⚠️ Nenhum sinal gerado pelas estratégias")
-            logger.warning("   Possíveis razões:")
-            logger.warning("   - Condições de mercado não favoráveis")
-            logger.warning("   - Nenhuma estratégia teve sinal forte o suficiente")
-            logger.warning("   - Filtros de qualidade bloquearam sinais fracos")
+            logger.warning("⚠️ Análise técnica falhou - não foi possível testar estratégias")
             
     except Exception as e:
         logger.error(f"❌ Erro ao testar estratégias: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
     
     # 8. Resumo
     logger.info("\n" + "="*70)

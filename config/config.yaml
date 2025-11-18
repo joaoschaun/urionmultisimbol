@@ -202,10 +202,10 @@ order_generator:
   min_signal_confidence: 0.6
   require_consensus: true  # Usar consenso de estratégias
   trading_hours:
-    start_hour: 18
-    start_minute: 30
-    end_hour: 16
-    end_minute: 30
+    start_hour: 0
+    start_minute: 0
+    end_hour: 23
+    end_minute: 59
 
 # Order Manager
 order_manager:
