@@ -245,14 +245,19 @@ class StrategyExecutor:
         """Calcula parâmetros da ordem"""
         try:
             action = signal.get('action')
-            
-            # Calcular volume
-            volume = self.risk_manager.calculate_position_size()
-            if volume <= 0:
-                return None
+            entry_price = signal.get('price')
             
             # Calcular SL/TP
             sl, tp = self.risk_manager.calculate_sl_tp(action)
+            
+            # Calcular volume (precisa de symbol, entry_price, stop_loss)
+            volume = self.risk_manager.calculate_position_size(
+                symbol=self.symbol,
+                entry_price=entry_price,
+                stop_loss=sl
+            )
+            if volume <= 0:
+                return None
             
             return {
                 'action': action,
