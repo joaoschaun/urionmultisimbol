@@ -195,10 +195,21 @@ class StrategyExecutor:
             # 6. Validar com Risk Manager
             action = signal.get('action')
             volume = order_params.get('volume')
-            if not self.risk_manager.can_open_position(action, volume):
+            
+            logger.debug(
+                f"[{self.strategy_name}] "
+                f"Validando: symbol={self.symbol}, action={action}, volume={volume}"
+            )
+            
+            risk_check = self.risk_manager.can_open_position(
+                symbol=self.symbol,
+                order_type=action,
+                lot_size=volume
+            )
+            if not risk_check.get('allowed', False):
                 logger.warning(
                     f"[{self.strategy_name}] "
-                    f"Risk Manager rejeitou {action}"
+                    f"Risk Manager rejeitou: {risk_check.get('reason')}"
                 )
                 return
             
