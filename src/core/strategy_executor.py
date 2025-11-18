@@ -247,8 +247,16 @@ class StrategyExecutor:
             action = signal.get('action')
             entry_price = signal.get('price')
             
-            # Calcular SL/TP
-            sl, tp = self.risk_manager.calculate_sl_tp(action)
+            # SL/TP vêm do sinal da estratégia
+            sl = signal.get('sl')
+            tp = signal.get('tp')
+            
+            if not sl or not tp:
+                logger.warning(
+                    f"[{self.strategy_name}] "
+                    f"Sinal sem SL/TP válidos"
+                )
+                return None
             
             # Calcular volume (precisa de symbol, entry_price, stop_loss)
             volume = self.risk_manager.calculate_position_size(
