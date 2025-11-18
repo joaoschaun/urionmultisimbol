@@ -296,7 +296,8 @@ class MT5Connector:
         return self.get_open_positions(symbol)
     
     def place_order(self, symbol: str, order_type: str, volume: float, 
-                   sl: float = 0, tp: float = 0, comment: str = "") -> Optional[Dict]:
+                   sl: float = 0, tp: float = 0, comment: str = "", 
+                   magic: int = 123456) -> Optional[Dict]:
         """
         Place a market order
         
@@ -307,6 +308,7 @@ class MT5Connector:
             sl: Stop loss price
             tp: Take profit price
             comment: Order comment
+            magic: Magic number for identifying orders
             
         Returns:
             Dictionary with order result or None
@@ -338,7 +340,7 @@ class MT5Connector:
                 "sl": sl,
                 "tp": tp,
                 "deviation": self.config.get('trading', {}).get('slippage', 10),
-                "magic": 123456,  # Magic number for identifying bot orders
+                "magic": magic,  # Magic number from parameter
                 "comment": comment,
                 "type_time": mt5.ORDER_TIME_GTC,
                 "type_filling": mt5.ORDER_FILLING_IOC,

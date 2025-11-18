@@ -319,12 +319,13 @@ class StrategyExecutor:
             
             # Executar ordem
             result = self.mt5.place_order(
-                action=action,
+                symbol=self.symbol,
+                order_type=action,
                 volume=volume,
                 sl=sl,
                 tp=tp,
-                magic=magic,
-                comment=comment
+                comment=comment,
+                magic=magic
             )
             
             if result:
