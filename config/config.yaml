@@ -195,28 +195,26 @@ news:
       - Consumer Confidence
       - Housing Data
 
-# Order Management
-order_management:
-  order_generator:
-    cycle_interval: 300  # 5 minutos
-    min_signal_strength: 0.7
-    require_multiple_confirmations: true
-    confirmations_required: 3
-  
-  order_monitor:
-    check_interval: 60  # 1 minuto
-    partial_close_enabled: true
-    partial_close_percentage: 0.5
-    partial_close_trigger: 0.6  # 60% do TP
-    scale_out_levels: [0.5, 0.75]
-    
-    # Profit Protection
-    protect_profit_after_pips: 20
-    move_sl_to_break_even: true
-    
-    # Loss Reduction
-    reduce_loss_threshold: 0.7  # 70% do SL
-    reduce_loss_action: partial_close
+# Order Generator
+order_generator:
+  enabled: true
+  cycle_interval_seconds: 300  # 5 minutos
+  min_signal_confidence: 0.6
+  require_consensus: true  # Usar consenso de estratégias
+  trading_hours:
+    start_hour: 18
+    start_minute: 30
+    end_hour: 16
+    end_minute: 30
+
+# Order Manager
+order_manager:
+  enabled: true
+  cycle_interval_seconds: 60  # 1 minuto
+  partial_close:
+    enabled: true
+    target_pips: 30  # Fechar parcial quando atingir 30 pips
+    close_percentage: 0.5  # Fechar 50% da posição
 
 # Notifications
 notifications:
