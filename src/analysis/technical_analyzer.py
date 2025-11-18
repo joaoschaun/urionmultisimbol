@@ -304,9 +304,11 @@ class TechnicalAnalyzer:
         
         # Padrão: Morning Star (Estrela da Manhã) - 3 candles
         if prev2 is not None:
+            prev2_body = abs(prev2['Close'] - prev2['Open'])
+            
             patterns['morning_star'] = (
                 prev2['Close'] < prev2['Open'] and  # 1ª candle: baixa
-                prev_body < (prev2_body := abs(prev2['Close'] - prev2['Open'])) * 0.3 and  # 2ª: corpo pequeno
+                prev_body < prev2_body * 0.3 and  # 2ª: corpo pequeno
                 last['Close'] > last['Open'] and  # 3ª: alta
                 last['Close'] > (prev2['Open'] + prev2['Close']) / 2  # Fecha acima da metade da 1ª
             )
