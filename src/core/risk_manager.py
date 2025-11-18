@@ -102,37 +102,20 @@ class RiskManager:
                 logger.error(f"Failed to get symbol info for {symbol}")
                 return 0.0
             
-            contract_size = symbol_info['trade_contract_size']
-            point = symbol_info['point']
+            # Use default lot size from config (FIXED LOT SIZE)
+            default_lot = self.trading_config.get('default_lot_size', 0.01)
+            lot_size = default_lot
             
-            # Calculate pip value
-            sl_distance = abs(entry_price - stop_loss)
-            sl_distance_points = sl_distance / point
-            
-            # Calculate lot size
-            tick_value = contract_size * point
-            lot_size = risk_amount / (sl_distance_points * tick_value)
-            
-            # Round to valid lot size
-            volume_step = symbol_info['volume_step']
-            lot_size = round(lot_size / volume_step) * volume_step
-            
-            # Enforce min/max limits
+            # Validate against symbol limits
             lot_size = max(symbol_info['volume_min'], lot_size)
             lot_size = min(symbol_info['volume_max'], lot_size)
-            
-            # Use default lot size from config if available
-            default_lot = self.trading_config.get('default_lot_size', 0.01)
-            if lot_size < default_lot:
-                lot_size = default_lot
             
             # Additional safety limit from config
             max_lot = self.trading_config.get('max_lot_size', 1.0)
             lot_size = min(lot_size, max_lot)
             
             logger.info(
-                f"Position size calculated: {lot_size} lots "
-                f"(Risk: ${risk_amount:.2f}, SL distance: {sl_distance:.5f})"
+                f"Position size: {lot_size} lots (FIXED LOT from config)"
             )
             
             return lot_size

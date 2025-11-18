@@ -148,9 +148,8 @@ class OrderManager:
         
         # Usar Risk Manager para calcular
         new_sl = self.risk_manager.calculate_trailing_stop(
-            position['type'],
-            position['price_current'],
-            position['sl']
+            position,
+            position['price_current']
         )
         
         return new_sl
@@ -221,7 +220,7 @@ class OrderManager:
         try:
             result = self.mt5.modify_position(ticket, new_sl, new_tp)
             
-            if result['success']:
+            if result:
                 logger.success(
                     f"Posição {ticket} modificada | "
                     f"Novo SL: {new_sl}" +
@@ -230,7 +229,7 @@ class OrderManager:
                 return True
             else:
                 logger.error(
-                    f"Falha ao modificar posição {ticket}: {result['error']}"
+                    f"Falha ao modificar posição {ticket}"
                 )
                 return False
                 
@@ -251,20 +250,14 @@ class OrderManager:
             True se fechado com sucesso
         """
         try:
-            if volume:
-                result = self.mt5.close_position_partial(ticket, volume)
-                action = f"parcial ({volume} lotes)"
-            else:
-                result = self.mt5.close_position(ticket)
-                action = "total"
+            # Fechamento total apenas (parcial não implementado)
+            result = self.mt5.close_position(ticket)
             
-            if result['success']:
-                logger.success(f"Posição {ticket} fechada ({action})")
+            if result:
+                logger.success(f"Posição {ticket} fechada")
                 return True
             else:
-                logger.error(
-                    f"Falha ao fechar posição {ticket}: {result['error']}"
-                )
+                logger.error(f"Falha ao fechar posição {ticket}")
                 return False
                 
         except Exception as e:
