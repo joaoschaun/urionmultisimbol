@@ -14,6 +14,7 @@ from core.config_manager import ConfigManager
 from core.risk_manager import RiskManager
 from analysis.technical_analyzer import TechnicalAnalyzer
 from notifications.telegram_bot import TelegramNotifier
+from database.strategy_stats import StrategyStatsDB
 
 
 class OrderManager:
@@ -41,6 +42,7 @@ class OrderManager:
         self.risk_manager = RiskManager(self.config, self.mt5)
         self.technical_analyzer = TechnicalAnalyzer(self.mt5, self.config)
         self.telegram = TelegramNotifier(self.config)
+        self.stats_db = StrategyStatsDB()
         
         # Estado
         self.running = False

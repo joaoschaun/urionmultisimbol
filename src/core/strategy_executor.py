@@ -14,6 +14,7 @@ from core.config_manager import ConfigManager
 from core.risk_manager import RiskManager
 from analysis.technical_analyzer import TechnicalAnalyzer
 from analysis.news_analyzer import NewsAnalyzer
+from database.strategy_stats import StrategyStatsDB
 
 
 class StrategyExecutor:
@@ -46,6 +47,9 @@ class StrategyExecutor:
         self.risk_manager = risk_manager
         self.technical_analyzer = technical_analyzer
         self.news_analyzer = news_analyzer
+        
+        # Database para tracking
+        self.stats_db = StrategyStatsDB()
         
         # Símbolo de trading
         self.symbol = config.get('trading', {}).get('symbol', 'XAUUSD')
@@ -334,6 +338,25 @@ class StrategyExecutor:
                     f"[{self.strategy_name}] "
                     f"✅ Ordem executada! Ticket: {ticket}"
                 )
+                
+                # Salvar no banco de dados para tracking
+                try:
+                    self.stats_db.save_trade({
+                        'strategy_name': self.strategy_name,
+                        'ticket': ticket,
+                        'symbol': self.symbol,
+                        'type': action,
+                        'volume': volume,
+                        'open_price': signal['price'],
+                        'sl': sl,
+                        'tp': tp,
+                        'open_time': datetime.now(),
+                        'signal_confidence': signal.get('confidence', 0) * 100,
+                        'market_conditions': str(signal.get('details', {}))
+                    })
+                    logger.debug(f"[{self.strategy_name}] Trade salvo no database")
+                except Exception as db_error:
+                    logger.error(f"[{self.strategy_name}] Erro ao salvar trade: {db_error}")
             else:
                 logger.error(
                     f"[{self.strategy_name}] "
