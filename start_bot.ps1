@@ -20,12 +20,14 @@ function Show-Menu {
     Write-Host "2. " -NoNewline -ForegroundColor White
     Write-Host "Executar Bot" -ForegroundColor Green
     Write-Host "3. " -NoNewline -ForegroundColor White
-    Write-Host "Ver Logs (Tempo Real)" -ForegroundColor Green
+    Write-Host "Monitor em Tempo Real" -ForegroundColor Cyan
     Write-Host "4. " -NoNewline -ForegroundColor White
-    Write-Host "Editar Configuracoes" -ForegroundColor Green
+    Write-Host "Ver Logs (Tempo Real)" -ForegroundColor Green
     Write-Host "5. " -NoNewline -ForegroundColor White
-    Write-Host "Editar Credenciais (.env)" -ForegroundColor Green
+    Write-Host "Editar Configuracoes" -ForegroundColor Green
     Write-Host "6. " -NoNewline -ForegroundColor White
+    Write-Host "Editar Credenciais (.env)" -ForegroundColor Green
+    Write-Host "7. " -NoNewline -ForegroundColor White
     Write-Host "Sair" -ForegroundColor Red
     Write-Host ""
 }
@@ -190,6 +192,31 @@ function Invoke-RunBot {
     pause
 }
 
+function Invoke-Monitor {
+    Clear-Host
+    Show-Header
+    Write-Host "MONITOR EM TEMPO REAL" -ForegroundColor Cyan
+    Write-Host "============================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "[INFO] " -ForegroundColor Cyan -NoNewline
+    Write-Host "Monitor iniciando..."
+    Write-Host "[INFO] " -ForegroundColor Cyan -NoNewline
+    Write-Host "Pressione Ctrl+C para voltar ao menu"
+    Write-Host ""
+    
+    try {
+        python monitor.py
+    }
+    catch {
+        Write-Host ""
+        Write-Host "[ERRO] " -ForegroundColor Red -NoNewline
+        Write-Host "Erro ao executar monitor: $_"
+    }
+    
+    Write-Host ""
+    pause
+}
+
 function Show-Logs {
     Clear-Host
     Show-Header
@@ -293,15 +320,16 @@ pause
 # Loop do menu
 while ($true) {
     Show-Menu
-    $choice = Read-Host "Escolha uma opcao (1-6)"
+    $choice = Read-Host "Escolha uma opcao (1-7)"
     
     switch ($choice) {
         "1" { Invoke-VerifySetup }
         "2" { Invoke-RunBot }
-        "3" { Show-Logs }
-        "4" { Edit-Config }
-        "5" { Edit-Env }
-        "6" {
+        "3" { Invoke-Monitor }
+        "4" { Show-Logs }
+        "5" { Edit-Config }
+        "6" { Edit-Env }
+        "7" {
             Clear-Host
             Show-Header
             Write-Host "ENCERRANDO" -ForegroundColor Cyan
