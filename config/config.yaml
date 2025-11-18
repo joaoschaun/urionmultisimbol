@@ -1,0 +1,280 @@
+# Urion Trading Bot Configuration
+
+# MetaTrader 5
+mt5:
+  login: ${MT5_LOGIN}
+  password: ${MT5_PASSWORD}
+  server: ${MT5_SERVER}
+  path: ${MT5_PATH}
+  timeout: 60000
+  max_reconnect_attempts: 5
+
+# Trading Parameters
+trading:
+  symbol: XAUUSD
+  timeframes:
+    - M1
+    - M5
+    - M15
+    - M30
+    - H1
+    - H4
+    - D1
+  default_lot_size: 0.01
+  min_lot_size: 0.01
+  max_lot_size: 1.0
+  max_daily_trades: 10
+  max_open_positions: 3
+  spread_threshold: 30
+  slippage: 10
+
+# Risk Management
+risk:
+  max_risk_per_trade: 0.02  # 2% do capital
+  max_drawdown: 0.15  # 15%
+  max_daily_loss: 0.05  # 5%
+  stop_loss_pips: 20
+  take_profit_pips: 40
+  trailing_stop_enabled: true
+  trailing_stop_distance: 15
+  break_even_enabled: true
+  break_even_trigger: 15
+
+# Trading Schedule
+schedule:
+  timezone: UTC
+  trading_days: [0, 1, 2, 3, 4]  # Segunda a Sexta
+  market_open:
+    hour: 18
+    minute: 30
+  market_close:
+    hour: 16
+    minute: 30
+  weekend_close:
+    day: 5  # Sexta
+    hour: 16
+    minute: 30
+  weekend_open:
+    day: 0  # Domingo
+    hour: 18
+    minute: 30
+  avoid_news_minutes_before: 15
+  avoid_news_minutes_after: 15
+
+# Strategy Configuration
+strategies:
+  enabled:
+    - trend_following
+    - mean_reversion
+    - breakout
+    - news_trading
+  
+  trend_following:
+    enabled: true
+    timeframe: H1
+    ema_fast: 12
+    ema_slow: 26
+    adx_threshold: 25
+    min_trend_strength: 0.6
+  
+  mean_reversion:
+    enabled: true
+    timeframe: M15
+    bollinger_period: 20
+    bollinger_std: 2
+    rsi_period: 14
+    rsi_overbought: 70
+    rsi_oversold: 30
+  
+  breakout:
+    enabled: true
+    timeframe: M30
+    support_resistance_lookback: 50
+    breakout_confirmation_candles: 2
+    volume_threshold: 1.5
+  
+  news_trading:
+    enabled: true
+    high_impact_only: true
+    min_sentiment_confidence: 0.7
+    trade_on_prediction: true
+
+# Technical Analysis
+technical_analysis:
+  indicators:
+    # Trend Indicators
+    - name: EMA
+      periods: [9, 21, 50, 200]
+    - name: SMA
+      periods: [20, 50, 100, 200]
+    - name: MACD
+      fast: 12
+      slow: 26
+      signal: 9
+    - name: ADX
+      period: 14
+    
+    # Momentum Indicators
+    - name: RSI
+      period: 14
+    - name: Stochastic
+      k_period: 14
+      d_period: 3
+    - name: CCI
+      period: 20
+    
+    # Volatility Indicators
+    - name: Bollinger Bands
+      period: 20
+      std: 2
+    - name: ATR
+      period: 14
+    - name: Keltner Channel
+      period: 20
+      multiplier: 2
+    
+    # Volume Indicators
+    - name: Volume
+    - name: OBV
+    - name: MFI
+      period: 14
+  
+  patterns:
+    - Doji
+    - Hammer
+    - Shooting Star
+    - Engulfing
+    - Morning Star
+    - Evening Star
+    - Three White Soldiers
+    - Three Black Crows
+
+# Machine Learning
+ml:
+  enabled: true
+  model_type: ensemble  # ensemble, lstm, xgboost
+  retrain_frequency: daily
+  min_training_samples: 1000
+  features:
+    - price_change
+    - volume_change
+    - rsi
+    - macd
+    - bollinger_position
+    - atr
+    - time_of_day
+    - day_of_week
+    - news_sentiment
+  target: profitable_trade
+  validation_split: 0.2
+  test_split: 0.1
+
+# News Analysis
+news:
+  sources:
+    - forexnews
+    - finazon
+    - financialmodelingprep
+  
+  sentiment_analysis:
+    enabled: true
+    model: transformer  # transformer, vader, textblob
+    confidence_threshold: 0.7
+  
+  impact_levels:
+    high:
+      - NFP
+      - FOMC
+      - CPI
+      - GDP
+      - Interest Rate Decision
+    medium:
+      - Unemployment
+      - Retail Sales
+      - Manufacturing PMI
+    low:
+      - Consumer Confidence
+      - Housing Data
+
+# Order Management
+order_management:
+  order_generator:
+    cycle_interval: 300  # 5 minutos
+    min_signal_strength: 0.7
+    require_multiple_confirmations: true
+    confirmations_required: 3
+  
+  order_monitor:
+    check_interval: 60  # 1 minuto
+    partial_close_enabled: true
+    partial_close_percentage: 0.5
+    partial_close_trigger: 0.6  # 60% do TP
+    scale_out_levels: [0.5, 0.75]
+    
+    # Profit Protection
+    protect_profit_after_pips: 20
+    move_sl_to_break_even: true
+    
+    # Loss Reduction
+    reduce_loss_threshold: 0.7  # 70% do SL
+    reduce_loss_action: partial_close
+
+# Notifications
+notifications:
+  telegram:
+    enabled: true
+    send_trade_signals: true
+    send_trade_executions: true
+    send_trade_closures: true
+    send_daily_summary: true
+    send_errors: true
+    send_warnings: true
+  
+  email:
+    enabled: false
+    smtp_server: smtp.gmail.com
+    smtp_port: 587
+    from_email: ""
+    to_email: ""
+
+# Logging
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    - console
+    - file
+    - rotating_file
+  file_path: logs/urion.log
+  max_file_size: 10485760  # 10MB
+  backup_count: 10
+
+# Database
+database:
+  url: ${DATABASE_URL}
+  pool_size: 10
+  max_overflow: 20
+  echo: false
+
+# Redis
+redis:
+  url: ${REDIS_URL}
+  decode_responses: true
+  max_connections: 50
+
+# Monitoring
+monitoring:
+  prometheus_enabled: false
+  prometheus_port: 9090
+  sentry_enabled: false
+  sentry_dsn: ${SENTRY_DSN}
+  
+  metrics:
+    - total_trades
+    - winning_trades
+    - losing_trades
+    - win_rate
+    - profit_factor
+    - sharpe_ratio
+    - max_drawdown
+    - average_trade_duration
