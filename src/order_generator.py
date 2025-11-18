@@ -45,6 +45,9 @@ class OrderGenerator:
         self.end_hour = self.trading_hours.get('end_hour', 16)
         self.end_minute = self.trading_hours.get('end_minute', 30)
         
+        # Bloqueio de notícias
+        self.avoid_news_minutes = self.trading_hours.get('avoid_news_minutes_before', 15)
+        
         # Inicializar componentes
         self.mt5 = MT5Connector(self.config)
         self.risk_manager = RiskManager(self.config, self.mt5)
@@ -107,7 +110,7 @@ class OrderGenerator:
                 return True, "MT5 desconectado"
         
         # Verificar se há janela de bloqueio de notícias
-        if self.news_analyzer.is_news_blocking_window():
+        if self.news_analyzer.is_news_blocking_window(self.avoid_news_minutes):
             return True, "Janela de bloqueio de notícias ativa"
         
         return False, ""

@@ -57,8 +57,8 @@ schedule:
     day: 0  # Domingo
     hour: 18
     minute: 30
-  avoid_news_minutes_before: 15
-  avoid_news_minutes_after: 15
+  avoid_news_minutes_before: 0  # Desativado para teste
+  avoid_news_minutes_after: 0   # Desativado para teste
 
 # Strategy Configuration
 strategies:
@@ -178,7 +178,7 @@ news:
   sentiment_analysis:
     enabled: true
     model: transformer  # transformer, vader, textblob
-    confidence_threshold: 0.7
+    confidence_threshold: 0.60  # Reduzido de 0.7 para 0.60 (60%)
   
   impact_levels:
     high:

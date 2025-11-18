@@ -431,6 +431,10 @@ class NewsAnalyzer:
         Returns:
             (is_blocking, event_info)
         """
+        # Se buffer é 0, não bloquear
+        if buffer_minutes == 0:
+            return False, None
+            
         events = self.fetch_economic_calendar(days=1)
         
         if not events:
