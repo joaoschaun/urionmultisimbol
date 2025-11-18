@@ -213,6 +213,13 @@ ml:
 
 # News Analysis
 news:
+  # API Keys
+  forexnews_api_key: u2lyge5a8ehgtlikrv4owyqsitphrcxqu6afzuja
+  finazon_api_key: 830c05bb65994f99ae39629a0e9f8edffw
+  fmp_api_key: ZvAVZ4inPZ4mtTnJ4cuLSQYYSrLQcfkr
+  twelvedata_api_key: a0f59fab7a354ce080c93b0b019e5e61
+  finnhub_api_key: d4567p9r01qsugt8srl0d4567p9r01qsugt8srlg
+  
   sources:
     - forexnews
     - finazon
