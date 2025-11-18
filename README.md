@@ -27,7 +27,24 @@ Sistema de Trading Automatizado de Nível Institucional para MetaTrader 5
 
 ## 🚀 Quick Start
 
-### 1️⃣ Instalação Rápida
+### 1️⃣ Método Mais Fácil (Windows) ⭐
+
+```bash
+# Simplesmente dê duplo clique em:
+start_bot.ps1   # Menu interativo PowerShell (RECOMENDADO)
+# ou
+start_bot.bat   # Menu interativo CMD
+# ou
+run_bot.bat     # Execução direta
+```
+
+O launcher faz TUDO automaticamente:
+- ✅ Cria ambiente virtual se necessário
+- ✅ Instala dependências
+- ✅ Verifica configurações
+- ✅ Oferece menu interativo
+
+### 2️⃣ Método Manual
 
 ```bash
 # Clone o repositório
