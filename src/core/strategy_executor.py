@@ -47,6 +47,9 @@ class StrategyExecutor:
         self.technical_analyzer = technical_analyzer
         self.news_analyzer = news_analyzer
         
+        # Símbolo de trading
+        self.symbol = config.get('trading', {}).get('symbol', 'XAUUSD')
+        
         # Configuração da estratégia
         strategy_config = config.get('strategies', {}).get(
             strategy_name, {}
