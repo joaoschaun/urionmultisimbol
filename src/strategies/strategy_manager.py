@@ -11,6 +11,7 @@ from .mean_reversion import MeanReversionStrategy
 from .breakout import BreakoutStrategy
 from .news_trading import NewsTradingStrategy
 from .scalping import ScalpingStrategy
+from .range_trading import RangeTradingStrategy
 
 
 class StrategyManager:
@@ -56,11 +57,17 @@ class StrategyManager:
                 self.strategies_config.get('news_trading', {})
             )
         
-        # Scalping
-        if self.strategies_config.get('scalping', {}).get('enabled', True):
-            self.strategies['scalping'] = ScalpingStrategy(
-                self.strategies_config.get('scalping', {})
-            )
+        # 5. Scalping
+        scalping_config = self.strategies_config.get('scalping', {})
+        if scalping_config.get('enabled', True):
+            self.strategies['scalping'] = ScalpingStrategy(scalping_config)
+            logger.debug("Estratégia Scalping carregada")
+        
+        # 6. Range Trading
+        range_config = self.strategies_config.get('range_trading', {})
+        if range_config.get('enabled', True):
+            self.strategies['range_trading'] = RangeTradingStrategy(range_config)
+            logger.debug("Estratégia RangeTrading carregada")
         
         logger.info(f"StrategyManager inicializado com {len(self.strategies)} estratégias")
     
