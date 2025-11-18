@@ -67,6 +67,7 @@ strategies:
     - mean_reversion
     - breakout
     - news_trading
+    - scalping
   
   trend_following:
     enabled: true
@@ -97,6 +98,17 @@ strategies:
     high_impact_only: true
     min_sentiment_confidence: 0.7
     trade_on_prediction: true
+  
+  scalping:
+    enabled: true
+    timeframe: M5
+    max_spread_pips: 3
+    min_momentum: 0.0002
+    rsi_min: 40
+    rsi_max: 60
+    target_pips: 8
+    stop_pips: 4
+    min_volume_ratio: 1.2
 
 # Technical Analysis
 technical_analysis:

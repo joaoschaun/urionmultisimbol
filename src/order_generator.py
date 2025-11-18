@@ -157,8 +157,8 @@ class OrderGenerator:
             technical = analysis_data.get('technical')
             news = analysis_data.get('news')
             
-            # Buscar consenso entre estratégias
-            signal = self.strategy_manager.get_consensus_signal(
+            # Buscar melhor sinal (estratégias independentes)
+            signal = self.strategy_manager.get_best_signal(
                 technical, news
             )
             

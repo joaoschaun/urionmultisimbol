@@ -10,6 +10,7 @@ from .trend_following import TrendFollowingStrategy
 from .mean_reversion import MeanReversionStrategy
 from .breakout import BreakoutStrategy
 from .news_trading import NewsTradingStrategy
+from .scalping import ScalpingStrategy
 
 
 class StrategyManager:
@@ -53,6 +54,12 @@ class StrategyManager:
         if self.strategies_config.get('news_trading', {}).get('enabled', True):
             self.strategies['news_trading'] = NewsTradingStrategy(
                 self.strategies_config.get('news_trading', {})
+            )
+        
+        # Scalping
+        if self.strategies_config.get('scalping', {}).get('enabled', True):
+            self.strategies['scalping'] = ScalpingStrategy(
+                self.strategies_config.get('scalping', {})
             )
         
         logger.info(f"StrategyManager inicializado com {len(self.strategies)} estratégias")
