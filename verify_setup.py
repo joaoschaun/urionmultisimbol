@@ -17,26 +17,26 @@ def check_dependencies():
     print("VERIFICANDO DEPENDÊNCIAS")
     print("="*60)
     
-    required_packages = [
-        'MetaTrader5',
-        'pandas',
-        'numpy',
-        'ta',
-        'loguru',
-        'python-telegram-bot',
-        'textblob',
-        'requests',
-        'yaml',
-    ]
+    packages_to_check = {
+        'MetaTrader5': 'MetaTrader5',
+        'pandas': 'pandas',
+        'numpy': 'numpy',
+        'ta': 'ta',
+        'loguru': 'loguru',
+        'python-telegram-bot': 'telegram',
+        'textblob': 'textblob',
+        'requests': 'requests',
+        'yaml': 'yaml',
+    }
     
     missing = []
-    for package in required_packages:
+    for display_name, import_name in packages_to_check.items():
         try:
-            __import__(package.replace('-', '_').lower())
-            print(f"✅ {package}")
+            __import__(import_name)
+            print(f"✅ {display_name}")
         except ImportError:
-            print(f"❌ {package} - FALTANDO")
-            missing.append(package)
+            print(f"❌ {display_name} - FALTANDO")
+            missing.append(display_name)
     
     if missing:
         print(f"\n⚠️  Instalar pacotes faltando:")
@@ -82,7 +82,7 @@ def check_mt5_connection():
         from core.config_manager import ConfigManager
         
         config = ConfigManager()
-        mt5 = MT5Connector()
+        mt5 = MT5Connector(config)
         
         if mt5.connect():
             print("✅ MT5 conectado!")
@@ -119,6 +119,7 @@ def check_telegram():
     try:
         from notifications.telegram_bot import TelegramNotifier
         from core.config_manager import ConfigManager
+        import asyncio
         
         config = ConfigManager()
         telegram = TelegramNotifier(config.get_all())
@@ -126,9 +127,9 @@ def check_telegram():
         if telegram.enabled:
             print("✅ Telegram configurado")
             
-            # Tentar enviar mensagem de teste
+            # Tentar enviar mensagem de teste (async)
             try:
-                telegram.send_message("🤖 Bot configurado e pronto!")
+                asyncio.run(telegram.send_message("🤖 Bot configurado e pronto!"))
                 print("✅ Mensagem de teste enviada!")
                 return True
             except Exception as e:

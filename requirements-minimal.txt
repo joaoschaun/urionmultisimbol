@@ -1,0 +1,41 @@
+# ============================================
+# URION TRADING BOT - DEPENDÊNCIAS MÍNIMAS
+# ============================================
+# Use este arquivo para instalação rápida
+# Para funcionalidades completas, use requirements.txt
+
+# Core - Essencial
+MetaTrader5==5.0.45
+python-dotenv==1.0.0
+pyyaml==6.0.1
+
+# Data Analysis - Essencial
+pandas==2.1.4
+numpy==1.26.2
+ta==0.11.0
+
+# APIs & Web - Essencial
+requests==2.31.0
+
+# Telegram - Essencial
+python-telegram-bot==20.7
+
+# Logging - Essencial
+loguru==0.7.2
+
+# Scheduling - Essencial
+APScheduler==3.10.4
+
+# Utils - Essencial
+python-dateutil==2.8.2
+pytz==2023.3
+
+# ============================================
+# OPCIONAL (instalar depois se necessário):
+# ============================================
+# NLP: pip install textblob nltk
+# ML: pip install scikit-learn xgboost lightgbm
+# Deep Learning: pip install tensorflow keras
+# Database: pip install sqlalchemy redis
+# Monitoring: pip install prometheus-client sentry-sdk
+# ============================================

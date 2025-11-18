@@ -12,10 +12,10 @@ from loguru import logger
 from core.mt5_connector import MT5Connector
 from core.config_manager import ConfigManager
 from core.risk_manager import RiskManager
-from technical.technical_analyzer import TechnicalAnalyzer
-from news.news_analyzer import NewsAnalyzer
+from analysis.technical_analyzer import TechnicalAnalyzer
+from analysis.news_analyzer import NewsAnalyzer
 from strategies.strategy_manager import StrategyManager
-from notifications.telegram_notifier import TelegramNotifier
+from notifications.telegram_bot import TelegramNotifier
 
 
 class OrderGenerator:
@@ -46,7 +46,7 @@ class OrderGenerator:
         self.end_minute = self.trading_hours.get('end_minute', 30)
         
         # Inicializar componentes
-        self.mt5 = MT5Connector()
+        self.mt5 = MT5Connector(self.config)
         self.risk_manager = RiskManager(self.config)
         self.technical_analyzer = TechnicalAnalyzer(self.config)
         self.news_analyzer = NewsAnalyzer(self.config)
