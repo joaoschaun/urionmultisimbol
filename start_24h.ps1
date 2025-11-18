@@ -51,13 +51,13 @@ Write-Host "Rodando em background (janela minimizada)"
 Write-Host "✅ Monitor 24h: " -NoNewline -ForegroundColor Green
 Write-Host "Atualizando a cada 30 segundos`n"
 
-Write-Host "⚙️  CONFIGURAÇÕES ATIVAS:" -ForegroundColor Cyan
-Write-Host "   • 5 Estratégias independentes" -ForegroundColor White
-Write-Host "   • Ciclos: 60s a 1800s" -ForegroundColor White
-Write-Host "   • Limite: 2 ordens por estratégia" -ForegroundColor White
-Write-Host "   • Risk: 2% por trade`n" -ForegroundColor White
+Write-Host "CONFIGURACOES ATIVAS:" -ForegroundColor Cyan
+Write-Host "   5 Estrategias independentes" -ForegroundColor White
+Write-Host "   Ciclos: 60s a 1800s" -ForegroundColor White
+Write-Host "   Limite: 2 ordens por estrategia" -ForegroundColor White
+Write-Host "   Risk: 2% por trade`n" -ForegroundColor White
 
-Write-Host "📊 O monitor será exibido abaixo...`n" -ForegroundColor Yellow
+Write-Host "Monitor 24h sera exibido abaixo...`n" -ForegroundColor Yellow
 
 Start-Sleep 2
 

@@ -51,6 +51,7 @@ class NewsAnalyzer:
         self.forexnews_key = self.news_config.get('forexnews_api_key', '')
         self.finazon_key = self.news_config.get('finazon_api_key', '')
         self.fmp_key = self.news_config.get('fmp_api_key', '')
+        self.finnhub_key = self.news_config.get('finnhub_api_key', '')
         
         # Cache de notícias
         self._news_cache: List[Dict] = []
@@ -199,9 +200,79 @@ class NewsAnalyzer:
             logger.error(f"Erro ao buscar Finazon: {e}")
             return []
     
+    def fetch_finnhub_news(self, limit: int = 50) -> List[Dict]:
+        """
+        Busca notícias do Finnhub
+        
+        Args:
+            limit: Número máximo de notícias
+            
+        Returns:
+            Lista de notícias
+        """
+        try:
+            if not self.finnhub_key:
+                logger.warning("Finnhub API key não configurada")
+                return []
+            
+            # URL: https://finnhub.io/api/v1/news
+            # Categorias: forex, crypto, general, merger
+            url = "https://finnhub.io/api/v1/news"
+            params = {
+                'category': 'forex',
+                'token': self.finnhub_key
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            
+            # Verificar status code
+            if response.status_code != 200:
+                logger.warning(f"Finnhub retornou status {response.status_code}")
+                return []
+            
+            news_list = response.json()
+            
+            # Finnhub pode retornar erro como JSON
+            if isinstance(news_list, dict) and 'error' in news_list:
+                logger.warning(f"Finnhub: {news_list['error']}")
+                return []
+            
+            # Filtrar notícias relevantes para GOLD
+            filtered_news = []
+            for news in news_list[:limit]:
+                title = news.get('headline', '')
+                summary = news.get('summary', '')
+                
+                if self._is_gold_relevant(title + ' ' + summary):
+                    filtered_news.append({
+                        'source': 'Finnhub',
+                        'title': title,
+                        'description': summary,
+                        'url': news.get('url', ''),
+                        'published_at': datetime.fromtimestamp(
+                            news.get('datetime', 0)
+                        ).isoformat() if news.get('datetime') else '',
+                        'relevance': self._calculate_relevance(title + ' ' + summary),
+                        'category': news.get('category', ''),
+                        'source_name': news.get('source', '')
+                    })
+            
+            logger.info(f"Finnhub: {len(filtered_news)} notícias relevantes")
+            return filtered_news
+            
+        except requests.Timeout:
+            logger.warning("Finnhub: Timeout")
+            return []
+        except requests.ConnectionError:
+            logger.warning("Finnhub: Erro de conexão")
+            return []
+        except Exception as e:
+            logger.error(f"Erro ao buscar Finnhub: {e}")
+            return []
+    
     def fetch_economic_calendar(self, days: int = 1) -> List[Dict]:
         """
-        Busca eventos do calendário econômico (Financial Modeling Prep)
+        Busca eventos do calendário econômico do Financial Modeling Prep
         
         Args:
             days: Número de dias para buscar
@@ -209,15 +280,15 @@ class NewsAnalyzer:
         Returns:
             Lista de eventos econômicos
         """
+        # Verificar cache
+        if self._is_cache_valid(self._events_cache_timestamp,
+                               self._events_cache_timeout):
+            return self._events_cache
+        
         try:
             if not self.fmp_key:
                 logger.warning("FMP API key não configurada")
                 return []
-            
-            # Verificar cache
-            if self._is_cache_valid(self._events_cache_timestamp,
-                                   self._events_cache_timeout):
-                return self._events_cache
             
             url = "https://financialmodelingprep.com/api/v3/economic_calendar"
             params = {
@@ -358,6 +429,7 @@ class NewsAnalyzer:
         
         # Buscar de todas as fontes
         all_news.extend(self.fetch_forex_news(limit=30))
+        all_news.extend(self.fetch_finnhub_news(limit=30))
         all_news.extend(self.fetch_finazon_news(limit=30))
         
         # Filtrar por idade

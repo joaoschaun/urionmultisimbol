@@ -61,6 +61,28 @@ def test_finazon_api(analyzer):
         return False
 
 
+def test_finnhub_api(analyzer):
+    """Testa Finnhub"""
+    logger.info("\n" + "=" * 70)
+    logger.info("TESTANDO FINNHUB")
+    logger.info("=" * 70)
+    
+    try:
+        news = analyzer.fetch_finnhub_news(limit=10)
+        
+        if news:
+            logger.success(f"✅ Finnhub: {len(news)} notícias obtidas")
+            logger.info(f"Primeira notícia: {news[0].get('title', 'N/A')[:60]}...")
+            return True
+        else:
+            logger.warning("⚠️  Finnhub: Nenhuma notícia retornada")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ Finnhub: ERRO - {e}")
+        return False
+
+
 def test_fmp_api(analyzer):
     """Testa Financial Modeling Prep"""
     logger.info("\n" + "=" * 70)
@@ -153,6 +175,7 @@ def main():
     
     logger.info("\nAPI KEYS CONFIGURADAS:")
     logger.info(f"  ForexNewsAPI: {'✅ SIM' if news_config.get('forexnews_api_key') else '❌ NÃO'}")
+    logger.info(f"  Finnhub: {'✅ SIM' if news_config.get('finnhub_api_key') else '❌ NÃO'}")
     logger.info(f"  Finazon: {'✅ SIM' if news_config.get('finazon_api_key') else '❌ NÃO'}")
     logger.info(f"  FMP: {'✅ SIM' if news_config.get('fmp_api_key') else '❌ NÃO'}")
     
@@ -162,6 +185,7 @@ def main():
     # Executar testes
     results = {
         'ForexNewsAPI': test_forexnews_api(analyzer),
+        'Finnhub': test_finnhub_api(analyzer),
         'Finazon': test_finazon_api(analyzer),
         'FMP': test_fmp_api(analyzer),
         'Agregação': test_aggregated_news(analyzer),
