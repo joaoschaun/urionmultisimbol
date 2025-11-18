@@ -41,7 +41,7 @@ class ConfigManager:
             self.config = yaml.safe_load(f)
         
         # Replace environment variable placeholders
-        self._replace_env_vars(self.config)
+        self.config = self._replace_env_vars(self.config)
     
     def _replace_env_vars(self, data: Any) -> Any:
         """

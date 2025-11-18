@@ -90,6 +90,15 @@ class MT5Connector:
         except Exception as e:
             logger.exception(f"Error disconnecting from MT5: {e}")
     
+    def is_connected(self) -> bool:
+        """
+        Check if connected to MT5
+        
+        Returns:
+            bool: True if connected
+        """
+        return self.connected and mt5.terminal_info() is not None
+    
     def reconnect(self) -> bool:
         """
         Attempt to reconnect to MetaTrader 5
@@ -273,6 +282,18 @@ class MT5Connector:
         except Exception as e:
             logger.exception(f"Error getting positions: {e}")
             return []
+    
+    def get_positions(self, symbol: Optional[str] = None) -> List[Dict]:
+        """
+        Alias for get_open_positions()
+        
+        Args:
+            symbol: Optional symbol filter
+            
+        Returns:
+            List of position dictionaries
+        """
+        return self.get_open_positions(symbol)
     
     def place_order(self, symbol: str, order_type: str, volume: float, 
                    sl: float = 0, tp: float = 0, comment: str = "") -> Optional[Dict]:

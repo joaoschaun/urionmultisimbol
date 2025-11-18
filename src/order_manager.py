@@ -38,8 +38,8 @@ class OrderManager:
         
         # Inicializar componentes
         self.mt5 = MT5Connector(self.config)
-        self.risk_manager = RiskManager(self.config)
-        self.technical_analyzer = TechnicalAnalyzer(self.config)
+        self.risk_manager = RiskManager(self.config, self.mt5)
+        self.technical_analyzer = TechnicalAnalyzer(self.mt5, self.config)
         self.telegram = TelegramNotifier(self.config)
         
         # Estado
