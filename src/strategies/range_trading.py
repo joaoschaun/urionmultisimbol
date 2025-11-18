@@ -153,8 +153,8 @@ class RangeTradingStrategy(BaseStrategy):
                 confidence = buy_score
                 reason = 'range_bounce_from_support'
                 details = {
+                    'current_price': current_price,
                     'adx': adx,
-                    'price': current_price,
                     'bb_lower': bb_lower,
                     'bb_middle': bb_middle,
                     'distance_from_support': distance_from_lower,
@@ -170,8 +170,8 @@ class RangeTradingStrategy(BaseStrategy):
                 confidence = sell_score
                 reason = 'range_rejection_from_resistance'
                 details = {
+                    'current_price': current_price,
                     'adx': adx,
-                    'price': current_price,
                     'bb_upper': bb_upper,
                     'bb_middle': bb_middle,
                     'distance_from_resistance': distance_from_upper,
@@ -188,6 +188,7 @@ class RangeTradingStrategy(BaseStrategy):
                 confidence = max(buy_score, sell_score)
                 reason = f'price_in_middle_of_range_adx_{adx:.1f}'
                 details = {
+                    'current_price': current_price,
                     'adx': adx,
                     'buy_score': buy_score,
                     'sell_score': sell_score,

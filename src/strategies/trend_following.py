@@ -136,6 +136,7 @@ class TrendFollowingStrategy(BaseStrategy):
                 confidence = bullish_score
                 reason = 'strong_uptrend_detected'
                 details = {
+                    'current_price': current_price,
                     'adx': adx,
                     'ema_9': ema_9,
                     'ema_21': ema_21,
@@ -151,6 +152,7 @@ class TrendFollowingStrategy(BaseStrategy):
                 confidence = bearish_score
                 reason = 'strong_downtrend_detected'
                 details = {
+                    'current_price': current_price,
                     'adx': adx,
                     'ema_9': ema_9,
                     'ema_21': ema_21,
@@ -166,6 +168,7 @@ class TrendFollowingStrategy(BaseStrategy):
                 confidence = max(bullish_score, bearish_score)
                 reason = 'no_clear_trend'
                 details = {
+                    'current_price': current_price,
                     'bullish_score': bullish_score,
                     'bearish_score': bearish_score,
                     'adx': adx
