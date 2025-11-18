@@ -4,22 +4,62 @@ Sistema de Trading Automatizado de Nível Institucional para MetaTrader 5
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![MetaTrader5](https://img.shields.io/badge/MetaTrader-5-green.svg)](https://www.metatrader5.com/)
+[![Status](https://img.shields.io/badge/Status-75%25%20Complete-yellow.svg)]()
 [![License](https://img.shields.io/badge/License-Proprietary-red.svg)]()
 
 ## 📋 Sobre o Projeto
 
-**Urion** é um bot de trading automatizado desenvolvido pela **Virtus Investimentos** para operar no mercado de XAUUSD (Ouro) através do MetaTrader 5. O sistema utiliza inteligência artificial, análise técnica avançada e análise de notícias para tomar decisões de trading em tempo real.
+**Urion** é um bot de trading automatizado desenvolvido pela **Virtus Investimentos** para operar no mercado de XAUUSD (Ouro) através do MetaTrader 5. O sistema utiliza análise técnica avançada, análise de notícias e 4 estratégias profissionais para tomar decisões de trading em tempo real.
+
+**🎉 SISTEMA COMPLETO E FUNCIONAL - PRONTO PARA TESTES!**
 
 ### 🎯 Características Principais
 
-- ✅ **Operação 24/5**: Trading automatizado com respeito aos horários de fechamento do mercado
-- 🧠 **Machine Learning**: Sistema de aprendizagem contínua para otimização de estratégias
-- 📰 **Análise de Notícias**: Integração com múltiplas APIs de notícias financeiras
-- 📊 **Análise Multi-Timeframe**: Análise técnica em múltiplos períodos (M1, M5, M15, M30, H1, H4, D1)
-- 🎯 **Múltiplas Estratégias**: Trend Following, Mean Reversion, Breakout e News Trading
-- 🛡️ **Gerenciamento de Risco**: Sistema avançado de proteção de capital
+- ✅ **Operação 24/5**: Trading automatizado (18:30-16:30 UTC)
+- 🧠 **4 Estratégias Profissionais**: Trend Following, Mean Reversion, Breakout, News Trading
+- 📰 **Análise de Notícias**: 3 APIs integradas + NLP sentiment analysis
+- 📊 **Análise Multi-Timeframe**: 7 timeframes (M1, M5, M15, M30, H1, H4, D1)
+- 🎯 **Sistema de Consenso**: Combina sinais de múltiplas estratégias
+- 🛡️ **Gerenciamento de Risco**: Proteção completa de capital (max 2% por trade)
 - 📱 **Notificações Telegram**: Alertas em tempo real sobre operações
-- 🔄 **Módulos Independentes**: Gerador e gerenciador de ordens funcionam separadamente
+- 🔄 **Execução Automática**: Order Generator (5min) + Order Manager (1min)
+- 🎚️ **Trailing Stop & Break-even**: Proteção dinâmica de lucros
+
+## 🚀 Quick Start
+
+### 1️⃣ Instalação Rápida
+
+```bash
+# Clone o repositório
+git clone https://github.com/virtus/urion.git
+cd urion
+
+# Crie ambiente virtual
+python -m venv venv
+.\venv\Scripts\activate  # Windows
+
+# Instale dependências
+pip install -r requirements.txt
+
+# Configure credenciais
+cp .env.example .env
+# Edite .env com suas credenciais MT5 + Telegram + APIs
+
+# Verifique setup
+python verify_setup.py
+
+# Execute o bot
+python main.py
+```
+
+### 2️⃣ O Que Acontece
+
+- ⏱️ **A cada 5 minutos**: Order Generator analisa mercado e decide se abre posição
+- ⏱️ **A cada 1 minuto**: Order Manager monitora posições abertas
+- 📊 **Análise completa**: Técnica + Notícias + 4 Estratégias
+- 🎯 **Consenso**: Sinais precisam de 60% de acordo entre estratégias
+- 🛡️ **Risk Manager**: Valida cada ordem antes de executar
+- 📱 **Telegram**: Notifica cada ação importante
 
 ## 🏗️ Arquitetura do Sistema
 
