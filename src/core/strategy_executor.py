@@ -179,22 +179,23 @@ class StrategyExecutor:
                 )
                 return
             
-            # 5. Validar com Risk Manager
-            action = signal.get('action')
-            if not self.risk_manager.can_open_position(action):
-                logger.warning(
-                    f"[{self.strategy_name}] "
-                    f"Risk Manager rejeitou {action}"
-                )
-                return
-            
-            # 6. Calcular parâmetros da ordem
+            # 5. Calcular parâmetros da ordem
             order_params = self._calculate_order_params(signal)
             
             if not order_params:
                 logger.warning(
                     f"[{self.strategy_name}] "
                     f"Falha ao calcular parâmetros"
+                )
+                return
+            
+            # 6. Validar com Risk Manager
+            action = signal.get('action')
+            volume = order_params.get('volume')
+            if not self.risk_manager.can_open_position(action, volume):
+                logger.warning(
+                    f"[{self.strategy_name}] "
+                    f"Risk Manager rejeitou {action}"
                 )
                 return
             
