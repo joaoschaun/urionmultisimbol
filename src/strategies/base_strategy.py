@@ -115,14 +115,35 @@ class BaseStrategy(ABC):
             details: Detalhes adicionais
             
         Returns:
-            Dict com sinal completo
+            Dict com sinal completo com SL/TP
         """
+        details = details or {}
+        
+        # Obter preço atual
+        current_price = details.get('current_price', 0)
+        
+        # Calcular SL/TP baseado na ação
+        sl = None
+        tp = None
+        
+        if action == 'BUY' and current_price > 0:
+            # Para BUY: SL abaixo, TP acima
+            sl = current_price - (current_price * 0.005)  # 0.5% abaixo
+            tp = current_price + (current_price * 0.015)  # 1.5% acima (R:R 1:3)
+        elif action == 'SELL' and current_price > 0:
+            # Para SELL: SL acima, TP abaixo
+            sl = current_price + (current_price * 0.005)  # 0.5% acima
+            tp = current_price - (current_price * 0.015)  # 1.5% abaixo (R:R 1:3)
+        
         signal = {
             'strategy': self.name,
             'action': action,
             'confidence': round(confidence, 3),
             'reason': reason,
-            'details': details or {}
+            'details': details,
+            'price': current_price,
+            'sl': round(sl, 2) if sl else None,
+            'tp': round(tp, 2) if tp else None
         }
         
         return signal
