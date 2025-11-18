@@ -86,17 +86,12 @@ class TechnicalAnalyzer:
                 logger.error(f"Timeframe inválido: {timeframe}")
                 return None
             
-            rates = self.mt5.get_rates(self.symbol, tf, bars)
-            if rates is None or len(rates) == 0:
+            df = self.mt5.get_rates(self.symbol, tf, bars)
+            if df is None or len(df) == 0:
                 logger.error(f"Erro ao obter dados para {timeframe}")
                 return None
             
-            # Converter para DataFrame
-            df = pd.DataFrame(rates)
-            df['time'] = pd.to_datetime(df['time'], unit='s')
-            df.set_index('time', inplace=True)
-            
-            # Renomear colunas para padrão
+            # Renomear colunas para padrão (MT5 retorna lowercase)
             df.rename(columns={
                 'open': 'Open',
                 'high': 'High',
@@ -355,7 +350,7 @@ class TechnicalAnalyzer:
                 return None
             
             # Configurações dos indicadores
-            indicators_config = self.ta_config.get('indicators', {})
+            indicators_config = self.ta_config.get('indicators', [])
             
             # Calcular indicadores
             result = {
@@ -365,15 +360,24 @@ class TechnicalAnalyzer:
                 'current_time': df.index[-1].isoformat(),
             }
             
+            # Extrair períodos de indicadores da config (formato lista)
+            ema_periods = [9, 21, 50, 200]  # padrão
+            sma_periods = [20, 50, 100, 200]  # padrão
+            
+            if isinstance(indicators_config, list):
+                for indicator in indicators_config:
+                    if indicator.get('name') == 'EMA':
+                        ema_periods = indicator.get('periods', ema_periods)
+                    elif indicator.get('name') == 'SMA':
+                        sma_periods = indicator.get('periods', sma_periods)
+            
             # Médias Móveis
-            ema_periods = indicators_config.get('ema_periods', [9, 21, 50, 200])
             result['ema'] = {}
             for period in ema_periods:
                 if len(df) >= period:
                     ema = self.calculate_ema(df, period)
                     result['ema'][f'ema_{period}'] = float(ema.iloc[-1])
             
-            sma_periods = indicators_config.get('sma_periods', [20, 50, 100, 200])
             result['sma'] = {}
             for period in sma_periods:
                 if len(df) >= period:
@@ -423,13 +427,21 @@ class TechnicalAnalyzer:
             result['patterns'] = self.detect_candlestick_patterns(df)
             
             # Análise de tendência
-            result['trend'] = self._analyze_trend(df, result)
+            try:
+                result['trend'] = self._analyze_trend(df, result)
+            except Exception as trend_error:
+                logger.error(f"Erro na análise de tendência: {trend_error}")
+                logger.error(f"Tipo indicators['ema']: {type(result.get('ema'))}")
+                logger.error(f"Valor indicators['ema']: {result.get('ema')}")
+                raise
             
             logger.debug(f"Análise completa para {timeframe}: {len(result)} indicadores")
             return result
             
         except Exception as e:
             logger.error(f"Erro ao analisar timeframe {timeframe}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None
     
     def _analyze_trend(self, df: pd.DataFrame, indicators: Dict) -> Dict:
