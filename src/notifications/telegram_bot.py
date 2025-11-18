@@ -138,6 +138,58 @@ class TelegramNotifier:
         
         await self.send_message(message, parse_mode='HTML')
     
+    def send_trade_notification(self, action: str, symbol: str, price: float,
+                                volume: float, sl: float, tp: float,
+                                strategy: str = None, confidence: float = None) -> bool:
+        """
+        Send trade notification (synchronous wrapper)
+        
+        Args:
+            action: BUY or SELL
+            symbol: Trading symbol
+            price: Entry price
+            volume: Position size
+            sl: Stop loss
+            tp: Take profit
+            strategy: Strategy name
+            confidence: Signal confidence
+            
+        Returns:
+            True if sent successfully
+        """
+        if not self.enabled:
+            return False
+        
+        try:
+            emoji = "🟢" if action == "BUY" else "🔴"
+            
+            message = (
+                f"{emoji} <b>NOVA ORDEM - {action}</b>\n\n"
+                f"Símbolo: {symbol}\n"
+                f"Preço: {price:.2f}\n"
+                f"Volume: {volume}\n"
+                f"Stop Loss: {sl:.2f}\n"
+                f"Take Profit: {tp:.2f}"
+            )
+            
+            if strategy:
+                message += f"\nEstratégia: {strategy}"
+            
+            if confidence:
+                message += f"\nConfiança: {confidence:.1f}%"
+            
+            # Run async function in new event loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(self.send_message(message, parse_mode='HTML'))
+            loop.close()
+            
+            return True
+            
+        except Exception as e:
+            logger.exception(f"Error sending trade notification: {e}")
+            return False
+    
     async def send_trade_closure(self, trade: Dict):
         """
         Send trade closure notification

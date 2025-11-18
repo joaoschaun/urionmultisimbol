@@ -61,7 +61,8 @@ class OrderGenerator:
                     mt5=self.mt5,
                     risk_manager=self.risk_manager,
                     technical_analyzer=self.technical_analyzer,
-                    news_analyzer=self.news_analyzer
+                    news_analyzer=self.news_analyzer,
+                    telegram=self.telegram
                 )
                 self.executors.append(executor)
                 logger.info(f"Executor criado para: {name}")

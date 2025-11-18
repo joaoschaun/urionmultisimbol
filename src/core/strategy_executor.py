@@ -28,7 +28,8 @@ class StrategyExecutor:
                  config: Dict, mt5: MT5Connector,
                  risk_manager: RiskManager,
                  technical_analyzer: TechnicalAnalyzer,
-                 news_analyzer: NewsAnalyzer):
+                 news_analyzer: NewsAnalyzer,
+                 telegram=None):
         """
         Inicializa executor de estratégia
         
@@ -40,6 +41,7 @@ class StrategyExecutor:
             risk_manager: Gerenciador de risco
             technical_analyzer: Analisador técnico
             news_analyzer: Analisador de notícias
+            telegram: Notificador Telegram (opcional)
         """
         self.strategy_name = strategy_name
         self.strategy = strategy_instance
@@ -49,6 +51,7 @@ class StrategyExecutor:
         self.market_hours = MarketHoursManager(config)
         self.technical_analyzer = technical_analyzer
         self.news_analyzer = news_analyzer
+        self.telegram = telegram
         
         # Database para tracking
         self.stats_db = StrategyStatsDB()
@@ -346,6 +349,23 @@ class StrategyExecutor:
                     f"[{self.strategy_name}] "
                     f"✅ Ordem executada! Ticket: {ticket}"
                 )
+                
+                # Enviar notificação Telegram
+                if self.telegram:
+                    try:
+                        self.telegram.send_trade_notification(
+                            action=action,
+                            symbol=self.symbol,
+                            price=signal['price'],
+                            volume=volume,
+                            sl=sl,
+                            tp=tp,
+                            strategy=self.strategy_name,
+                            confidence=signal.get('confidence', 0) * 100
+                        )
+                        logger.debug(f"[{self.strategy_name}] Notificação Telegram enviada")
+                    except Exception as telegram_error:
+                        logger.error(f"[{self.strategy_name}] Erro ao enviar Telegram: {telegram_error}")
                 
                 # Salvar no banco de dados para tracking
                 try:
