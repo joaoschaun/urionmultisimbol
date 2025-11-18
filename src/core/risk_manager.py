@@ -121,6 +121,11 @@ class RiskManager:
             lot_size = max(symbol_info['volume_min'], lot_size)
             lot_size = min(symbol_info['volume_max'], lot_size)
             
+            # Use default lot size from config if available
+            default_lot = self.trading_config.get('default_lot_size', 0.01)
+            if lot_size < default_lot:
+                lot_size = default_lot
+            
             # Additional safety limit from config
             max_lot = self.trading_config.get('max_lot_size', 1.0)
             lot_size = min(lot_size, max_lot)

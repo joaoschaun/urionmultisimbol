@@ -118,8 +118,7 @@ class OrderManager:
         
         # Usar Risk Manager para decidir
         should_move = self.risk_manager.should_move_to_breakeven(
-            position['type'],
-            position['price_open'],
+            position,
             position['price_current']
         )
         
