@@ -50,6 +50,26 @@ class TelegramNotifier:
         self.app.add_handler(CommandHandler("stats", self.cmd_stats))
         self.app.add_handler(CommandHandler("help", self.cmd_help))
     
+    def send_message_sync(self, message: str, parse_mode: str = None):
+        """
+        Send message to Telegram (synchronous wrapper)
+        
+        Args:
+            message: Message text
+            parse_mode: Optional parse mode (Markdown, HTML)
+        """
+        if not self.enabled:
+            return
+        
+        try:
+            # Run async function in new event loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(self.send_message(message, parse_mode))
+            loop.close()
+        except Exception as e:
+            logger.exception(f"Error sending Telegram message (sync): {e}")
+    
     async def send_message(self, message: str, parse_mode: str = None):
         """
         Send message to Telegram

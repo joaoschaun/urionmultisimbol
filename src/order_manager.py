@@ -302,7 +302,7 @@ class OrderManager:
                     )
                     
                     # Notificar
-                    self.telegram.send_message(
+                    self.telegram.send_message_sync(
                         f"🔒 Break-even aplicado\n"
                         f"Ticket: {ticket}\n"
                         f"Novo SL: {new_sl}"
@@ -343,7 +343,7 @@ class OrderManager:
                 )
                 
                 # Notificar
-                self.telegram.send_message(
+                self.telegram.send_message_sync(
                     f"📊 Fechamento Parcial\n"
                     f"Ticket: {ticket}\n"
                     f"Volume: {volume} lotes\n"
