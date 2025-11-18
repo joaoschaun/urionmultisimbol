@@ -160,7 +160,7 @@ class StrategyExecutor:
             
             # 3. Coletar análises
             technical = self.technical_analyzer.analyze_multi_timeframe()
-            news = self.news_analyzer.analyze()
+            news = self.news_analyzer.get_sentiment_summary()
             
             # 4. Executar estratégia
             signal = self.strategy.analyze(technical, news)

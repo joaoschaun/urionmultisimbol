@@ -131,4 +131,4 @@ class OrderGenerator:
                 f"Magic: {executor.magic_number}"
             )
         
-        logger.info("=" * 80)
+        logger.info("=" * 80)
