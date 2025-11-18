@@ -119,8 +119,13 @@ class BaseStrategy(ABC):
         """
         details = details or {}
         
-        # Obter preço atual
+        # Obter preço atual dos details ou da análise técnica
         current_price = details.get('current_price', 0)
+        
+        # Se não tem current_price nos details, tentar pegar da analysis
+        if not current_price and 'analysis' in details:
+            m5_data = details.get('analysis', {}).get('M5', {})
+            current_price = m5_data.get('close', 0)
         
         # Calcular SL/TP baseado na ação
         sl = None
