@@ -12,6 +12,7 @@ from loguru import logger
 from core.mt5_connector import MT5Connector
 from core.config_manager import ConfigManager
 from core.risk_manager import RiskManager
+from core.market_hours import MarketHoursManager
 from analysis.technical_analyzer import TechnicalAnalyzer
 from analysis.news_analyzer import NewsAnalyzer
 from database.strategy_stats import StrategyStatsDB
@@ -45,6 +46,7 @@ class StrategyExecutor:
         self.config = config
         self.mt5 = mt5
         self.risk_manager = risk_manager
+        self.market_hours = MarketHoursManager(config)
         self.technical_analyzer = technical_analyzer
         self.news_analyzer = news_analyzer
         
@@ -231,6 +233,12 @@ class StrategyExecutor:
         """Verifica se pode operar"""
         # Verificar MT5
         if not self.mt5.is_connected():
+            return False
+        
+        # Verificar horário do mercado
+        can_open, reason = self.market_hours.can_open_new_positions()
+        if not can_open:
+            logger.debug(f"[{self.strategy_name}] Mercado: {reason}")
             return False
         
         # Verificar janela de notícias

@@ -12,6 +12,7 @@ from loguru import logger
 from core.mt5_connector import MT5Connector
 from core.config_manager import ConfigManager
 from core.risk_manager import RiskManager
+from core.market_hours import MarketHoursManager
 from analysis.technical_analyzer import TechnicalAnalyzer
 from notifications.telegram_bot import TelegramNotifier
 from database.strategy_stats import StrategyStatsDB
@@ -40,6 +41,7 @@ class OrderManager:
         # Inicializar componentes
         self.mt5 = MT5Connector(self.config)
         self.risk_manager = RiskManager(self.config, self.mt5)
+        self.market_hours = MarketHoursManager(self.config)
         self.technical_analyzer = TechnicalAnalyzer(self.mt5, self.config)
         self.telegram = TelegramNotifier(self.config)
         self.stats_db = StrategyStatsDB()
@@ -47,6 +49,7 @@ class OrderManager:
         # Estado
         self.running = False
         self.monitored_positions = {}  # ticket: position_data
+        self.last_market_close_check = None
         
         logger.info("OrderManager inicializado")
         logger.info(f"Ciclo: {self.cycle_interval}s")
@@ -368,6 +371,32 @@ class OrderManager:
             if not self.mt5.connect():
                 logger.error("Falha ao reconectar MT5")
                 return
+        
+        # VERIFICAR HORÁRIO DE FECHAMENTO DO MERCADO
+        market_status = self.market_hours.get_market_status()
+        
+        if market_status['should_close_positions']:
+            logger.warning("⚠️  FECHAMENTO DO MERCADO SE APROXIMA!")
+            logger.warning("Fechando TODAS as posições abertas...")
+            
+            # Fechar todas as posições
+            current_positions = self.get_open_positions()
+            for position in current_positions:
+                ticket = position['ticket']
+                logger.warning(f"Fechando posição {ticket} (mercado fechando)")
+                self.close_position(ticket)
+            
+            # Notificar
+            self.telegram.send_message_sync(
+                f"⚠️ FECHAMENTO AUTOMÁTICO\n\n"
+                f"Mercado fechando em breve!\n"
+                f"Todas as {len(current_positions)} posições foram fechadas.\n\n"
+                f"Próxima abertura: {market_status['next_event']['datetime'].strftime('%d/%m %H:%M')}"
+            )
+            
+            # Salvar timestamp para não repetir
+            self.last_market_close_check = datetime.now()
+            return
         
         # Atualizar lista de posições
         self.update_monitored_positions()
