@@ -16,6 +16,7 @@ from core.market_hours import MarketHoursManager
 from analysis.technical_analyzer import TechnicalAnalyzer
 from analysis.news_analyzer import NewsAnalyzer
 from database.strategy_stats import StrategyStatsDB
+from ml.strategy_learner import StrategyLearner
 
 
 class StrategyExecutor:
@@ -29,7 +30,8 @@ class StrategyExecutor:
                  risk_manager: RiskManager,
                  technical_analyzer: TechnicalAnalyzer,
                  news_analyzer: NewsAnalyzer,
-                 telegram=None):
+                 telegram=None,
+                 learner: Optional[StrategyLearner] = None):
         """
         Inicializa executor de estratégia
         
@@ -42,6 +44,7 @@ class StrategyExecutor:
             technical_analyzer: Analisador técnico
             news_analyzer: Analisador de notícias
             telegram: Notificador Telegram (opcional)
+            learner: Sistema de aprendizagem ML (opcional)
         """
         self.strategy_name = strategy_name
         self.strategy = strategy_instance
@@ -52,6 +55,9 @@ class StrategyExecutor:
         self.technical_analyzer = technical_analyzer
         self.news_analyzer = news_analyzer
         self.telegram = telegram
+        
+        # Sistema de aprendizagem
+        self.learner = learner if learner else StrategyLearner()
         
         # Database para tracking
         self.stats_db = StrategyStatsDB()
@@ -67,7 +73,21 @@ class StrategyExecutor:
         self.enabled = strategy_config.get('enabled', True)
         self.cycle_seconds = strategy_config.get('cycle_seconds', 300)
         self.max_positions = strategy_config.get('max_positions', 2)
-        self.min_confidence = strategy_config.get('min_confidence', 0.6)
+        
+        # Usar min_confidence aprendido ou padrão do config
+        learned_confidence = self.learner.get_learned_confidence(strategy_name)
+        config_confidence = strategy_config.get('min_confidence', 0.6)
+        
+        # Se já aprendeu algo, usar valor aprendido
+        if self.learner.learning_data.get(strategy_name, {}).get('total_trades', 0) >= 10:
+            self.min_confidence = learned_confidence
+            logger.info(
+                f"[{strategy_name}] 🤖 Usando confiança APRENDIDA: {learned_confidence:.2f} "
+                f"(config: {config_confidence:.2f})"
+            )
+        else:
+            self.min_confidence = config_confidence
+            logger.debug(f"[{strategy_name}] Usando confiança do config: {config_confidence:.2f}")
         
         # Magic number único para identificar ordens desta estratégia
         # Base: 100000 + hash dos primeiros 5 chars do nome
@@ -83,7 +103,7 @@ class StrategyExecutor:
         logger.info(
             f"StrategyExecutor [{strategy_name}] inicializado: "
             f"ciclo={self.cycle_seconds}s, max_pos={self.max_positions}, "
-            f"magic={self.magic_number}"
+            f"magic={self.magic_number}, min_conf={self.min_confidence:.2f}"
         )
     
     def start(self):
@@ -322,6 +342,7 @@ class StrategyExecutor:
             tp = params['tp']
             magic = params['magic']
             comment = params['comment']
+            signal = params.get('signal', {})  # Extrair signal de params
             
             logger.info(
                 f"[{self.strategy_name}] "
@@ -356,7 +377,7 @@ class StrategyExecutor:
                         self.telegram.send_trade_notification(
                             action=action,
                             symbol=self.symbol,
-                            price=signal['price'],
+                            price=signal.get('price', 0),
                             volume=volume,
                             sl=sl,
                             tp=tp,
@@ -369,20 +390,30 @@ class StrategyExecutor:
                 
                 # Salvar no banco de dados para tracking
                 try:
-                    self.stats_db.save_trade({
+                    trade_data = {
                         'strategy_name': self.strategy_name,
                         'ticket': ticket,
                         'symbol': self.symbol,
                         'type': action,
                         'volume': volume,
-                        'open_price': signal['price'],
+                        'open_price': signal.get('price', 0),
                         'sl': sl,
                         'tp': tp,
                         'open_time': datetime.now(),
-                        'signal_confidence': signal.get('confidence', 0) * 100,
+                        'signal_confidence': signal.get('confidence', 0),
                         'market_conditions': str(signal.get('details', {}))
+                    }
+                    
+                    self.stats_db.save_trade({
+                        **trade_data,
+                        'signal_confidence': trade_data['signal_confidence'] * 100
                     })
                     logger.debug(f"[{self.strategy_name}] Trade salvo no database")
+                    
+                    # 🤖 Sistema de aprendizagem: registrar abertura do trade
+                    # (Aprendizado real acontece quando trade é fechado)
+                    logger.debug(f"[{self.strategy_name}] 🤖 Trade registrado para aprendizagem futura")
+                    
                 except Exception as db_error:
                     logger.error(f"[{self.strategy_name}] Erro ao salvar trade: {db_error}")
             else:
