@@ -13,6 +13,7 @@ from core.mt5_connector import MT5Connector
 from core.config_manager import ConfigManager
 from core.risk_manager import RiskManager
 from core.market_hours import MarketHoursManager
+from core.watchdog import ThreadWatchdog
 from analysis.technical_analyzer import TechnicalAnalyzer
 from analysis.news_analyzer import NewsAnalyzer
 from database.strategy_stats import StrategyStatsDB
@@ -31,7 +32,8 @@ class StrategyExecutor:
                  technical_analyzer: TechnicalAnalyzer,
                  news_analyzer: NewsAnalyzer,
                  telegram=None,
-                 learner: Optional[StrategyLearner] = None):
+                 learner: Optional[StrategyLearner] = None,
+                 watchdog: Optional[ThreadWatchdog] = None):
         """
         Inicializa executor de estratégia
         
@@ -45,6 +47,7 @@ class StrategyExecutor:
             news_analyzer: Analisador de notícias
             telegram: Notificador Telegram (opcional)
             learner: Sistema de aprendizagem ML (opcional)
+            watchdog: Sistema de monitoramento de threads (opcional)
         """
         self.strategy_name = strategy_name
         self.strategy = strategy_instance
@@ -58,6 +61,9 @@ class StrategyExecutor:
         
         # Sistema de aprendizagem
         self.learner = learner if learner else StrategyLearner()
+        
+        # Watchdog para monitoramento
+        self.watchdog = watchdog
         
         # Database para tracking
         self.stats_db = StrategyStatsDB()
@@ -143,8 +149,21 @@ class StrategyExecutor:
             f"(ciclo: {self.cycle_seconds}s)"
         )
         
+        # Registrar no watchdog se disponível
+        if self.watchdog:
+            self.watchdog.register_thread(
+                f"Executor-{self.strategy_name}",
+                callback=lambda: logger.error(
+                    f"🚨 FREEZE DETECTADO em {self.strategy_name}!"
+                )
+            )
+        
         while self.running:
             try:
+                # Heartbeat para watchdog
+                if self.watchdog:
+                    self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
+                
                 if self.enabled:
                     self._execute_cycle()
                 else:
@@ -172,6 +191,20 @@ class StrategyExecutor:
                 f"[{self.strategy_name}] Iniciando ciclo - "
                 f"{datetime.now(timezone.utc)}"
             )
+            
+            # CRITICAL: Verificar conexão MT5 antes de cada ciclo
+            if not self.mt5.is_connected():
+                logger.warning(
+                    f"[{self.strategy_name}] MT5 desconectado! "
+                    f"Tentando reconectar..."
+                )
+                if not self.mt5.ensure_connection():
+                    logger.error(
+                        f"[{self.strategy_name}] Falha ao reconectar MT5. "
+                        f"Pulando ciclo."
+                    )
+                    return
+                logger.success(f"[{self.strategy_name}] MT5 reconectado!")
             
             # 1. Verificar se pode operar
             if not self._can_trade():

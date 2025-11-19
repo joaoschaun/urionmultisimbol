@@ -224,6 +224,73 @@ class StrategyStatsDB:
         conn.commit()
         conn.close()
     
+    def get_all_trades(self, days: int = 7, strategy_name: Optional[str] = None) -> List[Dict]:
+        """
+        Retorna todos os trades (abertos e fechados)
+        
+        Args:
+            days: Número de dias para análise (padrão: 7)
+            strategy_name: Filtrar por estratégia específica (opcional)
+            
+        Returns:
+            Lista de dicts com dados dos trades
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        start_date = datetime.now().date() - timedelta(days=days)
+        
+        if strategy_name:
+            cursor.execute("""
+                SELECT 
+                    strategy_name, ticket, symbol, type, volume,
+                    open_price, close_price, sl, tp,
+                    open_time, close_time, profit, commission, swap,
+                    status, signal_confidence, market_conditions
+                FROM strategy_trades
+                WHERE strategy_name = ?
+                AND date(open_time) >= ?
+                ORDER BY open_time DESC
+            """, (strategy_name, start_date))
+        else:
+            cursor.execute("""
+                SELECT 
+                    strategy_name, ticket, symbol, type, volume,
+                    open_price, close_price, sl, tp,
+                    open_time, close_time, profit, commission, swap,
+                    status, signal_confidence, market_conditions
+                FROM strategy_trades
+                WHERE date(open_time) >= ?
+                ORDER BY open_time DESC
+            """, (start_date,))
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        trades = []
+        for row in rows:
+            trades.append({
+                'strategy_name': row[0],
+                'ticket': row[1],
+                'symbol': row[2],
+                'type': row[3],
+                'volume': row[4],
+                'open_price': row[5],
+                'close_price': row[6],
+                'sl': row[7],
+                'tp': row[8],
+                'open_time': row[9],
+                'close_time': row[10],
+                'profit': row[11],
+                'commission': row[12],
+                'swap': row[13],
+                'status': row[14],
+                'signal_confidence': row[15],
+                'market_conditions': row[16]
+            })
+        
+        return trades
+    
     def get_strategy_stats(self, strategy_name: str, days: int = 7) -> Dict:
         """
         Retorna estatísticas de uma estratégia

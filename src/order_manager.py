@@ -16,6 +16,7 @@ from core.market_hours import MarketHoursManager
 from analysis.technical_analyzer import TechnicalAnalyzer
 from notifications.telegram_bot import TelegramNotifier
 from database.strategy_stats import StrategyStatsDB
+from ml.strategy_learner import StrategyLearner
 
 
 class OrderManager:
@@ -24,12 +25,15 @@ class OrderManager:
     Monitora posições e aplica trailing stop, break-even, etc
     """
     
-    def __init__(self):
+    def __init__(self, config=None, telegram=None):
         """Inicializa Order Manager"""
         
         # Carregar configurações
-        self.config_manager = ConfigManager()
-        self.config = self.config_manager.config
+        if config is None:
+            self.config_manager = ConfigManager()
+            self.config = self.config_manager.config
+        else:
+            self.config = config
         
         # Configurações do manager
         self.manager_config = self.config.get('order_manager', {})
@@ -43,8 +47,14 @@ class OrderManager:
         self.risk_manager = RiskManager(self.config, self.mt5)
         self.market_hours = MarketHoursManager(self.config)
         self.technical_analyzer = TechnicalAnalyzer(self.mt5, self.config)
-        self.telegram = TelegramNotifier(self.config)
+        self.telegram = telegram if telegram else TelegramNotifier(self.config)
         self.stats_db = StrategyStatsDB()
+        
+        # Sistema de aprendizagem
+        self.learner = StrategyLearner()
+        
+        # Mapa de magic numbers para estratégias (para configuração customizada)
+        self.strategy_map = self._build_strategy_map()
         
         # Estado
         self.running = False
@@ -53,6 +63,61 @@ class OrderManager:
         
         logger.info("OrderManager inicializado")
         logger.info(f"Ciclo: {self.cycle_interval}s")
+        logger.info(f"Configuração customizada por estratégia: {len(self.strategy_map)} estratégias")
+    
+    def _build_strategy_map(self) -> Dict[int, Dict]:
+        """
+        Constrói mapa de magic numbers para configurações de estratégia
+        
+        Returns:
+            Dict com magic_number: config_da_estrategia
+        """
+        strategy_map = {}
+        
+        # Magic numbers base (mesmo cálculo do StrategyExecutor)
+        base_magic = 100000
+        strategies = self.config.get('strategies', {})
+        
+        for strategy_name, strategy_config in strategies.items():
+            if strategy_name == 'enabled':
+                continue
+            
+            # Calcular magic number (mesmo algoritmo do StrategyExecutor)
+            name_hash = sum(ord(c) for c in strategy_name[:5])
+            magic_number = base_magic + name_hash
+            
+            # Extrair configurações de OrderManager da estratégia
+            strategy_map[magic_number] = {
+                'name': strategy_name,
+                'trailing_stop_distance': strategy_config.get('trailing_stop_distance', 15),
+                'break_even_trigger': strategy_config.get('break_even_trigger', 20),
+                'partial_close_trigger': strategy_config.get('partial_close_trigger', 30)
+            }
+            
+            logger.debug(
+                f"Strategy '{strategy_name}' (magic: {magic_number}): "
+                f"Trailing={strategy_config.get('trailing_stop_distance', 15)}pips, "
+                f"BE={strategy_config.get('break_even_trigger', 20)}pips"
+            )
+        
+        return strategy_map
+    
+    def get_strategy_config(self, magic_number: int) -> Dict:
+        """
+        Obtém configuração da estratégia baseado no magic number
+        
+        Args:
+            magic_number: Magic number da posição
+            
+        Returns:
+            Dict com configuração ou valores padrão
+        """
+        return self.strategy_map.get(magic_number, {
+            'name': 'unknown',
+            'trailing_stop_distance': 15,
+            'break_even_trigger': 20,
+            'partial_close_trigger': 30
+        })
     
     def get_open_positions(self) -> List[Dict]:
         """
@@ -121,16 +186,36 @@ class OrderManager:
         if not monitored or monitored['breakeven_applied']:
             return False, 0.0
         
-        # Usar Risk Manager para decidir
-        should_move = self.risk_manager.should_move_to_breakeven(
-            position,
-            position['price_current']
-        )
+        # Obter configuração específica da estratégia
+        magic_number = position.get('magic', 0)
+        strategy_config = self.get_strategy_config(magic_number)
         
-        if should_move:
-            # Novo SL = preço de abertura (breakeven)
-            new_sl = position['price_open']
-            return True, new_sl
+        # Break-even trigger em pips (específico da estratégia)
+        be_trigger_pips = strategy_config.get('break_even_trigger', 20)
+        
+        # Converter para distância de preço
+        point = 0.0001  # Para pares forex
+        be_trigger_distance = be_trigger_pips * point * 10
+        
+        # Calcular lucro atual
+        entry_price = position['price_open']
+        current_price = position['price_current']
+        current_sl = position['sl']
+        position_type = position['type']
+        
+        if position_type == 'BUY':
+            profit_distance = current_price - entry_price
+            # Mover para break-even se em lucro e SL ainda abaixo da entrada
+            if profit_distance >= be_trigger_distance and current_sl < entry_price:
+                new_sl = entry_price
+                return True, new_sl
+        else:  # SELL
+            profit_distance = entry_price - current_price
+            # Mover para break-even se em lucro e SL ainda acima da entrada
+            if profit_distance >= be_trigger_distance and \
+               (current_sl > entry_price or current_sl == 0):
+                new_sl = entry_price
+                return True, new_sl
         
         return False, 0.0
     
@@ -151,10 +236,22 @@ class OrderManager:
         if not monitored:
             return None
         
-        # Usar Risk Manager para calcular
+        # Obter configuração específica da estratégia
+        magic_number = position.get('magic', 0)
+        strategy_config = self.get_strategy_config(magic_number)
+        
+        # Distância de trailing stop em pips (específica da estratégia)
+        trailing_pips = strategy_config.get('trailing_stop_distance', 15)
+        
+        # Converter pips para distância de preço
+        point = 0.0001  # Para pares forex
+        trailing_distance = trailing_pips * point * 10
+        
+        # Usar Risk Manager para calcular com distância customizada
         new_sl = self.risk_manager.calculate_trailing_stop(
             position,
-            position['price_current']
+            position['price_current'],
+            trailing_distance
         )
         
         return new_sl
@@ -183,6 +280,10 @@ class OrderManager:
         if not enabled:
             return False, 0.0
         
+        # Obter configuração específica da estratégia
+        magic_number = position.get('magic', 0)
+        strategy_config = self.get_strategy_config(magic_number)
+        
         # Calcular lucro em pips
         price_open = position['price_open']
         price_current = position['price_current']
@@ -193,8 +294,8 @@ class OrderManager:
         else:
             profit_pips = (price_open - price_current) * 10000
         
-        # Verificar se atingiu objetivo de fechamento parcial
-        target_pips = partial_config.get('target_pips', 50)
+        # Verificar se atingiu objetivo de fechamento parcial (específico da estratégia)
+        target_pips = strategy_config.get('partial_close_trigger', 50)
         close_percentage = partial_config.get('close_percentage', 0.5)
         
         if profit_pips >= target_pips:
@@ -255,11 +356,71 @@ class OrderManager:
             True se fechado com sucesso
         """
         try:
+            # Buscar dados da posição antes de fechar (para aprendizagem)
+            position_info = self.monitored_positions.get(ticket, {})
+            
             # Fechamento total apenas (parcial não implementado)
             result = self.mt5.close_position(ticket)
             
             if result:
                 logger.success(f"Posição {ticket} fechada")
+                
+                # 🤖 APRENDIZAGEM: Aprender com o resultado do trade
+                try:
+                    # Buscar dados completos do trade no histórico
+                    import MetaTrader5 as mt5
+                    from datetime import timedelta
+                    
+                    # Buscar trade fechado nos últimos 5 minutos
+                    deals = mt5.history_deals_get(
+                        datetime.now() - timedelta(minutes=5),
+                        datetime.now()
+                    )
+                    
+                    if deals:
+                        for deal in deals:
+                            if deal.order == ticket:
+                                # Identificar estratégia pelo magic number
+                                magic = deal.magic
+                                strategy_name = None
+                                
+                                # Mapear magic → estratégia
+                                # (Este mapeamento deveria vir do executor)
+                                strategy_map = {
+                                    100541: 'trend_following',
+                                    100512: 'mean_reversion',
+                                    100517: 'breakout',
+                                    100540: 'news_trading',
+                                    100531: 'scalping',
+                                    100525: 'range_trading'
+                                }
+                                
+                                strategy_name = strategy_map.get(magic, 'Unknown')
+                                
+                                if strategy_name and strategy_name != 'Unknown':
+                                    # Preparar dados para aprendizagem
+                                    trade_data = {
+                                        'profit': deal.profit,
+                                        'signal_confidence': position_info.get('confidence', 0.5),
+                                        'market_conditions': position_info.get('conditions', ''),
+                                        'volume': deal.volume,
+                                        'duration_minutes': position_info.get('duration_minutes', 0)
+                                    }
+                                    
+                                    # Aprender!
+                                    self.learner.learn_from_trade(strategy_name, trade_data)
+                                    
+                                    emoji = "🟢" if deal.profit > 0 else "🔴"
+                                    logger.info(
+                                        f"🤖 [{strategy_name}] Aprendeu com trade: "
+                                        f"{emoji} ${deal.profit:.2f}"
+                                    )
+                                
+                                break
+                
+                except Exception as learn_error:
+                    logger.debug(f"Erro na aprendizagem (não crítico): {learn_error}")
+                
                 return True
             else:
                 logger.error(f"Falha ao fechar posição {ticket}")
@@ -283,6 +444,11 @@ class OrderManager:
         if not monitored:
             return
         
+        # Obter configuração da estratégia para logging
+        magic_number = position.get('magic', 0)
+        strategy_config = self.get_strategy_config(magic_number)
+        strategy_name = strategy_config.get('name', 'Unknown')
+        
         # Atualizar lucro máximo/mínimo
         current_profit = position['profit']
         monitored['highest_profit'] = max(
@@ -303,12 +469,13 @@ class OrderManager:
                     monitored['breakeven_applied'] = True
                     monitored['sl'] = new_sl
                     logger.info(
-                        f"Break-even aplicado na posição {ticket}"
+                        f"[{strategy_name}] Break-even aplicado | "
+                        f"Ticket: {ticket} | Trigger: {strategy_config.get('break_even_trigger')}pips"
                     )
                     
                     # Notificar
                     self.telegram.send_message_sync(
-                        f"🔒 Break-even aplicado\n"
+                        f"🔒 Break-even aplicado [{strategy_name}]\n"
                         f"Ticket: {ticket}\n"
                         f"Novo SL: {new_sl}"
                     )
@@ -333,8 +500,9 @@ class OrderManager:
                     monitored['sl'] = new_sl
                     monitored['trailing_active'] = True
                     logger.info(
-                        f"Trailing stop atualizado para posição {ticket}: "
-                        f"{new_sl}"
+                        f"[{strategy_name}] Trailing stop atualizado | "
+                        f"Ticket: {ticket} | Distância: {strategy_config.get('trailing_stop_distance')}pips | "
+                        f"Novo SL: {new_sl:.5f}"
                     )
         
         # 3. Verificar fechamento parcial

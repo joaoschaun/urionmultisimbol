@@ -62,13 +62,27 @@ class TelegramNotifier:
             return
         
         try:
-            # Run async function in new event loop
+            # Run async function in new event loop with timeout
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(self.send_message(message, parse_mode))
-            loop.close()
+            
+            # Set timeout to prevent hanging
+            try:
+                loop.run_until_complete(
+                    asyncio.wait_for(
+                        self.send_message(message, parse_mode),
+                        timeout=10.0  # 10 second timeout
+                    )
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Telegram message send timeout (10s) - continuing execution")
+            finally:
+                loop.close()
+                
         except Exception as e:
-            logger.exception(f"Error sending Telegram message (sync): {e}")
+            # CRITICAL: Never let Telegram errors crash the bot
+            logger.error(f"Telegram send failed (non-critical): {e}")
+            # Continue execution - trading must not stop due to notifications
     
     async def send_message(self, message: str, parse_mode: str = None):
         """
@@ -178,16 +192,28 @@ class TelegramNotifier:
             if confidence:
                 message += f"\nConfiança: {confidence:.1f}%"
             
-            # Run async function in new event loop
+            # Run async function with timeout protection
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(self.send_message(message, parse_mode='HTML'))
-            loop.close()
+            
+            try:
+                loop.run_until_complete(
+                    asyncio.wait_for(
+                        self.send_message(message, parse_mode='HTML'),
+                        timeout=10.0
+                    )
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Trade notification timeout - continuing")
+                return False
+            finally:
+                loop.close()
             
             return True
             
         except Exception as e:
-            logger.exception(f"Error sending trade notification: {e}")
+            # CRITICAL: Never crash bot due to notification failure
+            logger.error(f"Trade notification failed (non-critical): {e}")
             return False
     
     async def send_trade_closure(self, trade: Dict):

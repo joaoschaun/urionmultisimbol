@@ -41,7 +41,7 @@ risk:
 
 # Trading Schedule
 schedule:
-  timezone: UTC
+  timezone: America/New_York
   trading_days: [0, 1, 2, 3, 4]  # Segunda a Sexta
   market_open:
     hour: 18
@@ -79,6 +79,10 @@ strategies:
     ema_slow: 26
     adx_threshold: 25
     min_trend_strength: 0.6
+    # OrderManager settings (trend precisa gestão larga)
+    trailing_stop_distance: 20  # pips
+    break_even_trigger: 30  # pips
+    partial_close_trigger: 40  # pips
   
   mean_reversion:
     enabled: true
@@ -91,6 +95,10 @@ strategies:
     rsi_period: 14
     rsi_overbought: 70
     rsi_oversold: 30
+    # OrderManager settings (mean reversion moderado)
+    trailing_stop_distance: 12  # pips
+    break_even_trigger: 18  # pips
+    partial_close_trigger: 25  # pips
   
   breakout:
     enabled: true
@@ -101,6 +109,10 @@ strategies:
     support_resistance_lookback: 50
     breakout_confirmation_candles: 2
     volume_threshold: 1.5
+    # OrderManager settings (breakout largo)
+    trailing_stop_distance: 25  # pips
+    break_even_trigger: 35  # pips
+    partial_close_trigger: 50  # pips
   
   news_trading:
     enabled: true
@@ -110,6 +122,10 @@ strategies:
     high_impact_only: true
     min_sentiment_confidence: 0.7
     trade_on_prediction: true
+    # OrderManager settings (news médio-rápido)
+    trailing_stop_distance: 15  # pips
+    break_even_trigger: 20  # pips
+    partial_close_trigger: 30  # pips
   
   scalping:
     enabled: true
@@ -124,6 +140,10 @@ strategies:
     target_pips: 8
     stop_pips: 4
     min_volume_ratio: 1.2
+    # OrderManager settings (scalping precisa gestão agressiva)
+    trailing_stop_distance: 5  # pips
+    break_even_trigger: 8  # pips
+    partial_close_trigger: 12  # pips
   
   # Estratégia 6: Range Trading (mercado lateral/consolidado)
   range_trading:
@@ -140,6 +160,10 @@ strategies:
     stoch_low: 30
     stoch_high: 70
     bb_touch_threshold: 0.003  # 0.3% da banda
+    # OrderManager settings (range precisa gestão moderada)
+    trailing_stop_distance: 10  # pips
+    break_even_trigger: 15  # pips
+    partial_close_trigger: 20  # pips
 
 # Technical Analysis
 technical_analysis:

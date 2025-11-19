@@ -15,6 +15,12 @@ sys.path.insert(0, str(src_path))
 
 from order_generator import OrderGenerator
 from order_manager import OrderManager
+from core.logger import setup_logger
+from core.config_manager import ConfigManager
+
+# Configurar logger ANTES de tudo
+config_manager = ConfigManager()
+setup_logger(config_manager.config)
 
 
 class TradingBot:

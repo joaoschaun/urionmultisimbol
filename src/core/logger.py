@@ -24,11 +24,12 @@ def setup_logger(config: Dict[str, Any]):
     # Get logging configuration
     log_config = config.get('logging', {})
     log_level = log_config.get('level', 'INFO')
-    log_format = log_config.get(
-        'format',
-        "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+    
+    # Formato simplificado e funcional
+    log_format = (
+        "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level: <8}</level> | "
-        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
         "<level>{message}</level>"
     )
     
@@ -50,17 +51,18 @@ def setup_logger(config: Dict[str, Any]):
         log_dir = Path("logs")
         log_dir.mkdir(exist_ok=True)
         
-        log_file = log_dir / log_config.get('file_path', 'logs/urion.log').split('/')[-1]
+        log_file = log_dir / "urion.log"
         
         logger.add(
             str(log_file),
             format=log_format,
             level=log_level,
-            rotation=log_config.get('max_file_size', '10 MB'),
-            retention=log_config.get('backup_count', 10),
+            rotation="10 MB",
+            retention=10,
             compression="zip",
             backtrace=True,
-            diagnose=True
+            diagnose=True,
+            enqueue=True  # Thread-safe
         )
     
     # Error file handler
@@ -73,7 +75,8 @@ def setup_logger(config: Dict[str, Any]):
         retention=20,
         compression="zip",
         backtrace=True,
-        diagnose=True
+        diagnose=True,
+        enqueue=True
     )
     
     logger.info(f"Logger initialized with level: {log_level}")

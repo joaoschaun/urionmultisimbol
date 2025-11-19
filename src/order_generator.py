@@ -11,6 +11,7 @@ from core.mt5_connector import MT5Connector
 from core.config_manager import ConfigManager
 from core.risk_manager import RiskManager
 from core.strategy_executor import StrategyExecutor
+from core.watchdog import ThreadWatchdog
 from analysis.technical_analyzer import TechnicalAnalyzer
 from analysis.news_analyzer import NewsAnalyzer
 from strategies.strategy_manager import StrategyManager
@@ -23,12 +24,15 @@ class OrderGenerator:
     Cada estratégia executa em thread independente
     """
     
-    def __init__(self):
+    def __init__(self, config=None, telegram=None):
         """Inicializa Order Generator"""
         
         # Carregar configurações
-        self.config_manager = ConfigManager()
-        self.config = self.config_manager.config
+        if config is None:
+            self.config_manager = ConfigManager()
+            self.config = self.config_manager.config
+        else:
+            self.config = config
         
         # Componentes compartilhados
         self.mt5 = MT5Connector(self.config)
@@ -36,7 +40,10 @@ class OrderGenerator:
         self.technical_analyzer = TechnicalAnalyzer(self.mt5, self.config)
         self.news_analyzer = NewsAnalyzer(self.config)
         self.strategy_manager = StrategyManager(self.config)
-        self.telegram = TelegramNotifier(self.config)
+        self.telegram = telegram if telegram else TelegramNotifier(self.config)
+        
+        # Watchdog para monitoramento de threads
+        self.watchdog = ThreadWatchdog(timeout_seconds=600)  # 10 min
         
         # Criar executors para cada estratégia
         self.executors: List[StrategyExecutor] = []
@@ -62,7 +69,8 @@ class OrderGenerator:
                     risk_manager=self.risk_manager,
                     technical_analyzer=self.technical_analyzer,
                     news_analyzer=self.news_analyzer,
-                    telegram=self.telegram
+                    telegram=self.telegram,
+                    watchdog=self.watchdog  # Adicionar watchdog
                 )
                 self.executors.append(executor)
                 logger.info(f"Executor criado para: {name}")
@@ -75,6 +83,10 @@ class OrderGenerator:
         
         self.running = True
         logger.info("Iniciando OrderGenerator (multi-thread)...")
+        
+        # Iniciar watchdog
+        self.watchdog.start()
+        logger.success("✅ Watchdog iniciado (timeout: 10 min)")
         
         # Conectar MT5
         if not self.mt5.is_connected():
@@ -107,6 +119,9 @@ class OrderGenerator:
         
         logger.info("Parando OrderGenerator...")
         self.running = False
+        
+        # Parar watchdog
+        self.watchdog.stop()
         
         # Parar cada executor
         for executor in self.executors:
