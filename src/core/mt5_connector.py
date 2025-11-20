@@ -207,11 +207,16 @@ class MT5Connector:
                 logger.error(f"Failed to get symbol info for {symbol}: {mt5.last_error()}")
                 return None
             
+            # Calcular spread em pips (para XAUUSD: 1 pip = 10 pontos = 0.10)
+            spread_points = symbol_info.spread
+            spread_pips = (symbol_info.ask - symbol_info.bid) / symbol_info.point / 10
+            
             return {
                 'name': symbol_info.name,
                 'bid': symbol_info.bid,
                 'ask': symbol_info.ask,
-                'spread': symbol_info.spread,
+                'spread': spread_pips,  # ← CORRIGIDO: agora retorna em pips, não pontos
+                'spread_points': spread_points,  # ← Manter pontos para referência
                 'digits': symbol_info.digits,
                 'point': symbol_info.point,
                 'trade_contract_size': symbol_info.trade_contract_size,
