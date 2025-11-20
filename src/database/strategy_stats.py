@@ -47,6 +47,32 @@ class StrategyStatsDB:
             )
         """)
         
+        # 🚀 PERFORMANCE BOOST: Índices para queries rápidas
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_strategy_name 
+            ON strategy_trades(strategy_name)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_open_time 
+            ON strategy_trades(open_time)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_close_time 
+            ON strategy_trades(close_time)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_profit 
+            ON strategy_trades(profit)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_status 
+            ON strategy_trades(status)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ticket 
+            ON strategy_trades(ticket)
+        """)
+        
         # Tabela de estatísticas diárias por estratégia
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS strategy_daily_stats (
@@ -71,6 +97,12 @@ class StrategyStatsDB:
             )
         """)
         
+        # Índices para daily stats
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_daily_strategy_date 
+            ON strategy_daily_stats(strategy_name, date)
+        """)
+        
         # Tabela de ranking semanal
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS strategy_weekly_ranking (
@@ -92,9 +124,15 @@ class StrategyStatsDB:
             )
         """)
         
+        # Índices para weekly ranking
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_weekly_strategy 
+            ON strategy_weekly_ranking(strategy_name, week_start)
+        """)
+        
         conn.commit()
         conn.close()
-        logger.info(f"Database inicializado: {self.db_path}")
+        logger.success(f"✅ Database inicializado com ÍNDICES: {self.db_path}")
     
     def save_trade(self, trade_data: Dict):
         """

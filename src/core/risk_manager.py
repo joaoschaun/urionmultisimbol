@@ -102,9 +102,31 @@ class RiskManager:
                 logger.error(f"Failed to get symbol info for {symbol}")
                 return 0.0
             
-            # Use default lot size from config (FIXED LOT SIZE)
-            default_lot = self.trading_config.get('default_lot_size', 0.01)
-            lot_size = default_lot
+            # Calculate stop loss distance in price
+            stop_distance = abs(entry_price - stop_loss)
+            
+            if stop_distance == 0:
+                logger.warning("Stop loss distance is zero, using default lot")
+                lot_size = self.trading_config.get('default_lot_size', 0.01)
+            else:
+                # Calculate pip value for 1 lot
+                # For XAUUSD: 1 pip = 0.01, contract size = 100
+                point = symbol_info.get('point', 0.01)
+                contract_size = symbol_info.get('trade_contract_size', 100)
+                
+                # Calculate pips distance
+                pips_distance = stop_distance / point
+                
+                # Calculate position size based on risk
+                # risk_amount = pips_distance * pip_value * lot_size
+                # lot_size = risk_amount / (pips_distance * pip_value)
+                
+                pip_value = contract_size * point
+                lot_size = risk_amount / (pips_distance * pip_value)
+                
+                # Round to symbol step
+                lot_step = symbol_info.get('volume_step', 0.01)
+                lot_size = round(lot_size / lot_step) * lot_step
             
             # Validate against symbol limits
             lot_size = max(symbol_info['volume_min'], lot_size)
@@ -115,7 +137,9 @@ class RiskManager:
             lot_size = min(lot_size, max_lot)
             
             logger.info(
-                f"Position size: {lot_size} lots (FIXED LOT from config)"
+                f"Position size: {lot_size} lots "
+                f"(Balance: ${balance:.2f}, Risk: {risk*100}%, "
+                f"Risk Amount: ${risk_amount:.2f}, Stop Distance: {abs(entry_price - stop_loss):.2f})"
             )
             
             return lot_size

@@ -4,7 +4,7 @@ Virtus Investimentos
 """
 import sys
 import argparse
-import asyncio
+import threading
 from pathlib import Path
 
 # Add src to path
@@ -12,12 +12,15 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from core.config_manager import ConfigManager
 from core.logger import setup_logger
+from core.mt5_connector import MT5Connector
+from database.strategy_stats import StrategyStatsDB
 from order_generator import OrderGenerator
 from order_manager import OrderManager
 from notifications.telegram_bot import TelegramNotifier
+from loguru import logger
 
 
-async def main():
+def main():
     """Main entry point for Urion Trading Bot"""
     
     parser = argparse.ArgumentParser(description='Urion Trading Bot')
@@ -38,8 +41,8 @@ async def main():
     args = parser.parse_args()
     
     # Initialize configuration
-    config = ConfigManager(args.config)
-    logger = setup_logger(config)
+    config_manager = ConfigManager(args.config)
+    config = config_manager.config
     
     logger.info("=" * 80)
     logger.info("URION TRADING BOT - VIRTUS INVESTIMENTOS")
@@ -47,49 +50,60 @@ async def main():
     logger.info(f"Mode: {args.mode}")
     logger.info(f"Environment: {config.get('ENVIRONMENT', 'production')}")
     
-    # Initialize Telegram notifications
-    telegram = TelegramNotifier(config)
-    await telegram.send_message("🚀 Urion Trading Bot iniciado!")
+    # Initialize MT5 and Database for Telegram commands
+    mt5 = MT5Connector(config)
+    stats_db = StrategyStatsDB()
+    
+    # Initialize Telegram notifications with command support
+    telegram = TelegramNotifier(config, mt5=mt5, stats_db=stats_db)
+    telegram.send_message_sync("🚀 Urion Trading Bot iniciado!")
     
     try:
         if args.mode == 'full':
-            # Run both generator and manager
+            # Run both generator and manager in separate threads
             logger.info("Starting in FULL mode (Generator + Manager)")
             
-            generator = OrderGenerator(config, telegram)
-            manager = OrderManager(config, telegram)
+            generator = OrderGenerator(config=config, telegram=telegram)
+            manager = OrderManager(config=config, telegram=telegram)
             
-            await asyncio.gather(
-                generator.start(),
-                manager.start()
+            # Start OrderManager in separate thread
+            manager_thread = threading.Thread(
+                target=manager.start,
+                name="OrderManager-Thread",
+                daemon=True
             )
+            manager_thread.start()
+            logger.success("✅ OrderManager iniciado em thread separada")
+            
+            # Start OrderGenerator in main thread (blocks)
+            generator.start()
             
         elif args.mode == 'generator':
             # Run only order generator
             logger.info("Starting in GENERATOR mode")
             
-            generator = OrderGenerator(config, telegram)
-            await generator.start()
+            generator = OrderGenerator(config=config, telegram=telegram)
+            generator.start()
             
         elif args.mode == 'manager':
             # Run only order manager
             logger.info("Starting in MANAGER mode")
             
-            manager = OrderManager(config, telegram)
-            await manager.start()
+            manager = OrderManager(config=config, telegram=telegram)
+            manager.start()
             
     except KeyboardInterrupt:
         logger.info("Shutdown requested by user")
-        await telegram.send_message("⏹️ Urion Trading Bot encerrado pelo usuário")
+        telegram.send_message_sync("⏹️ Urion Trading Bot encerrado pelo usuário")
         
     except Exception as e:
         logger.exception(f"Critical error: {e}")
-        await telegram.send_message(f"❌ ERRO CRÍTICO: {e}")
+        telegram.send_message_sync(f"❌ ERRO CRÍTICO: {e}")
         
     finally:
         logger.info("Urion Trading Bot stopped")
-        await telegram.send_message("🛑 Urion Trading Bot encerrado")
+        telegram.send_message_sync("🛑 Urion Trading Bot encerrado")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

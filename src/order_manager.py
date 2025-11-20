@@ -5,6 +5,7 @@ Ciclo de execução: 1 minuto
 """
 
 import time
+import threading
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from loguru import logger
@@ -61,7 +62,10 @@ class OrderManager:
         self.monitored_positions = {}  # ticket: position_data
         self.last_market_close_check = None
         
-        # 🚨 NOVO: Controle de modificações (evitar spam)
+        # � THREAD SAFETY: Lock para proteger acesso ao estado compartilhado
+        self.positions_lock = threading.Lock()
+        
+        # �🚨 NOVO: Controle de modificações (evitar spam)
         self.last_modification = {}  # ticket: datetime
         self.min_modification_interval = 30  # segundos (não modificar antes disso)
         self.min_sl_change_pips = 2  # Mínimo de 2 pips de mudança
@@ -144,71 +148,73 @@ class OrderManager:
         current_positions = self.get_open_positions()
         current_tickets = {pos['ticket'] for pos in current_positions}
         
-        # Remover posições fechadas
-        closed_tickets = set(self.monitored_positions.keys()) - current_tickets
-        for ticket in closed_tickets:
-            logger.info(f"Posição {ticket} foi fechada")
-            del self.monitored_positions[ticket]
-        
-        # Adicionar novas posições
-        for position in current_positions:
-            ticket = position['ticket']
-            if ticket not in self.monitored_positions:
-                self.monitored_positions[ticket] = {
-                    'ticket': ticket,
-                    'type': position['type'],
-                    'volume': position['volume'],
-                    'volume_inicial': position['volume'],  # 🚨 NOVO: rastrear volume inicial
-                    'price_open': position['price_open'],
-                    'sl': position['sl'],
-                    'tp': position['tp'],
-                    'profit': position['profit'],
-                    'profit_realizado': 0.0,  # 🚨 NOVO: lucro já realizado com parciais
-                    'first_seen': datetime.now(timezone.utc),
-                    'breakeven_applied': False,
-                    'trailing_active': False,
-                    'highest_profit': position['profit'],
-                    'lowest_profit': position['profit']
-                }
-                logger.info(
-                    f"Nova posição monitorada: {ticket} | "
-                    f"Tipo: {position['type']} | Volume: {position['volume']}"
-                )
-            else:
-                # 🚨 DETECTAR FECHAMENTO PARCIAL (volume diminuiu)
-                monitored = self.monitored_positions[ticket]
-                
-                if position['volume'] < monitored['volume']:
-                    # Houve fechamento parcial!
-                    volume_fechado = monitored['volume'] - position['volume']
-                    
-                    # Calcular lucro realizado (aproximado)
-                    if position['volume'] > 0:
-                        profit_per_lot = position['profit'] / position['volume']
-                        profit_fechado = profit_per_lot * volume_fechado
-                    else:
-                        profit_fechado = 0.0
-                    
-                    monitored['profit_realizado'] = monitored.get('profit_realizado', 0.0) + profit_fechado
-                    monitored['volume'] = position['volume']
-                    
-                    logger.success(
-                        f"✅ Fechamento parcial detectado | "
-                        f"Ticket: {ticket} | "
-                        f"Volume fechado: {volume_fechado} | "
-                        f"Lucro realizado: ${profit_fechado:.2f} | "
-                        f"Total realizado: ${monitored['profit_realizado']:.2f}"
+        # 🔒 THREAD SAFETY: Proteger acesso ao estado compartilhado
+        with self.positions_lock:
+            # Remover posições fechadas
+            closed_tickets = set(self.monitored_positions.keys()) - current_tickets
+            for ticket in closed_tickets:
+                logger.info(f"Posição {ticket} foi fechada")
+                del self.monitored_positions[ticket]
+            
+            # Adicionar novas posições
+            for position in current_positions:
+                ticket = position['ticket']
+                if ticket not in self.monitored_positions:
+                    self.monitored_positions[ticket] = {
+                        'ticket': ticket,
+                        'type': position['type'],
+                        'volume': position['volume'],
+                        'volume_inicial': position['volume'],  # 🚨 NOVO: rastrear volume inicial
+                        'price_open': position['price_open'],
+                        'sl': position['sl'],
+                        'tp': position['tp'],
+                        'profit': position['profit'],
+                        'profit_realizado': 0.0,  # 🚨 NOVO: lucro já realizado com parciais
+                        'first_seen': datetime.now(timezone.utc),
+                        'breakeven_applied': False,
+                        'trailing_active': False,
+                        'highest_profit': position['profit'],
+                        'lowest_profit': position['profit']
+                    }
+                    logger.info(
+                        f"Nova posição monitorada: {ticket} | "
+                        f"Tipo: {position['type']} | Volume: {position['volume']}"
                     )
+                else:
+                    # 🚨 DETECTAR FECHAMENTO PARCIAL (volume diminuiu)
+                    monitored = self.monitored_positions[ticket]
                     
-                    # Notificar
-                    self.telegram.send_message_sync(
-                        f"✅ LUCRO REALIZADO\n\n"
-                        f"Ticket: {ticket}\n"
-                        f"Volume fechado: {volume_fechado} lotes\n"
-                        f"Lucro: ${profit_fechado:.2f}\n"
-                        f"Total realizado: ${monitored['profit_realizado']:.2f}\n"
-                        f"Ainda aberto: {position['volume']} lotes"
-                    )
+                    if position['volume'] < monitored['volume']:
+                        # Houve fechamento parcial!
+                        volume_fechado = monitored['volume'] - position['volume']
+                        
+                        # Calcular lucro realizado (aproximado)
+                        if position['volume'] > 0:
+                            profit_per_lot = position['profit'] / position['volume']
+                            profit_fechado = profit_per_lot * volume_fechado
+                        else:
+                            profit_fechado = 0.0
+                        
+                        monitored['profit_realizado'] = monitored.get('profit_realizado', 0.0) + profit_fechado
+                        monitored['volume'] = position['volume']
+                        
+                        logger.success(
+                            f"✅ Fechamento parcial detectado | "
+                            f"Ticket: {ticket} | "
+                            f"Volume fechado: {volume_fechado} | "
+                            f"Lucro realizado: ${profit_fechado:.2f} | "
+                            f"Total realizado: ${monitored['profit_realizado']:.2f}"
+                        )
+                        
+                        # Notificar
+                        self.telegram.send_message_sync(
+                            f"✅ LUCRO REALIZADO\n\n"
+                            f"Ticket: {ticket}\n"
+                            f"Volume fechado: {volume_fechado} lotes\n"
+                            f"Lucro: ${profit_fechado:.2f}\n"
+                            f"Total realizado: ${monitored['profit_realizado']:.2f}\n"
+                            f"Ainda aberto: {position['volume']} lotes"
+                        )
     
     def should_move_to_breakeven(self, ticket: int,
                                   position: Dict) -> tuple[bool, float]:
@@ -223,10 +229,12 @@ class OrderManager:
             (should_move, new_sl)
         """
         
-        # Verificar se já foi aplicado
-        monitored = self.monitored_positions.get(ticket)
-        if not monitored or monitored['breakeven_applied']:
-            return False, 0.0
+        # 🔒 THREAD SAFETY: Leitura protegida
+        with self.positions_lock:
+            # Verificar se já foi aplicado
+            monitored = self.monitored_positions.get(ticket)
+            if not monitored or monitored['breakeven_applied']:
+                return False, 0.0
         
         # Obter configuração específica da estratégia
         magic_number = position.get('magic', 0)
@@ -274,9 +282,11 @@ class OrderManager:
             Novo SL ou None
         """
         
-        monitored = self.monitored_positions.get(ticket)
-        if not monitored:
-            return None
+        # 🔒 THREAD SAFETY: Leitura protegida
+        with self.positions_lock:
+            monitored = self.monitored_positions.get(ticket)
+            if not monitored:
+                return None
         
         # Obter configuração específica da estratégia
         magic_number = position.get('magic', 0)
@@ -311,9 +321,11 @@ class OrderManager:
             (should_close, volume_to_close)
         """
         
-        monitored = self.monitored_positions.get(ticket)
-        if not monitored:
-            return False, 0.0
+        # 🔒 THREAD SAFETY: Leitura protegida
+        with self.positions_lock:
+            monitored = self.monitored_positions.get(ticket)
+            if not monitored:
+                return False, 0.0
         
         # Configuração de fechamento parcial
         partial_config = self.manager_config.get('partial_close', {})
@@ -496,8 +508,10 @@ class OrderManager:
             True se fechado com sucesso
         """
         try:
-            # Buscar dados da posição antes de fechar (para aprendizagem)
-            position_info = self.monitored_positions.get(ticket, {})
+            # 🔒 THREAD SAFETY: Leitura protegida
+            with self.positions_lock:
+                # Buscar dados da posição antes de fechar (para aprendizagem)
+                position_info = self.monitored_positions.get(ticket, {})
             
             if volume is None:
                 # Fechamento total
@@ -555,25 +569,27 @@ class OrderManager:
                         f"Restante: {position['volume'] - volume}"
                     )
                     
-                    # Atualizar volume monitorado
-                    monitored = self.monitored_positions.get(ticket)
-                    if monitored:
-                        # Calcular lucro realizado (aproximado)
-                        profit_per_lot = position['profit'] / position['volume']
-                        profit_fechado = profit_per_lot * volume
-                        
-                        monitored['profit_realizado'] = monitored.get('profit_realizado', 0.0) + profit_fechado
-                        monitored['volume'] = position['volume'] - volume
-                        
-                        # Notificar
-                        self.telegram.send_message_sync(
-                            f"✅ FECHAMENTO PARCIAL\n\n"
-                            f"Ticket: {ticket}\n"
-                            f"Volume fechado: {volume} lotes\n"
-                            f"Lucro: ${profit_fechado:.2f}\n"
-                            f"Total realizado: ${monitored['profit_realizado']:.2f}\n"
-                            f"Ainda aberto: {position['volume'] - volume} lotes"
-                        )
+                    # 🔒 THREAD SAFETY: Atualização protegida
+                    with self.positions_lock:
+                        # Atualizar volume monitorado
+                        monitored = self.monitored_positions.get(ticket)
+                        if monitored:
+                            # Calcular lucro realizado (aproximado)
+                            profit_per_lot = position['profit'] / position['volume']
+                            profit_fechado = profit_per_lot * volume
+                            
+                            monitored['profit_realizado'] = monitored.get('profit_realizado', 0.0) + profit_fechado
+                            monitored['volume'] = position['volume'] - volume
+                            
+                            # Notificar
+                            self.telegram.send_message_sync(
+                                f"✅ FECHAMENTO PARCIAL\n\n"
+                                f"Ticket: {ticket}\n"
+                                f"Volume fechado: {volume} lotes\n"
+                                f"Lucro: ${profit_fechado:.2f}\n"
+                                f"Total realizado: ${monitored['profit_realizado']:.2f}\n"
+                                f"Ainda aberto: {position['volume'] - volume} lotes"
+                            )
                     
                     return True
             
@@ -655,35 +671,46 @@ class OrderManager:
         """
         
         ticket = position['ticket']
-        monitored = self.monitored_positions.get(ticket)
         
-        if not monitored:
-            return
-        
-        # Obter configuração da estratégia para logging
-        magic_number = position.get('magic', 0)
-        strategy_config = self.get_strategy_config(magic_number)
-        strategy_name = strategy_config.get('name', 'Unknown')
-        
-        # Atualizar lucro máximo/mínimo
-        current_profit = position['profit']
-        monitored['highest_profit'] = max(
-            monitored['highest_profit'], current_profit
-        )
-        monitored['lowest_profit'] = min(
-            monitored['lowest_profit'], current_profit
-        )
+        # 🔒 THREAD SAFETY: Leitura e atualização protegidas
+        with self.positions_lock:
+            monitored = self.monitored_positions.get(ticket)
+            
+            if not monitored:
+                return
+            
+            # Obter configuração da estratégia para logging
+            magic_number = position.get('magic', 0)
+            strategy_config = self.get_strategy_config(magic_number)
+            strategy_name = strategy_config.get('name', 'Unknown')
+            
+            # Atualizar lucro máximo/mínimo
+            current_profit = position['profit']
+            monitored['highest_profit'] = max(
+                monitored['highest_profit'], current_profit
+            )
+            monitored['lowest_profit'] = min(
+                monitored['lowest_profit'], current_profit
+            )
+            
+            # Guardar flags para uso fora do lock
+            breakeven_applied = monitored['breakeven_applied']
         
         # 1. Verificar break-even
-        if not monitored['breakeven_applied']:
+        if not breakeven_applied:
             should_move, new_sl = self.should_move_to_breakeven(
                 ticket, position
             )
             
             if should_move:
                 if self.modify_position(ticket, new_sl):
-                    monitored['breakeven_applied'] = True
-                    monitored['sl'] = new_sl
+                    # 🔒 THREAD SAFETY: Atualizar estado protegido
+                    with self.positions_lock:
+                        monitored = self.monitored_positions.get(ticket)
+                        if monitored:
+                            monitored['breakeven_applied'] = True
+                            monitored['sl'] = new_sl
+                    
                     logger.info(
                         f"[{strategy_name}] Break-even aplicado | "
                         f"Ticket: {ticket} | Trigger: {strategy_config.get('break_even_trigger')}pips"

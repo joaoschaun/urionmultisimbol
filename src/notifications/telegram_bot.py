@@ -3,6 +3,12 @@ Telegram Notifier
 Sends notifications and handles commands via Telegram
 """
 import asyncio
+import os
+import signal
+import sys
+from datetime import datetime, timezone
+from typing import Dict, Any, Optional
+from loguru import logger
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -11,26 +17,30 @@ from telegram.ext import (
     MessageHandler,
     filters
 )
-from typing import Dict, Any
-from loguru import logger
-import os
 
 
 class TelegramNotifier:
     """Telegram Bot for notifications and commands"""
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], mt5=None, stats_db=None):
         """
         Initialize Telegram Notifier
         
         Args:
             config: Configuration dictionary
+            mt5: Optional MT5Connector instance for commands
+            stats_db: Optional StrategyStatsDB instance for commands
         """
         self.config = config
         self.bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
         self.chat_id = os.getenv('TELEGRAM_CHAT_ID')
         self.enabled = config.get('notifications', {}).get('telegram', {}).get('enabled', True)
         self.app = None
+        
+        # 🆕 Referencias para comandos
+        self.mt5 = mt5
+        self.stats_db = stats_db
+        self.bot_start_time = datetime.now(timezone.utc)
         
         if not self.bot_token or not self.chat_id:
             logger.warning("Telegram credentials not found, notifications disabled")
@@ -262,29 +272,253 @@ class TelegramNotifier:
         )
     
     async def cmd_stop(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /stop command"""
-        await update.message.reply_text("⏹️ Comando de parada recebido...")
-        # TODO: Implement graceful shutdown
+        """Handle /stop command - Graceful shutdown"""
+        await update.message.reply_text(
+            "⏹️ <b>PARANDO BOT</b>\n\n"
+            "Fechando todas as posições abertas...\n"
+            "Aguarde confirmação.",
+            parse_mode='HTML'
+        )
+        
+        try:
+            if self.mt5:
+                # Buscar posições abertas
+                positions = self.mt5.get_open_positions()
+                
+                if positions:
+                    await update.message.reply_text(
+                        f"🔴 Fechando {len(positions)} posição(ões)..."
+                    )
+                    
+                    closed = 0
+                    for pos in positions:
+                        if self.mt5.close_position(pos['ticket']):
+                            closed += 1
+                    
+                    await update.message.reply_text(
+                        f"✅ <b>{closed}/{len(positions)} posições fechadas</b>\n\n"
+                        f"Bot será encerrado em 5 segundos...",
+                        parse_mode='HTML'
+                    )
+                else:
+                    await update.message.reply_text("✅ Nenhuma posição aberta")
+                
+                # Aguardar 5 segundos e enviar SIGTERM
+                await asyncio.sleep(5)
+                await update.message.reply_text("🛑 <b>BOT ENCERRADO</b>", parse_mode='HTML')
+                
+                # Encerrar processo
+                os.kill(os.getpid(), signal.SIGTERM)
+            else:
+                await update.message.reply_text(
+                    "❌ MT5 não disponível. Reinicie o bot manualmente."
+                )
+        except Exception as e:
+            logger.error(f"Erro no comando /stop: {e}")
+            await update.message.reply_text(f"❌ Erro: {e}")
     
     async def cmd_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /status command"""
-        # TODO: Implement status check
-        await update.message.reply_text("📊 Status: Operacional")
+        """Handle /status command - Bot status"""
+        try:
+            # Calcular uptime
+            uptime = datetime.now(timezone.utc) - self.bot_start_time
+            hours = int(uptime.total_seconds() // 3600)
+            minutes = int((uptime.total_seconds() % 3600) // 60)
+            
+            status_msg = f"<b>📊 STATUS DO BOT</b>\n\n"
+            status_msg += f"🟢 <b>Operacional</b>\n"
+            status_msg += f"⏱ Uptime: {hours}h {minutes}m\n\n"
+            
+            if self.mt5:
+                # Status MT5
+                if self.mt5.mt5.initialize():
+                    account_info = self.mt5.mt5.account_info()
+                    if account_info:
+                        status_msg += f"💰 <b>Conta MT5</b>\n"
+                        status_msg += f"Login: {account_info.login}\n"
+                        status_msg += f"Server: {account_info.server}\n"
+                        status_msg += f"Balance: ${account_info.balance:.2f}\n"
+                        status_msg += f"Equity: ${account_info.equity:.2f}\n"
+                        status_msg += f"Margin: ${account_info.margin:.2f}\n"
+                        status_msg += f"Free Margin: ${account_info.margin_free:.2f}\n\n"
+                    
+                    # Posições abertas
+                    positions = self.mt5.get_open_positions()
+                    status_msg += f"📍 Posições: {len(positions)}\n"
+                    
+                    if positions:
+                        total_profit = sum(p['profit'] for p in positions)
+                        status_msg += f"💵 P/L Total: ${total_profit:.2f}\n"
+                else:
+                    status_msg += "❌ MT5 desconectado\n"
+            
+            if self.stats_db:
+                # Estatísticas do dia
+                from datetime import date
+                today_trades = self.stats_db.get_trades_by_date(date.today())
+                if today_trades:
+                    wins = sum(1 for t in today_trades if t.get('profit', 0) > 0)
+                    total_profit = sum(t.get('profit', 0) for t in today_trades)
+                    status_msg += f"\n📈 <b>Hoje</b>\n"
+                    status_msg += f"Trades: {len(today_trades)}\n"
+                    status_msg += f"Wins: {wins}/{len(today_trades)}\n"
+                    status_msg += f"P/L: ${total_profit:.2f}\n"
+            
+            await update.message.reply_text(status_msg, parse_mode='HTML')
+            
+        except Exception as e:
+            logger.error(f"Erro no comando /status: {e}")
+            await update.message.reply_text(f"❌ Erro: {e}")
     
     async def cmd_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /balance command"""
-        # TODO: Implement balance check
-        await update.message.reply_text("💰 Consultando saldo...")
+        """Handle /balance command - Account balance"""
+        try:
+            if not self.mt5:
+                await update.message.reply_text("❌ MT5 não disponível")
+                return
+            
+            if self.mt5.mt5.initialize():
+                account_info = self.mt5.mt5.account_info()
+                if account_info:
+                    balance_msg = f"<b>💰 SALDO DA CONTA</b>\n\n"
+                    balance_msg += f"Balance: ${account_info.balance:.2f}\n"
+                    balance_msg += f"Equity: ${account_info.equity:.2f}\n"
+                    balance_msg += f"Margin: ${account_info.margin:.2f}\n"
+                    balance_msg += f"Free Margin: ${account_info.margin_free:.2f}\n"
+                    balance_msg += f"Margin Level: {account_info.margin_level:.2f}%\n\n"
+                    
+                    # P/L não realizado
+                    positions = self.mt5.get_open_positions()
+                    if positions:
+                        unrealized_pl = sum(p['profit'] for p in positions)
+                        balance_msg += f"P/L Aberto: ${unrealized_pl:.2f}\n"
+                    
+                    # P/L do dia
+                    if self.stats_db:
+                        from datetime import date
+                        today_trades = self.stats_db.get_trades_by_date(date.today())
+                        if today_trades:
+                            today_pl = sum(t.get('profit', 0) for t in today_trades)
+                            balance_msg += f"P/L Hoje: ${today_pl:.2f}\n"
+                    
+                    await update.message.reply_text(balance_msg, parse_mode='HTML')
+                else:
+                    await update.message.reply_text("❌ Erro ao obter info da conta")
+            else:
+                await update.message.reply_text("❌ MT5 desconectado")
+                
+        except Exception as e:
+            logger.error(f"Erro no comando /balance: {e}")
+            await update.message.reply_text(f"❌ Erro: {e}")
     
     async def cmd_positions(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /positions command"""
-        # TODO: Implement position listing
-        await update.message.reply_text("📍 Consultando posições...")
+        """Handle /positions command - List open positions"""
+        try:
+            if not self.mt5:
+                await update.message.reply_text("❌ MT5 não disponível")
+                return
+            
+            positions = self.mt5.get_open_positions()
+            
+            if not positions:
+                await update.message.reply_text("✅ Nenhuma posição aberta")
+                return
+            
+            pos_msg = f"<b>📍 POSIÇÕES ABERTAS ({len(positions)})</b>\n\n"
+            
+            for i, pos in enumerate(positions, 1):
+                profit_emoji = "🟢" if pos['profit'] > 0 else "🔴"
+                pos_msg += f"{i}. <b>{pos['symbol']}</b> {pos['type']}\n"
+                pos_msg += f"   Ticket: {pos['ticket']}\n"
+                pos_msg += f"   Volume: {pos['volume']}\n"
+                pos_msg += f"   Preço: {pos['price_open']:.5f} → {pos['price_current']:.5f}\n"
+                pos_msg += f"   {profit_emoji} P/L: ${pos['profit']:.2f}\n"
+                
+                if pos['sl'] > 0:
+                    pos_msg += f"   SL: {pos['sl']:.5f}\n"
+                if pos['tp'] > 0:
+                    pos_msg += f"   TP: {pos['tp']:.5f}\n"
+                pos_msg += "\n"
+            
+            # Total P/L
+            total_pl = sum(p['profit'] for p in positions)
+            total_emoji = "🟢" if total_pl > 0 else "🔴"
+            pos_msg += f"{total_emoji} <b>Total P/L: ${total_pl:.2f}</b>"
+            
+            await update.message.reply_text(pos_msg, parse_mode='HTML')
+            
+        except Exception as e:
+            logger.error(f"Erro no comando /positions: {e}")
+            await update.message.reply_text(f"❌ Erro: {e}")
     
     async def cmd_stats(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /stats command"""
-        # TODO: Implement statistics
-        await update.message.reply_text("📈 Consultando estatísticas...")
+        """Handle /stats command - Trading statistics"""
+        try:
+            if not self.stats_db:
+                await update.message.reply_text("❌ Database não disponível")
+                return
+            
+            stats_msg = "<b>📈 ESTATÍSTICAS</b>\n\n"
+            
+            # Stats do dia
+            from datetime import date, timedelta
+            today = date.today()
+            today_trades = self.stats_db.get_trades_by_date(today)
+            
+            if today_trades:
+                wins = sum(1 for t in today_trades if t.get('profit', 0) > 0)
+                losses = len(today_trades) - wins
+                total_profit = sum(t.get('profit', 0) for t in today_trades)
+                win_rate = (wins / len(today_trades)) * 100 if today_trades else 0
+                
+                stats_msg += f"<b>📅 HOJE</b>\n"
+                stats_msg += f"Trades: {len(today_trades)}\n"
+                stats_msg += f"Wins: {wins} | Losses: {losses}\n"
+                stats_msg += f"Win Rate: {win_rate:.1f}%\n"
+                stats_msg += f"P/L: ${total_profit:.2f}\n\n"
+            else:
+                stats_msg += "<b>📅 HOJE</b>\nNenhum trade ainda\n\n"
+            
+            # Stats da semana
+            week_ago = today - timedelta(days=7)
+            week_trades = []
+            for i in range(8):
+                day = week_ago + timedelta(days=i)
+                week_trades.extend(self.stats_db.get_trades_by_date(day))
+            
+            if week_trades:
+                wins = sum(1 for t in week_trades if t.get('profit', 0) > 0)
+                losses = len(week_trades) - wins
+                total_profit = sum(t.get('profit', 0) for t in week_trades)
+                win_rate = (wins / len(week_trades)) * 100 if week_trades else 0
+                
+                stats_msg += f"<b>📊 ÚLTIMOS 7 DIAS</b>\n"
+                stats_msg += f"Trades: {len(week_trades)}\n"
+                stats_msg += f"Wins: {wins} | Losses: {losses}\n"
+                stats_msg += f"Win Rate: {win_rate:.1f}%\n"
+                stats_msg += f"P/L: ${total_profit:.2f}\n\n"
+            
+            # Top estratégia
+            strategies = {}
+            for trade in week_trades:
+                strat = trade.get('strategy', 'Unknown')
+                if strat not in strategies:
+                    strategies[strat] = {'trades': 0, 'profit': 0}
+                strategies[strat]['trades'] += 1
+                strategies[strat]['profit'] += trade.get('profit', 0)
+            
+            if strategies:
+                best_strat = max(strategies.items(), key=lambda x: x[1]['profit'])
+                stats_msg += f"<b>🏆 MELHOR ESTRATÉGIA</b>\n"
+                stats_msg += f"{best_strat[0]}\n"
+                stats_msg += f"Trades: {best_strat[1]['trades']}\n"
+                stats_msg += f"P/L: ${best_strat[1]['profit']:.2f}\n"
+            
+            await update.message.reply_text(stats_msg, parse_mode='HTML')
+            
+        except Exception as e:
+            logger.error(f"Erro no comando /stats: {e}")
+            await update.message.reply_text(f"❌ Erro: {e}")
     
     async def cmd_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /help command"""

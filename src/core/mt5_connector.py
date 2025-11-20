@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional, Dict, List, Any
 import pandas as pd
 from loguru import logger
+from core.retry_handler import retry_on_error, MT5ConnectionError, MT5TradeError
 
 
 class MT5Connector:
@@ -31,12 +32,21 @@ class MT5Connector:
         self.connected = False
         self.reconnect_attempts = 0
         
+    @retry_on_error(
+        max_attempts=3,
+        delay=2.0,
+        backoff=2.0,
+        exceptions=(MT5ConnectionError,)
+    )
     def connect(self) -> bool:
         """
         Connect to MetaTrader 5 terminal
         
         Returns:
             bool: True if connection successful, False otherwise
+        
+        Raises:
+            MT5ConnectionError: Se falhar após tentativas
         """
         try:
             logger.info("Connecting to MetaTrader 5...")
@@ -44,20 +54,23 @@ class MT5Connector:
             # Initialize MT5
             if self.path:
                 if not mt5.initialize(path=self.path, timeout=self.timeout):
-                    logger.error(f"MT5 initialize() failed: {mt5.last_error()}")
-                    return False
+                    error = mt5.last_error()
+                    logger.error(f"MT5 initialize() failed: {error}")
+                    raise MT5ConnectionError(f"Initialize failed: {error}")
             else:
                 if not mt5.initialize(timeout=self.timeout):
-                    logger.error(f"MT5 initialize() failed: {mt5.last_error()}")
-                    return False
+                    error = mt5.last_error()
+                    logger.error(f"MT5 initialize() failed: {error}")
+                    raise MT5ConnectionError(f"Initialize failed: {error}")
             
             logger.info("MT5 initialized successfully")
             
             # Login to account
             if not mt5.login(self.login, password=self.password, server=self.server):
-                logger.error(f"MT5 login failed: {mt5.last_error()}")
+                error = mt5.last_error()
+                logger.error(f"MT5 login failed: {error}")
                 mt5.shutdown()
-                return False
+                raise MT5ConnectionError(f"Login failed: {error}")
             
             logger.info(f"Logged in to account {self.login} on server {self.server}")
             
@@ -65,7 +78,7 @@ class MT5Connector:
             account_info = mt5.account_info()
             if account_info is None:
                 logger.error("Failed to get account info")
-                return False
+                raise MT5ConnectionError("Failed to get account info")
             
             self.connected = True
             self.reconnect_attempts = 0
@@ -76,9 +89,12 @@ class MT5Connector:
             
             return True
             
+        except MT5ConnectionError:
+            # Re-raise para retry
+            raise
         except Exception as e:
             logger.exception(f"Error connecting to MT5: {e}")
-            return False
+            raise MT5ConnectionError(f"Unexpected error: {e}")
     
     def disconnect(self):
         """Disconnect from MetaTrader 5"""
