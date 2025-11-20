@@ -28,9 +28,9 @@ risk:
   stop_loss_pips: 50
   take_profit_pips: 100
   trailing_stop_enabled: true
-  trailing_stop_distance: 15
+  trailing_stop_distance: 20  # ⬇️ REDUZIDO: 30→20 pips (protege lucros mais cedo)
   break_even_enabled: true
-  break_even_trigger: 15
+  break_even_trigger: 15  # ⬇️ REDUZIDO: 40→15 pips (protege breakeven MUITO mais cedo)
 schedule:
   timezone: America/New_York
   trading_days:
@@ -266,8 +266,8 @@ order_manager:
   cycle_interval_seconds: 60
   partial_close:
     enabled: true
-    target_pips: 50  # ⬆️ AUMENTADO: 30→50 pips (XAUUSD move 100 pips/dia)
-    close_percentage: 0.5
+    target_pips: 20  # ⬇️ REDUZIDO: 50→20 pips (fecha 50% aos 20 pips de lucro!)
+    close_percentage: 0.5  # Fecha metade da posição = garante lucro
 notifications:
   telegram:
     enabled: true
