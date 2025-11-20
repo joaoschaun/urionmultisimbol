@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urion Trading Bot - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .update-time {
+            color: #ccc;
+            font-size: 0.9em;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);
+        }
+        
+        .card h2 {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            color: #4fc3f7;
+            border-bottom: 2px solid #4fc3f7;
+            padding-bottom: 10px;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .metric:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-label {
+            color: #bbb;
+        }
+        
+        .metric-value {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .positive {
+            color: #4caf50;
+        }
+        
+        .negative {
+            color: #f44336;
+        }
+        
+        .neutral {
+            color: #ffc107;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        th {
+            background: rgba(0,0,0,0.3);
+            font-weight: bold;
+            color: #4fc3f7;
+        }
+        
+        tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #ccc;
+        }
+        
+        .error {
+            background: rgba(244,67,54,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #f44336;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        
+        .badge-buy {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .badge-sell {
+            background: #f44336;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ URION TRADING BOT</h1>
+            <div class="update-time">Última atualização: <span id="updateTime">--:--:--</span></div>
+        </header>
+        
+        <!-- Conta -->
+        <div class="grid">
+            <div class="card">
+                <h2>💰 Conta MT5</h2>
+                <div id="account" class="loading">Carregando...</div>
+            </div>
+            
+            <div class="card">
+                <h2>📊 Estatísticas (7 dias)</h2>
+                <div id="statistics" class="loading">Carregando...</div>
+            </div>
+        </div>
+        
+        <!-- Posições Abertas -->
+        <div class="card">
+            <h2>📈 Posições Abertas</h2>
+            <div id="positions" class="loading">Carregando...</div>
+        </div>
+        
+        <!-- Histórico -->
+        <div class="card">
+            <h2>📜 Histórico (Últimas 24h)</h2>
+            <div id="history" class="loading">Carregando...</div>
+        </div>
+        
+        <!-- Estratégias -->
+        <div class="card">
+            <h2>🎯 Performance por Estratégia (7 dias)</h2>
+            <div id="strategies" class="loading">Carregando...</div>
+        </div>
+    </div>
+    
+    <script>
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-BR', { 
+                style: 'currency', 
+                currency: 'USD' 
+            }).format(value);
+        }
+        
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('updateTime').textContent = now.toLocaleTimeString('pt-BR');
+        }
+        
+        async function loadAccount() {
+            try {
+                const response = await fetch('/api/account');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('account').innerHTML = `<div class="error">${data.error}</div>`;
+                    return;
+                }
+                
+                const profitClass = data.profit >= 0 ? 'positive' : 'negative';
+                
+                document.getElementById('account').innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">Login:</span>
+                        <span class="metric-value">${data.login}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Balance:</span>
+                        <span class="metric-value">${formatCurrency(data.balance)}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Equity:</span>
+                        <span class="metric-value">${formatCurrency(data.equity)}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Lucro Aberto:</span>
+                        <span class="metric-value ${profitClass}">${formatCurrency(data.profit)}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Margem Livre:</span>
+                        <span class="metric-value">${formatCurrency(data.free_margin)}</span>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('account').innerHTML = `<div class="error">Erro: ${error.message}</div>`;
+            }
+        }
+        
+        async function loadStatistics() {
+            try {
+                const response = await fetch('/api/statistics');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('statistics').innerHTML = `<div class="error">${data.error}</div>`;
+                    return;
+                }
+                
+                const winRateClass = data.win_rate >= 60 ? 'positive' : data.win_rate >= 40 ? 'neutral' : 'negative';
+                const profitClass = data.total_profit >= 0 ? 'positive' : 'negative';
+                
+                document.getElementById('statistics').innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">Total Trades:</span>
+                        <span class="metric-value">${data.total_trades}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Wins / Losses:</span>
+                        <span class="metric-value">${data.wins} / ${data.losses}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Win Rate:</span>
+                        <span class="metric-value ${winRateClass}">${data.win_rate}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Lucro Total:</span>
+                        <span class="metric-value ${profitClass}">${formatCurrency(data.total_profit)}</span>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('statistics').innerHTML = `<div class="error">Erro: ${error.message}</div>`;
+            }
+        }
+        
+        async function loadPositions() {
+            try {
+                const response = await fetch('/api/positions');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('positions').innerHTML = `<div class="error">${data.error}</div>`;
+                    return;
+                }
+                
+                if (data.length === 0) {
+                    document.getElementById('positions').innerHTML = '<div style="text-align:center; color:#ccc; padding:20px;">Nenhuma posição aberta</div>';
+                    return;
+                }
+                
+                let html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticket</th>
+                                <th>Tipo</th>
+                                <th>Volume</th>
+                                <th>Abertura</th>
+                                <th>Atual</th>
+                                <th>SL</th>
+                                <th>TP</th>
+                                <th>Lucro</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.forEach(pos => {
+                    const profitClass = pos.profit >= 0 ? 'positive' : 'negative';
+                    const badgeClass = pos.type === 'BUY' ? 'badge-buy' : 'badge-sell';
+                    
+                    html += `
+                        <tr>
+                            <td>#${pos.ticket}</td>
+                            <td><span class="badge ${badgeClass}">${pos.type}</span></td>
+                            <td>${pos.volume}</td>
+                            <td>${pos.price_open.toFixed(2)}</td>
+                            <td>${pos.price_current.toFixed(2)}</td>
+                            <td>${pos.sl > 0 ? pos.sl.toFixed(2) : '-'}</td>
+                            <td>${pos.tp > 0 ? pos.tp.toFixed(2) : '-'}</td>
+                            <td class="${profitClass}">${formatCurrency(pos.profit)}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                document.getElementById('positions').innerHTML = html;
+            } catch (error) {
+                document.getElementById('positions').innerHTML = `<div class="error">Erro: ${error.message}</div>`;
+            }
+        }
+        
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/history');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('history').innerHTML = `<div class="error">${data.error}</div>`;
+                    return;
+                }
+                
+                if (data.length === 0) {
+                    document.getElementById('history').innerHTML = '<div style="text-align:center; color:#ccc; padding:20px;">Nenhum trade nas últimas 24h</div>';
+                    return;
+                }
+                
+                let html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticket</th>
+                                <th>Tipo</th>
+                                <th>Volume</th>
+                                <th>Preço</th>
+                                <th>Lucro</th>
+                                <th>Data/Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.forEach(trade => {
+                    const profitClass = trade.profit >= 0 ? 'positive' : 'negative';
+                    const badgeClass = trade.type === 'BUY' ? 'badge-buy' : 'badge-sell';
+                    
+                    html += `
+                        <tr>
+                            <td>#${trade.ticket}</td>
+                            <td><span class="badge ${badgeClass}">${trade.type}</span></td>
+                            <td>${trade.volume}</td>
+                            <td>${trade.price.toFixed(2)}</td>
+                            <td class="${profitClass}">${formatCurrency(trade.profit)}</td>
+                            <td>${trade.time}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                document.getElementById('history').innerHTML = html;
+            } catch (error) {
+                document.getElementById('history').innerHTML = `<div class="error">Erro: ${error.message}</div>`;
+            }
+        }
+        
+        async function loadStrategies() {
+            try {
+                const response = await fetch('/api/strategies');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('strategies').innerHTML = `<div class="error">${data.error}</div>`;
+                    return;
+                }
+                
+                if (data.length === 0) {
+                    document.getElementById('strategies').innerHTML = '<div style="text-align:center; color:#ccc; padding:20px;">Nenhum dado de estratégia ainda</div>';
+                    return;
+                }
+                
+                let html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Estratégia</th>
+                                <th>Trades</th>
+                                <th>Wins/Losses</th>
+                                <th>Win Rate</th>
+                                <th>Lucro Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.forEach(strat => {
+                    const winRateClass = strat.win_rate >= 60 ? 'positive' : strat.win_rate >= 40 ? 'neutral' : 'negative';
+                    const profitClass = strat.total_profit >= 0 ? 'positive' : 'negative';
+                    
+                    html += `
+                        <tr>
+                            <td><strong>${strat.name}</strong></td>
+                            <td>${strat.total_trades}</td>
+                            <td>${strat.wins} / ${strat.losses}</td>
+                            <td class="${winRateClass}">${strat.win_rate.toFixed(1)}%</td>
+                            <td class="${profitClass}">${formatCurrency(strat.total_profit)}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                document.getElementById('strategies').innerHTML = html;
+            } catch (error) {
+                document.getElementById('strategies').innerHTML = `<div class="error">Erro: ${error.message}</div>`;
+            }
+        }
+        
+        function loadAll() {
+            updateTime();
+            loadAccount();
+            loadStatistics();
+            loadPositions();
+            loadHistory();
+            loadStrategies();
+        }
+        
+        // Carregar ao iniciar
+        loadAll();
+        
+        // Atualizar a cada 5 segundos
+        setInterval(loadAll, 5000);
+    </script>
+</body>
+</html>
