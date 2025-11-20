@@ -375,21 +375,21 @@ class OrderManager:
             True se spread OK, False se muito alto
         """
         try:
-            tick = self.mt5.get_symbol_tick(symbol)
-            if not tick:
-                logger.warning(f"Não foi possível obter tick para {symbol}")
+            symbol_info = self.mt5.get_symbol_info(symbol)
+            if not symbol_info:
+                logger.warning(f"Não foi possível obter info para {symbol}")
                 return False
             
-            spread = tick['ask'] - tick['bid']
+            # Spread já vem em pips do MT5Connector (após fix)
+            spread_pips = symbol_info['spread']
             
             # Obter threshold do config (em pips)
             spread_threshold_pips = self.config.get('trading', {}).get('spread_threshold', 5)
-            max_spread = spread_threshold_pips * 0.0001  # Converter para preço
             
-            if spread > max_spread:
+            if spread_pips > spread_threshold_pips:
                 logger.warning(
                     f"⚠️ Spread muito alto para modificar posição: "
-                    f"{spread*10000:.1f} pips (max: {spread_threshold_pips} pips)"
+                    f"{spread_pips:.1f} pips (max: {spread_threshold_pips} pips)"
                 )
                 return False
             

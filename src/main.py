@@ -45,6 +45,9 @@ def main():
     config_manager = ConfigManager(args.config)
     config = config_manager.config
     
+    # Setup logger
+    setup_logger(config)
+    
     logger.info("=" * 80)
     logger.info("URION TRADING BOT - VIRTUS INVESTIMENTOS")
     logger.info("=" * 80)
