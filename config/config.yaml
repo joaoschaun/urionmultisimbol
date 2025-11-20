@@ -28,9 +28,9 @@ risk:
   stop_loss_pips: 50
   take_profit_pips: 100
   trailing_stop_enabled: true
-  trailing_stop_distance: 20  # ⬇️ REDUZIDO: 30→20 pips (protege lucros mais cedo)
+  trailing_stop_distance: 30  # ⬆️ AUMENTADO: 20→30 pips (dá mais espaço para respirar)
   break_even_enabled: true
-  break_even_trigger: 15  # ⬇️ REDUZIDO: 40→15 pips (protege breakeven MUITO mais cedo)
+  break_even_trigger: 40  # ⬆️ AUMENTADO: 15→40 pips (só protege após lucro significativo)
 schedule:
   timezone: America/New_York
   trading_days:
@@ -72,9 +72,9 @@ strategies:
     ema_slow: 26
     adx_threshold: 25
     min_trend_strength: 0.6
-    trailing_stop_distance: 20
-    break_even_trigger: 30
-    partial_close_trigger: 40
+    trailing_stop_distance: 30  # ⬆️ AUMENTADO: 20→30 pips
+    break_even_trigger: 50  # ⬆️ AUMENTADO: 30→50 pips
+    partial_close_trigger: 60  # ⬆️ AUMENTADO: 40→60 pips
     max_spread_pips: 2.0
     volume_confirmation: true
   mean_reversion:
@@ -152,9 +152,9 @@ strategies:
     stoch_low: 30
     stoch_high: 70
     bb_touch_threshold: 0.003
-    trailing_stop_distance: 10
-    break_even_trigger: 15
-    partial_close_trigger: 20
+    trailing_stop_distance: 20  # ⬆️ AUMENTADO: 10→20 pips
+    break_even_trigger: 35  # ⬆️ AUMENTADO: 15→35 pips
+    partial_close_trigger: 45  # ⬆️ AUMENTADO: 20→45 pips
     max_spread_pips: 2.0
     volume_confirmation: true
 technical_analysis:
@@ -266,7 +266,7 @@ order_manager:
   cycle_interval_seconds: 60
   partial_close:
     enabled: true
-    target_pips: 20  # ⬇️ REDUZIDO: 50→20 pips (fecha 50% aos 20 pips de lucro!)
+    target_pips: 50  # ⬆️ AUMENTADO: 20→50 pips (fecha 50% só após lucro consistente)
     close_percentage: 0.5  # Fecha metade da posição = garante lucro
 notifications:
   telegram:
