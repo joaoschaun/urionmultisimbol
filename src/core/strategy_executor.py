@@ -229,6 +229,9 @@ class StrategyExecutor:
                     f"[{self.strategy_name}] "
                     f"Não pode operar neste momento"
                 )
+                # 🚨 HEARTBEAT antes de return
+                if self.watchdog:
+                    self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
                 return
             
             # DEBUG: Log após _can_trade
@@ -247,6 +250,9 @@ class StrategyExecutor:
                     f"[{self.strategy_name}] "
                     f"Limite atingido: {current_positions}/{self.max_positions}"
                 )
+                # 🚨 HEARTBEAT antes de return
+                if self.watchdog:
+                    self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
                 return
             
             # 🚨 HEARTBEAT após check de posições
@@ -294,6 +300,9 @@ class StrategyExecutor:
                 logger.debug(
                     f"[{self.strategy_name}] Sem sinal válido"
                 )
+                # 🚨 HEARTBEAT antes de return
+                if self.watchdog:
+                    self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
                 return
             
             confidence = signal.get('confidence', 0)
@@ -302,6 +311,9 @@ class StrategyExecutor:
                     f"[{self.strategy_name}] "
                     f"Confiança baixa: {confidence:.1%} < {self.min_confidence:.1%}"
                 )
+                # 🚨 HEARTBEAT antes de return
+                if self.watchdog:
+                    self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
                 return
             
             # 5. Calcular parâmetros da ordem
@@ -312,6 +324,9 @@ class StrategyExecutor:
                     f"[{self.strategy_name}] "
                     f"Falha ao calcular parâmetros"
                 )
+                # 🚨 HEARTBEAT antes de return
+                if self.watchdog:
+                    self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
                 return
             
             # 6. Validar com Risk Manager
@@ -333,22 +348,25 @@ class StrategyExecutor:
                     f"[{self.strategy_name}] "
                     f"Risk Manager rejeitou: {risk_check.get('reason')}"
                 )
+                # 🚨 HEARTBEAT antes de return
+                if self.watchdog:
+                    self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
                 return
             
             # 7. Executar ordem
             self._execute_order(order_params)
             
+            # 🚨 HEARTBEAT no final do ciclo (SUCESSO)
+            if self.watchdog:
+                self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
+            
         except Exception as e:
             logger.exception(
                 f"[{self.strategy_name}] ERRO em _execute_cycle: {e}"
             )
-            
-            self.last_execution = datetime.now(timezone.utc)
-            
-        except Exception as e:
-            logger.error(
-                f"[{self.strategy_name}] Erro no ciclo: {e}"
-            )
+            # 🚨 HEARTBEAT mesmo em caso de erro
+            if self.watchdog:
+                self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
     
     def _can_trade(self) -> bool:
         """Verifica se pode operar"""
