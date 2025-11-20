@@ -28,9 +28,9 @@ risk:
   stop_loss_pips: 50
   take_profit_pips: 100
   trailing_stop_enabled: true
-  trailing_stop_distance: 30  # ⬆️ AUMENTADO: 20→30 pips (dá mais espaço para respirar)
-  break_even_enabled: true
-  break_even_trigger: 40  # ⬆️ AUMENTADO: 15→40 pips (só protege após lucro significativo)
+  trailing_stop_distance: 25  # 🎯 OTIMIZADO: Stop dinâmico protege lucros progressivamente
+  break_even_enabled: false  # ❌ DESATIVADO: Break-even pode travar lucros prematuramente
+  break_even_trigger: 40  # Mantido para referência (desativado)
 schedule:
   timezone: America/New_York
   trading_days:
@@ -72,9 +72,9 @@ strategies:
     ema_slow: 26
     adx_threshold: 25
     min_trend_strength: 0.6
-    trailing_stop_distance: 30  # ⬆️ AUMENTADO: 20→30 pips
-    break_even_trigger: 50  # ⬆️ AUMENTADO: 30→50 pips
-    partial_close_trigger: 60  # ⬆️ AUMENTADO: 40→60 pips
+    trailing_stop_distance: 25  # 🎯 Stop dinâmico acompanha tendência
+    break_even_trigger: 50  # Ignorado (desativado globalmente)
+    partial_close_trigger: 60  # Fecha 50% aos 60 pips
     max_spread_pips: 2.0
     volume_confirmation: true
   mean_reversion:
@@ -88,9 +88,9 @@ strategies:
     rsi_period: 14
     rsi_overbought: 70
     rsi_oversold: 30
-    trailing_stop_distance: 12
-    break_even_trigger: 18
-    partial_close_trigger: 25
+    trailing_stop_distance: 15  # 🎯 Stop mais apertado para reversões
+    break_even_trigger: 18  # Ignorado (desativado globalmente)
+    partial_close_trigger: 30  # Fecha 50% aos 30 pips
     max_spread_pips: 2.0
     volume_confirmation: true
   breakout:
@@ -102,9 +102,9 @@ strategies:
     support_resistance_lookback: 50
     breakout_confirmation_candles: 2
     volume_threshold: 1.5
-    trailing_stop_distance: 25
-    break_even_trigger: 35
-    partial_close_trigger: 50
+    trailing_stop_distance: 30  # 🎯 Stop mais largo para capturar breakouts
+    break_even_trigger: 35  # Ignorado (desativado globalmente)
+    partial_close_trigger: 50  # Fecha 50% aos 50 pips
     max_spread_pips: 2.0
     volume_confirmation: true
   news_trading:
@@ -115,9 +115,9 @@ strategies:
     high_impact_only: true
     min_sentiment_confidence: 0.7
     trade_on_prediction: true
-    trailing_stop_distance: 15
-    break_even_trigger: 20
-    partial_close_trigger: 30
+    trailing_stop_distance: 20  # 🎯 Stop moderado para volatilidade de notícias
+    break_even_trigger: 20  # Ignorado (desativado globalmente)
+    partial_close_trigger: 35  # Fecha 50% aos 35 pips
     max_spread_pips: 2.0
     volume_confirmation: true
   scalping:
@@ -133,9 +133,9 @@ strategies:
     target_pips: 8
     stop_pips: 4
     min_volume_ratio: 1.2
-    trailing_stop_distance: 5
-    break_even_trigger: 8
-    partial_close_trigger: 12
+    trailing_stop_distance: 6  # 🎯 Stop bem apertado para scalping rápido
+    break_even_trigger: 8  # Ignorado (desativado globalmente)
+    partial_close_trigger: 12  # Fecha 50% aos 12 pips
     volume_confirmation: true
     max_trades_per_hour: 2
   range_trading:
@@ -152,9 +152,9 @@ strategies:
     stoch_low: 30
     stoch_high: 70
     bb_touch_threshold: 0.003
-    trailing_stop_distance: 20  # ⬆️ AUMENTADO: 10→20 pips
-    break_even_trigger: 35  # ⬆️ AUMENTADO: 15→35 pips
-    partial_close_trigger: 45  # ⬆️ AUMENTADO: 20→45 pips
+    trailing_stop_distance: 18  # 🎯 Stop dinâmico para movimentos laterais
+    break_even_trigger: 35  # Ignorado (desativado globalmente)
+    partial_close_trigger: 40  # Fecha 50% aos 40 pips
     max_spread_pips: 2.0
     volume_confirmation: true
 technical_analysis:
