@@ -17,6 +17,7 @@ from telegram.ext import (
     MessageHandler,
     filters
 )
+from deep_translator import GoogleTranslator
 
 
 class TelegramNotifier:
@@ -49,6 +50,33 @@ class TelegramNotifier:
         if self.enabled:
             self.app = Application.builder().token(self.bot_token).build()
             self._setup_handlers()
+        
+        # Tradutor (inglês → português)
+        self.translator = GoogleTranslator(source='en', target='pt')
+    
+    def _translate_to_portuguese(self, text: str) -> str:
+        """
+        Traduz texto de inglês para português
+        
+        Args:
+            text: Texto em inglês
+            
+        Returns:
+            Texto traduzido em português
+        """
+        if not text:
+            return text
+        
+        try:
+            # Limitar tamanho (Google Translator tem limite de 5000 caracteres)
+            if len(text) > 4500:
+                text = text[:4500] + "..."
+            
+            translated = self.translator.translate(text)
+            return translated
+        except Exception as e:
+            logger.warning(f"Falha na tradução, enviando texto original: {e}")
+            return text
     
     def _setup_handlers(self):
         """Setup command handlers"""
@@ -262,6 +290,76 @@ class TelegramNotifier:
         
         message = f"❌ <b>ERRO</b>\n\n{error}"
         await self.send_message(message, parse_mode='HTML')
+    
+    def send_news_notification(self, news_title: str, news_content: str = None, 
+                               source: str = None, importance: str = "medium") -> bool:
+        """
+        Envia notificação de notícia traduzida para português
+        
+        Args:
+            news_title: Título da notícia (em inglês)
+            news_content: Conteúdo/descrição da notícia (opcional, em inglês)
+            source: Fonte da notícia (opcional)
+            importance: Importância (low, medium, high)
+            
+        Returns:
+            True se enviado com sucesso
+        """
+        if not self.enabled:
+            return False
+        
+        try:
+            # Traduzir título
+            title_pt = self._translate_to_portuguese(news_title)
+            
+            # Emoji baseado na importância
+            emoji_map = {
+                'low': '📰',
+                'medium': '📢',
+                'high': '🚨'
+            }
+            emoji = emoji_map.get(importance, '📰')
+            
+            # Montar mensagem
+            message = f"{emoji} <b>NOTÍCIA - {importance.upper()}</b>\n\n"
+            message += f"<b>{title_pt}</b>\n\n"
+            
+            # Traduzir e adicionar conteúdo se fornecido
+            if news_content:
+                content_pt = self._translate_to_portuguese(news_content)
+                # Limitar tamanho do conteúdo
+                if len(content_pt) > 300:
+                    content_pt = content_pt[:297] + "..."
+                message += f"{content_pt}\n\n"
+            
+            # Adicionar fonte
+            if source:
+                message += f"<i>Fonte: {source}</i>"
+            
+            # Enviar com timeout protection
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                loop.run_until_complete(
+                    asyncio.wait_for(
+                        self.send_message(message, parse_mode='HTML'),
+                        timeout=15.0  # 15s timeout (tradução pode demorar)
+                    )
+                )
+            except asyncio.TimeoutError:
+                logger.warning("News notification timeout - continuing")
+                return False
+            finally:
+                loop.close()
+            
+            logger.info(f"Notícia enviada (traduzida): {title_pt[:50]}...")
+            return True
+            
+        except Exception as e:
+            # CRITICAL: Never crash bot due to notification failure
+            logger.error(f"News notification failed (non-critical): {e}")
+            return False
     
     # Command handlers
     async def cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
