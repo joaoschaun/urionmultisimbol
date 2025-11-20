@@ -229,6 +229,11 @@ class OrderManager:
             (should_move, new_sl)
         """
         
+        # ✅ VERIFICAR SE BREAK-EVEN ESTÁ HABILITADO GLOBALMENTE
+        risk_config = self.config.get('risk', {})
+        if not risk_config.get('break_even_enabled', True):
+            return False, 0.0  # Break-even desativado globalmente
+        
         # 🔒 THREAD SAFETY: Leitura protegida
         with self.positions_lock:
             # Verificar se já foi aplicado
@@ -281,6 +286,11 @@ class OrderManager:
         Returns:
             Novo SL ou None
         """
+        
+        # ✅ VERIFICAR SE TRAILING STOP ESTÁ HABILITADO GLOBALMENTE
+        risk_config = self.config.get('risk', {})
+        if not risk_config.get('trailing_stop_enabled', True):
+            return None  # Trailing stop desativado globalmente
         
         # 🔒 THREAD SAFETY: Leitura protegida
         with self.positions_lock:
