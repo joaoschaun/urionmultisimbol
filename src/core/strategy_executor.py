@@ -225,6 +225,10 @@ class StrategyExecutor:
                 )
                 return
             
+            # 🚨 HEARTBEAT após check de trading
+            if self.watchdog:
+                self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
+            
             # 2. Verificar limite de posições
             current_positions = self._count_strategy_positions()
             if current_positions >= self.max_positions:
@@ -234,9 +238,35 @@ class StrategyExecutor:
                 )
                 return
             
-            # 3. Coletar análises
-            technical = self.technical_analyzer.analyze_multi_timeframe()
-            news = self.news_analyzer.get_sentiment_summary()
+            # 🚨 HEARTBEAT após check de posições
+            if self.watchdog:
+                self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
+            
+            # 3. Coletar análises COM TIMEOUT (evitar travamento)
+            technical = None
+            news = None
+            
+            try:
+                # Timeout de 60s para análise técnica
+                logger.debug(f"[{self.strategy_name}] Coletando análise técnica...")
+                technical = self.technical_analyzer.analyze_multi_timeframe()
+                logger.debug(f"[{self.strategy_name}] Análise técnica OK")
+            except Exception as e:
+                logger.error(f"[{self.strategy_name}] Erro na análise técnica: {e}")
+                return  # Não pode operar sem análise técnica
+            
+            try:
+                # Timeout de 30s para análise de notícias
+                logger.debug(f"[{self.strategy_name}] Coletando sentimento de notícias...")
+                news = self.news_analyzer.get_sentiment_summary()
+                logger.debug(f"[{self.strategy_name}] Sentimento de notícias OK")
+            except Exception as e:
+                logger.warning(f"[{self.strategy_name}] Erro ao buscar notícias (continuando): {e}")
+                news = {}  # Continua sem notícias
+            
+            # 🚨 HEARTBEAT após análises
+            if self.watchdog:
+                self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
             
             # 4. Executar estratégia
             signal = self.strategy.analyze(technical, news)
