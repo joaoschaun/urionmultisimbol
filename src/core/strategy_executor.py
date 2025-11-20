@@ -203,6 +203,9 @@ class StrategyExecutor:
                 f"{datetime.now(timezone.utc)}"
             )
             
+            # DEBUG: Log antes de verificar MT5
+            logger.info(f"[{self.strategy_name}] 🔍 Verificando conexão MT5...")
+            
             # CRITICAL: Verificar conexão MT5 antes de cada ciclo
             if not self.mt5.is_connected():
                 logger.warning(
@@ -217,6 +220,9 @@ class StrategyExecutor:
                     return
                 logger.success(f"[{self.strategy_name}] MT5 reconectado!")
             
+            # DEBUG: Log após verificar MT5
+            logger.info(f"[{self.strategy_name}] ✅ MT5 OK, verificando horário...")
+            
             # 1. Verificar se pode operar
             if not self._can_trade():
                 logger.info(
@@ -225,12 +231,17 @@ class StrategyExecutor:
                 )
                 return
             
+            # DEBUG: Log após _can_trade
+            logger.info(f"[{self.strategy_name}] ✅ Pode operar, verificando posições...")
+            
             # 🚨 HEARTBEAT após check de trading
             if self.watchdog:
                 self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
             
             # 2. Verificar limite de posições
+            logger.info(f"[{self.strategy_name}] 🔢 Contando posições abertas...")
             current_positions = self._count_strategy_positions()
+            logger.info(f"[{self.strategy_name}] ℹ️  Posições: {current_positions}/{self.max_positions}")
             if current_positions >= self.max_positions:
                 logger.info(
                     f"[{self.strategy_name}] "
@@ -246,20 +257,28 @@ class StrategyExecutor:
             technical = None
             news = None
             
+            # 🚨 HEARTBEAT ANTES de análise técnica
+            if self.watchdog:
+                self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
+            
             try:
                 # Timeout de 60s para análise técnica
-                logger.debug(f"[{self.strategy_name}] Coletando análise técnica...")
+                logger.info(f"[{self.strategy_name}] 📊 Iniciando análise técnica...")
                 technical = self.technical_analyzer.analyze_multi_timeframe()
-                logger.debug(f"[{self.strategy_name}] Análise técnica OK")
+                logger.info(f"[{self.strategy_name}] ✅ Análise técnica OK")
             except Exception as e:
                 logger.error(f"[{self.strategy_name}] Erro na análise técnica: {e}")
                 return  # Não pode operar sem análise técnica
             
+            # 🚨 HEARTBEAT após análise técnica
+            if self.watchdog:
+                self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
+            
             try:
                 # Timeout de 30s para análise de notícias
-                logger.debug(f"[{self.strategy_name}] Coletando sentimento de notícias...")
+                logger.info(f"[{self.strategy_name}] 📰 Iniciando análise de notícias...")
                 news = self.news_analyzer.get_sentiment_summary()
-                logger.debug(f"[{self.strategy_name}] Sentimento de notícias OK")
+                logger.info(f"[{self.strategy_name}] ✅ Notícias OK")
             except Exception as e:
                 logger.warning(f"[{self.strategy_name}] Erro ao buscar notícias (continuando): {e}")
                 news = {}  # Continua sem notícias
@@ -333,21 +352,30 @@ class StrategyExecutor:
     
     def _can_trade(self) -> bool:
         """Verifica se pode operar"""
-        # Verificar MT5
-        if not self.mt5.is_connected():
+        try:
+            # Verificar MT5
+            if not self.mt5.is_connected():
+                return False
+            
+            # Verificar horário do mercado
+            can_open, reason = self.market_hours.can_open_new_positions()
+            if not can_open:
+                logger.debug(f"[{self.strategy_name}] Mercado: {reason}")
+                return False
+            
+            # Verificar janela de notícias (COM TIMEOUT)
+            try:
+                if self.news_analyzer.is_news_blocking_window(0)[0]:
+                    return False
+            except Exception as e:
+                logger.warning(f"[{self.strategy_name}] Erro ao verificar janela de notícias: {e}")
+                # Continuar mesmo com erro na verificação de notícias
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"[{self.strategy_name}] Erro em _can_trade: {e}")
             return False
-        
-        # Verificar horário do mercado
-        can_open, reason = self.market_hours.can_open_new_positions()
-        if not can_open:
-            logger.debug(f"[{self.strategy_name}] Mercado: {reason}")
-            return False
-        
-        # Verificar janela de notícias
-        if self.news_analyzer.is_news_blocking_window(0)[0]:
-            return False
-        
-        return True
     
     def _count_strategy_positions(self) -> int:
         """Conta posições abertas desta estratégia"""

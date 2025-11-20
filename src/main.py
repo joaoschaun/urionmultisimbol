@@ -84,7 +84,9 @@ def main():
             logger.success("✅ OrderManager iniciado em thread separada")
             
             # Start OrderGenerator in main thread (blocks)
+            logger.info("🚀 Iniciando OrderGenerator (main thread)...")
             generator.start()
+            logger.info("⚠️ OrderGenerator.start() retornou (não deveria!)")
             
         elif args.mode == 'generator':
             # Run only order generator

@@ -4,11 +4,45 @@ Handles connection, authentication and communication with MT5 terminal
 """
 import MetaTrader5 as mt5
 import time
+import threading
 from datetime import datetime
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Callable
 import pandas as pd
 from loguru import logger
 from .retry_handler import retry_on_error, MT5ConnectionError, MT5TradeError
+
+
+def with_timeout(func: Callable, timeout_seconds: float = 5.0, default=None):
+    """
+    Executa função com timeout para evitar travamentos do MT5
+    
+    Args:
+        func: Função a executar
+        timeout_seconds: Timeout em segundos
+        default: Valor padrão se timeout
+        
+    Returns:
+        Resultado da função ou default se timeout
+    """
+    result = [default]
+    
+    def target():
+        try:
+            result[0] = func()
+        except Exception as e:
+            logger.error(f"Erro em with_timeout: {e}")
+            result[0] = default
+    
+    thread = threading.Thread(target=target)
+    thread.daemon = True
+    thread.start()
+    thread.join(timeout=timeout_seconds)
+    
+    if thread.is_alive():
+        logger.warning(f"Timeout ({timeout_seconds}s) na chamada MT5: {func.__name__ if hasattr(func, '__name__') else 'unknown'}")
+        return default
+    
+    return result[0]
 
 
 class MT5Connector:
@@ -113,7 +147,12 @@ class MT5Connector:
         Returns:
             bool: True if connected
         """
-        return self.connected and mt5.terminal_info() is not None
+        if not self.connected:
+            return False
+        
+        # Usar timeout para evitar travamentos
+        terminal_info = with_timeout(mt5.terminal_info, timeout_seconds=5.0, default=None)
+        return terminal_info is not None
     
     def reconnect(self) -> bool:
         """
@@ -275,10 +314,19 @@ class MT5Connector:
             return []
         
         try:
+            # Usar timeout para evitar travamentos
             if symbol:
-                positions = mt5.positions_get(symbol=symbol)
+                positions = with_timeout(
+                    lambda: mt5.positions_get(symbol=symbol),
+                    timeout_seconds=5.0,
+                    default=None
+                )
             else:
-                positions = mt5.positions_get()
+                positions = with_timeout(
+                    mt5.positions_get,
+                    timeout_seconds=5.0,
+                    default=None
+                )
             
             if positions is None:
                 return []

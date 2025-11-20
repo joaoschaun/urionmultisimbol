@@ -30,6 +30,7 @@ class ThreadWatchdog:
         self.callbacks: Dict[str, Callable] = {}
         self.running = False
         self.monitor_thread = None
+        self.lock = threading.Lock()  # Lock para acesso seguro ao dict threads
         
         logger.info(f"ThreadWatchdog inicializado (timeout: {timeout_seconds}s)")
     
@@ -39,11 +40,12 @@ class ThreadWatchdog:
         
         Args:
             thread_name: Nome da thread
-            callback: Função a executar se thread congelar (opcional)
+            callback: Função a chamar se freeze for detectado
         """
-        self.threads[thread_name] = datetime.now()
-        if callback:
-            self.callbacks[thread_name] = callback
+        with self.lock:
+            self.threads[thread_name] = datetime.now()
+            if callback:
+                self.callbacks[thread_name] = callback
         
         logger.info(f"Thread registrada no watchdog: {thread_name}")
     
@@ -55,8 +57,9 @@ class ThreadWatchdog:
         Args:
             thread_name: Nome da thread
         """
-        if thread_name in self.threads:
-            self.threads[thread_name] = datetime.now()
+        with self.lock:
+            if thread_name in self.threads:
+                self.threads[thread_name] = datetime.now()
     
     def _monitor_loop(self):
         """Loop de monitoramento interno"""
@@ -66,7 +69,11 @@ class ThreadWatchdog:
             try:
                 now = datetime.now()
                 
-                for thread_name, last_heartbeat in self.threads.items():
+                # Criar snapshot do dict com lock para evitar race conditions
+                with self.lock:
+                    threads_snapshot = dict(self.threads)
+                
+                for thread_name, last_heartbeat in threads_snapshot.items():
                     # Calcular tempo desde último heartbeat
                     elapsed = (now - last_heartbeat).total_seconds()
                     
@@ -91,7 +98,9 @@ class ThreadWatchdog:
                                 )
                         
                         # Reset heartbeat para evitar spam de alertas
-                        self.threads[thread_name] = now
+                        with self.lock:
+                            if thread_name in self.threads:
+                                self.threads[thread_name] = now
                 
                 # Check a cada 30 segundos
                 time.sleep(30)
