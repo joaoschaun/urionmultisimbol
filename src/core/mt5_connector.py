@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional, Dict, List, Any
 import pandas as pd
 from loguru import logger
-from core.retry_handler import retry_on_error, MT5ConnectionError, MT5TradeError
+from .retry_handler import retry_on_error, MT5ConnectionError, MT5TradeError
 
 
 class MT5Connector:

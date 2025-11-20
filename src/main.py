@@ -17,6 +17,7 @@ from database.strategy_stats import StrategyStatsDB
 from order_generator import OrderGenerator
 from order_manager import OrderManager
 from notifications.telegram_bot import TelegramNotifier
+from monitoring.prometheus_metrics import get_metrics
 from loguru import logger
 
 
@@ -49,6 +50,10 @@ def main():
     logger.info("=" * 80)
     logger.info(f"Mode: {args.mode}")
     logger.info(f"Environment: {config.get('ENVIRONMENT', 'production')}")
+    
+    # Initialize Prometheus metrics
+    metrics = get_metrics()
+    logger.success("✅ Prometheus metrics disponíveis em http://localhost:8000/metrics")
     
     # Initialize MT5 and Database for Telegram commands
     mt5 = MT5Connector(config)

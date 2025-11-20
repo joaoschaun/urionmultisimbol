@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urion Trading Bot - Dashboard</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar {
+            background-color: #161b22 !important;
+            border-bottom: 1px solid #30363d;
+        }
+        
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background-color: #21262d;
+            border-bottom: 1px solid #30363d;
+            font-weight: 600;
+        }
+        
+        .metric-card {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+        
+        .metric-label {
+            color: #8b949e;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+        
+        .positive {
+            color: #3fb950;
+        }
+        
+        .negative {
+            color: #f85149;
+        }
+        
+        .neutral {
+            color: #58a6ff;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .status-online {
+            background-color: #238636;
+            color: white;
+        }
+        
+        .status-offline {
+            background-color: #da3633;
+            color: white;
+        }
+        
+        .table-dark {
+            --bs-table-bg: #161b22;
+            --bs-table-border-color: #30363d;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8b949e;
+        }
+        
+        .refresh-btn {
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-chart-line"></i> Urion Trading Bot
+            </span>
+            <div>
+                <span class="badge status-badge" id="statusBadge">
+                    <i class="fas fa-circle-notch fa-spin"></i> Conectando...
+                </span>
+                <button class="btn btn-outline-light btn-sm ms-2" onclick="refreshAll()">
+                    <i class="fas fa-sync refresh-btn"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Métricas Principais -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="metric-label">Balance</div>
+                    <div class="metric-value neutral" id="balance">$0.00</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="metric-label">Equity</div>
+                    <div class="metric-value neutral" id="equity">$0.00</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="metric-label">Profit Today</div>
+                    <div class="metric-value" id="profit">$0.00</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="metric-label">Positions Open</div>
+                    <div class="metric-value neutral" id="positionsCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Summary -->
+        <div class="row mt-3">
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="metric-label">Win Rate</div>
+                    <div class="metric-value positive" id="winRate">0%</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="metric-label">Total Trades</div>
+                    <div class="metric-value neutral" id="totalTrades">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="metric-label">Profit Factor</div>
+                    <div class="metric-value" id="profitFactor">0.00</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="metric-label">Best Trade</div>
+                    <div class="metric-value positive" id="bestTrade">$0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mt-4">
+            <!-- Equity Curve -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-area"></i> Equity Curve
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="equityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Strategy Performance -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-trophy"></i> Strategy Performance
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="strategyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Open Positions -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-list"></i> Open Positions
+                    </div>
+                    <div class="card-body">
+                        <div id="positionsTable" class="table-responsive">
+                            <div class="loading">
+                                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                                <p class="mt-2">Carregando posições...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Trades -->
+        <div class="row mt-4 mb-5">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-history"></i> Recent Trades (Today)
+                    </div>
+                    <div class="card-body">
+                        <div id="tradesTable" class="table-responsive">
+                            <div class="loading">
+                                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                                <p class="mt-2">Carregando trades...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Global charts
+        let equityChart = null;
+        let strategyChart = null;
+
+        // Auto-refresh interval (30 seconds)
+        setInterval(refreshAll, 30000);
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshAll();
+        });
+
+        function refreshAll() {
+            loadAccountInfo();
+            loadPositions();
+            loadTodayTrades();
+            loadPerformanceSummary();
+            loadEquityCurve();
+            loadStrategyStats();
+            checkHealth();
+        }
+
+        function checkHealth() {
+            fetch('/api/health')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('statusBadge');
+                    if (data.success && data.data.mt5_connected) {
+                        badge.className = 'badge status-badge status-online';
+                        badge.innerHTML = '<i class="fas fa-check-circle"></i> Online';
+                    } else {
+                        badge.className = 'badge status-badge status-offline';
+                        badge.innerHTML = '<i class="fas fa-times-circle"></i> Offline';
+                    }
+                });
+        }
+
+        function loadAccountInfo() {
+            fetch('/api/account')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const acc = data.data;
+                        document.getElementById('balance').textContent = `$${acc.balance.toFixed(2)}`;
+                        document.getElementById('equity').textContent = `$${acc.equity.toFixed(2)}`;
+                        
+                        const profit = acc.profit || 0;
+                        const profitEl = document.getElementById('profit');
+                        profitEl.textContent = `$${profit.toFixed(2)}`;
+                        profitEl.className = `metric-value ${profit >= 0 ? 'positive' : 'negative'}`;
+                    }
+                })
+                .catch(err => console.error('Error loading account:', err));
+        }
+
+        function loadPositions() {
+            fetch('/api/positions')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const positions = data.data;
+                        document.getElementById('positionsCount').textContent = positions.length;
+                        
+                        const container = document.getElementById('positionsTable');
+                        
+                        if (positions.length === 0) {
+                            container.innerHTML = '<p class="text-center text-muted">Nenhuma posição aberta</p>';
+                            return;
+                        }
+                        
+                        let html = '<table class="table table-dark table-hover">';
+                        html += '<thead><tr><th>Ticket</th><th>Symbol</th><th>Type</th><th>Volume</th><th>Entry</th><th>Current</th><th>SL</th><th>TP</th><th>Profit</th></tr></thead><tbody>';
+                        
+                        positions.forEach(pos => {
+                            const profitClass = pos.profit >= 0 ? 'positive' : 'negative';
+                            html += `<tr>
+                                <td>${pos.ticket}</td>
+                                <td>${pos.symbol}</td>
+                                <td><span class="badge bg-${pos.type === 'BUY' ? 'success' : 'danger'}">${pos.type}</span></td>
+                                <td>${pos.volume}</td>
+                                <td>${pos.price_open}</td>
+                                <td>${pos.price_current || 'N/A'}</td>
+                                <td>${pos.sl || 'N/A'}</td>
+                                <td>${pos.tp || 'N/A'}</td>
+                                <td class="${profitClass}">$${pos.profit ? pos.profit.toFixed(2) : '0.00'}</td>
+                            </tr>`;
+                        });
+                        
+                        html += '</tbody></table>';
+                        container.innerHTML = html;
+                    }
+                })
+                .catch(err => console.error('Error loading positions:', err));
+        }
+
+        function loadTodayTrades() {
+            fetch('/api/trades/today')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const trades = data.data;
+                        const container = document.getElementById('tradesTable');
+                        
+                        if (trades.length === 0) {
+                            container.innerHTML = '<p class="text-center text-muted">Nenhum trade hoje</p>';
+                            return;
+                        }
+                        
+                        let html = '<table class="table table-dark table-hover">';
+                        html += '<thead><tr><th>Time</th><th>Strategy</th><th>Symbol</th><th>Type</th><th>Volume</th><th>Entry</th><th>Exit</th><th>Profit</th></tr></thead><tbody>';
+                        
+                        trades.forEach(trade => {
+                            const profitClass = trade.profit >= 0 ? 'positive' : 'negative';
+                            html += `<tr>
+                                <td>${trade.open_time ? trade.open_time.substring(11, 19) : 'N/A'}</td>
+                                <td>${trade.strategy_name}</td>
+                                <td>${trade.symbol}</td>
+                                <td><span class="badge bg-secondary">${trade.action || 'N/A'}</span></td>
+                                <td>${trade.volume}</td>
+                                <td>${trade.open_price}</td>
+                                <td>${trade.close_price || 'Open'}</td>
+                                <td class="${profitClass}">$${trade.profit ? trade.profit.toFixed(2) : '0.00'}</td>
+                            </tr>`;
+                        });
+                        
+                        html += '</tbody></table>';
+                        container.innerHTML = html;
+                    }
+                })
+                .catch(err => console.error('Error loading trades:', err));
+        }
+
+        function loadPerformanceSummary() {
+            fetch('/api/performance/summary')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const perf = data.data;
+                        
+                        document.getElementById('winRate').textContent = `${perf.win_rate.toFixed(1)}%`;
+                        document.getElementById('totalTrades').textContent = perf.total_trades;
+                        
+                        const pfEl = document.getElementById('profitFactor');
+                        pfEl.textContent = perf.profit_factor.toFixed(2);
+                        pfEl.className = `metric-value ${perf.profit_factor >= 1.5 ? 'positive' : perf.profit_factor >= 1 ? 'neutral' : 'negative'}`;
+                        
+                        document.getElementById('bestTrade').textContent = `$${perf.best_trade.toFixed(2)}`;
+                    }
+                })
+                .catch(err => console.error('Error loading performance:', err));
+        }
+
+        function loadEquityCurve() {
+            fetch('/api/equity/curve?days=30')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const points = data.data;
+                        
+                        const labels = points.map(p => p.timestamp ? p.timestamp.substring(5, 16) : '');
+                        const values = points.map(p => p.equity);
+                        
+                        const ctx = document.getElementById('equityChart').getContext('2d');
+                        
+                        if (equityChart) {
+                            equityChart.destroy();
+                        }
+                        
+                        equityChart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Equity (USD)',
+                                    data: values,
+                                    borderColor: '#58a6ff',
+                                    backgroundColor: 'rgba(88, 166, 255, 0.1)',
+                                    tension: 0.4,
+                                    fill: true
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        labels: {
+                                            color: '#c9d1d9'
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    x: {
+                                        ticks: { color: '#8b949e' },
+                                        grid: { color: '#30363d' }
+                                    },
+                                    y: {
+                                        ticks: { color: '#8b949e' },
+                                        grid: { color: '#30363d' }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                })
+                .catch(err => console.error('Error loading equity curve:', err));
+        }
+
+        function loadStrategyStats() {
+            fetch('/api/strategies/stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const daily = data.data.daily;
+                        
+                        const labels = daily.map(s => s.strategy_name);
+                        const profits = daily.map(s => s.profit || 0);
+                        
+                        const ctx = document.getElementById('strategyChart').getContext('2d');
+                        
+                        if (strategyChart) {
+                            strategyChart.destroy();
+                        }
+                        
+                        strategyChart = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Profit (USD)',
+                                    data: profits,
+                                    backgroundColor: profits.map(p => p >= 0 ? '#3fb950' : '#f85149')
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        labels: {
+                                            color: '#c9d1d9'
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    x: {
+                                        ticks: { color: '#8b949e' },
+                                        grid: { color: '#30363d' }
+                                    },
+                                    y: {
+                                        ticks: { color: '#8b949e' },
+                                        grid: { color: '#30363d' }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                })
+                .catch(err => console.error('Error loading strategy stats:', err));
+        }
+    </script>
+</body>
+</html>

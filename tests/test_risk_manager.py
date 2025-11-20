@@ -2,8 +2,14 @@
 Tests for Risk Manager
 """
 import pytest
+import sys
+import os
 from unittest.mock import Mock, MagicMock
-from src.risk_manager import RiskManager
+
+# Adiciona o diretório src ao path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+from core.risk_manager import RiskManager
 
 
 @pytest.fixture

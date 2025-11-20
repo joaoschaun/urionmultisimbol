@@ -1,0 +1,49 @@
+# Prometheus Configuration for Urion Trading Bot
+# Place this file at: C:\prometheus\prometheus.yml
+# Download Prometheus: https://prometheus.io/download/
+
+global:
+  scrape_interval: 15s      # Scrape targets every 15 seconds
+  evaluation_interval: 15s  # Evaluate rules every 15 seconds
+  
+  # Attach labels to metrics
+  external_labels:
+    monitor: 'urion-trading-bot'
+    environment: 'production'
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - 'localhost:9093'
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "alert_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Urion Trading Bot metrics
+  - job_name: 'urion_bot'
+    
+    # Override global scrape_interval
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    
+    static_configs:
+      - targets: ['localhost:8000']
+        labels:
+          service: 'urion-trading-bot'
+          instance: 'main'
+    
+    # Keep all metrics
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'urion_.*'
+        action: keep
+
+# Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
