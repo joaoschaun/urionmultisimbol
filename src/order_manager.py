@@ -61,6 +61,11 @@ class OrderManager:
         self.monitored_positions = {}  # ticket: position_data
         self.last_market_close_check = None
         
+        # 🚨 NOVO: Controle de modificações (evitar spam)
+        self.last_modification = {}  # ticket: datetime
+        self.min_modification_interval = 30  # segundos (não modificar antes disso)
+        self.min_sl_change_pips = 2  # Mínimo de 2 pips de mudança
+        
         logger.info("OrderManager inicializado")
         logger.info(f"Ciclo: {self.cycle_interval}s")
         logger.info(f"Configuração customizada por estratégia: {len(self.strategy_map)} estratégias")
@@ -153,10 +158,12 @@ class OrderManager:
                     'ticket': ticket,
                     'type': position['type'],
                     'volume': position['volume'],
+                    'volume_inicial': position['volume'],  # 🚨 NOVO: rastrear volume inicial
                     'price_open': position['price_open'],
                     'sl': position['sl'],
                     'tp': position['tp'],
                     'profit': position['profit'],
+                    'profit_realizado': 0.0,  # 🚨 NOVO: lucro já realizado com parciais
                     'first_seen': datetime.now(timezone.utc),
                     'breakeven_applied': False,
                     'trailing_active': False,
@@ -167,6 +174,41 @@ class OrderManager:
                     f"Nova posição monitorada: {ticket} | "
                     f"Tipo: {position['type']} | Volume: {position['volume']}"
                 )
+            else:
+                # 🚨 DETECTAR FECHAMENTO PARCIAL (volume diminuiu)
+                monitored = self.monitored_positions[ticket]
+                
+                if position['volume'] < monitored['volume']:
+                    # Houve fechamento parcial!
+                    volume_fechado = monitored['volume'] - position['volume']
+                    
+                    # Calcular lucro realizado (aproximado)
+                    if position['volume'] > 0:
+                        profit_per_lot = position['profit'] / position['volume']
+                        profit_fechado = profit_per_lot * volume_fechado
+                    else:
+                        profit_fechado = 0.0
+                    
+                    monitored['profit_realizado'] = monitored.get('profit_realizado', 0.0) + profit_fechado
+                    monitored['volume'] = position['volume']
+                    
+                    logger.success(
+                        f"✅ Fechamento parcial detectado | "
+                        f"Ticket: {ticket} | "
+                        f"Volume fechado: {volume_fechado} | "
+                        f"Lucro realizado: ${profit_fechado:.2f} | "
+                        f"Total realizado: ${monitored['profit_realizado']:.2f}"
+                    )
+                    
+                    # Notificar
+                    self.telegram.send_message_sync(
+                        f"✅ LUCRO REALIZADO\n\n"
+                        f"Ticket: {ticket}\n"
+                        f"Volume fechado: {volume_fechado} lotes\n"
+                        f"Lucro: ${profit_fechado:.2f}\n"
+                        f"Total realizado: ${monitored['profit_realizado']:.2f}\n"
+                        f"Ainda aberto: {position['volume']} lotes"
+                    )
     
     def should_move_to_breakeven(self, ticket: int,
                                   position: Dict) -> tuple[bool, float]:
@@ -310,10 +352,81 @@ class OrderManager:
         
         return False, 0.0
     
+    def _validate_spread_before_modify(self, symbol: str) -> bool:
+        """
+        Valida se spread está aceitável antes de modificar posição
+        
+        Args:
+            symbol: Símbolo da posição
+            
+        Returns:
+            True se spread OK, False se muito alto
+        """
+        try:
+            tick = self.mt5.get_symbol_tick(symbol)
+            if not tick:
+                logger.warning(f"Não foi possível obter tick para {symbol}")
+                return False
+            
+            spread = tick['ask'] - tick['bid']
+            
+            # Obter threshold do config (em pips)
+            spread_threshold_pips = self.config.get('trading', {}).get('spread_threshold', 5)
+            max_spread = spread_threshold_pips * 0.0001  # Converter para preço
+            
+            if spread > max_spread:
+                logger.warning(
+                    f"⚠️ Spread muito alto para modificar posição: "
+                    f"{spread*10000:.1f} pips (max: {spread_threshold_pips} pips)"
+                )
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Erro ao validar spread: {e}")
+            return False
+    
+    def should_modify_position(self, ticket: int, new_sl: float, current_sl: float) -> bool:
+        """
+        Valida se deve realmente modificar (evitar modificações excessivas)
+        
+        Args:
+            ticket: Ticket da posição
+            new_sl: Novo stop loss proposto
+            current_sl: Stop loss atual
+            
+        Returns:
+            True se deve modificar
+        """
+        
+        # Verificar tempo desde última modificação
+        last_mod = self.last_modification.get(ticket)
+        if last_mod:
+            seconds_since = (datetime.now(timezone.utc) - last_mod).total_seconds()
+            if seconds_since < self.min_modification_interval:
+                logger.debug(
+                    f"Modificação muito recente para {ticket} "
+                    f"({seconds_since:.0f}s < {self.min_modification_interval}s)"
+                )
+                return False
+        
+        # Verificar se mudança é significativa (mínimo 2 pips)
+        sl_change_pips = abs(new_sl - current_sl) * 10000
+        
+        if sl_change_pips < self.min_sl_change_pips:
+            logger.debug(
+                f"Mudança de SL muito pequena: {sl_change_pips:.1f} pips "
+                f"(mínimo: {self.min_sl_change_pips})"
+            )
+            return False
+        
+        return True
+    
     def modify_position(self, ticket: int, new_sl: float,
                        new_tp: Optional[float] = None) -> bool:
         """
-        Modifica SL/TP de uma posição
+        Modifica SL/TP de uma posição (com validações de spread e frequência)
         
         Args:
             ticket: Ticket da posição
@@ -324,9 +437,36 @@ class OrderManager:
             True se modificado com sucesso
         """
         try:
+            # Buscar posição
+            position = next(
+                (p for p in self.get_open_positions() if p['ticket'] == ticket),
+                None
+            )
+            
+            if not position:
+                logger.error(f"Posição {ticket} não encontrada")
+                return False
+            
+            # 🚨 VALIDAÇÃO 1: Verificar se deve modificar (frequência + mudança mínima)
+            if not self.should_modify_position(ticket, new_sl, position['sl']):
+                return False
+            
+            symbol = position['symbol']
+            
+            # 🚨 VALIDAÇÃO 2: Verificar spread
+            if not self._validate_spread_before_modify(symbol):
+                logger.warning(
+                    f"⚠️ Modificação adiada (spread alto) | Ticket: {ticket}"
+                )
+                return False
+            
+            # Prosseguir com modificação
             result = self.mt5.modify_position(ticket, new_sl, new_tp)
             
             if result:
+                # 🚨 REGISTRAR MODIFICAÇÃO
+                self.last_modification[ticket] = datetime.now(timezone.utc)
+                
                 logger.success(
                     f"Posição {ticket} modificada | "
                     f"Novo SL: {new_sl}" +
@@ -359,11 +499,87 @@ class OrderManager:
             # Buscar dados da posição antes de fechar (para aprendizagem)
             position_info = self.monitored_positions.get(ticket, {})
             
-            # Fechamento total apenas (parcial não implementado)
-            result = self.mt5.close_position(ticket)
+            if volume is None:
+                # Fechamento total
+                result = self.mt5.close_position(ticket)
+            else:
+                # 🚨 FECHAMENTO PARCIAL (IMPLEMENTADO)
+                position = next(
+                    (p for p in self.get_open_positions() if p['ticket'] == ticket),
+                    None
+                )
+                
+                if not position:
+                    logger.error(f"Posição {ticket} não encontrada para fechamento parcial")
+                    return False
+                
+                # Validar volume
+                if volume > position['volume']:
+                    logger.error(
+                        f"Volume parcial ({volume}) > volume total ({position['volume']})"
+                    )
+                    return False
+                
+                if volume < 0.01:
+                    logger.error(f"Volume mínimo é 0.01 (solicitado: {volume})")
+                    return False
+                
+                # Fechar parcialmente com ordem inversa
+                symbol = position['symbol']
+                position_type = position['type']
+                
+                # Ordem inversa para fechamento parcial
+                close_type = 'SELL' if position_type == 'BUY' else 'BUY'
+                
+                logger.info(
+                    f"Fechando parcialmente {ticket} | "
+                    f"Volume: {volume}/{position['volume']} | "
+                    f"Restante: {position['volume'] - volume}"
+                )
+                
+                result = self.mt5.place_order(
+                    symbol=symbol,
+                    order_type=close_type,
+                    volume=volume,
+                    price=0,  # Market price
+                    sl=0,
+                    tp=0,
+                    comment=f"Partial close {ticket}",
+                    magic=position.get('magic', 0)
+                )
+                
+                if result:
+                    logger.success(
+                        f"✅ Fechamento parcial: {ticket} | "
+                        f"Volume fechado: {volume} | "
+                        f"Restante: {position['volume'] - volume}"
+                    )
+                    
+                    # Atualizar volume monitorado
+                    monitored = self.monitored_positions.get(ticket)
+                    if monitored:
+                        # Calcular lucro realizado (aproximado)
+                        profit_per_lot = position['profit'] / position['volume']
+                        profit_fechado = profit_per_lot * volume
+                        
+                        monitored['profit_realizado'] = monitored.get('profit_realizado', 0.0) + profit_fechado
+                        monitored['volume'] = position['volume'] - volume
+                        
+                        # Notificar
+                        self.telegram.send_message_sync(
+                            f"✅ FECHAMENTO PARCIAL\n\n"
+                            f"Ticket: {ticket}\n"
+                            f"Volume fechado: {volume} lotes\n"
+                            f"Lucro: ${profit_fechado:.2f}\n"
+                            f"Total realizado: ${monitored['profit_realizado']:.2f}\n"
+                            f"Ainda aberto: {position['volume'] - volume} lotes"
+                        )
+                    
+                    return True
             
+            # Fechamento total (se chegou aqui, volume era None)
             if result:
-                logger.success(f"Posição {ticket} fechada")
+                logger.success(f"Posição {ticket} fechada (total)")
                 
                 # 🤖 APRENDIZAGEM: Aprender com o resultado do trade
                 try:
@@ -591,15 +807,31 @@ class OrderManager:
             logger.warning("OrderManager já está executando")
             return
         
-        logger.info("Iniciando OrderManager...")
+        import sys
+        import threading
+        thread_name = threading.current_thread().name
+        
+        # Log explícito com flush forçado
+        logger.info(f"🚀 OrderManager INICIANDO no thread: {thread_name}")
+        sys.stdout.flush()
+        
         self.running = True
         
         try:
+            cycle_count = 0
             while self.running:
                 try:
+                    cycle_count += 1
+                    logger.info(f"🔄 OrderManager - Ciclo #{cycle_count} iniciado")
+                    sys.stdout.flush()
+                    
                     self.execute_cycle()
+                    
+                    logger.info(f"✅ OrderManager - Ciclo #{cycle_count} concluído")
+                    sys.stdout.flush()
                 except Exception as e:
-                    logger.error(f"Erro no ciclo: {e}")
+                    logger.error(f"❌ Erro no ciclo #{cycle_count}: {e}")
+                    sys.stdout.flush()
                 
                 # Aguardar próximo ciclo
                 time.sleep(self.cycle_interval)
