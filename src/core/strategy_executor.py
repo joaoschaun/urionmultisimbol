@@ -174,10 +174,21 @@ class StrategyExecutor:
                 # Aguardar próximo ciclo
                 time.sleep(self.cycle_seconds)
                 
+            except KeyboardInterrupt:
+                logger.info(f"[{self.strategy_name}] Interrompido pelo usuário")
+                break
             except Exception as e:
-                logger.error(
-                    f"[{self.strategy_name}] Erro no loop: {e}"
+                logger.exception(
+                    f"[{self.strategy_name}] ERRO CRÍTICO no loop: {e}"
                 )
+                # Tentar reconectar MT5 se houver erro
+                try:
+                    if not self.mt5.ensure_connection():
+                        logger.error(f"[{self.strategy_name}] Falha ao reconectar MT5")
+                except:
+                    pass
+                
+                # Aguardar antes de tentar novamente
                 time.sleep(60)  # Aguardar 1 min em caso de erro
     
     def _execute_cycle(self):
@@ -277,6 +288,11 @@ class StrategyExecutor:
             
             # 7. Executar ordem
             self._execute_order(order_params)
+            
+        except Exception as e:
+            logger.exception(
+                f"[{self.strategy_name}] ERRO em _execute_cycle: {e}"
+            )
             
             self.last_execution = datetime.now(timezone.utc)
             

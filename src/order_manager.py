@@ -555,7 +555,6 @@ class OrderManager:
                     symbol=symbol,
                     order_type=close_type,
                     volume=volume,
-                    price=0,  # Market price
                     sl=0,
                     tp=0,
                     comment=f"Partial close {ticket}",

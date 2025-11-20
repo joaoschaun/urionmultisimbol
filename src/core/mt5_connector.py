@@ -471,6 +471,43 @@ class MT5Connector:
             
             position = position[0]
             
+            # 🔍 VALIDAÇÃO: Verificar stops_level mínimo
+            symbol_info = mt5.symbol_info(position.symbol)
+            if not symbol_info:
+                logger.error(f"Failed to get symbol info for {position.symbol}")
+                return False
+            
+            stops_level = symbol_info.trade_stops_level * symbol_info.point
+            current_price = symbol_info.ask if position.type == 0 else symbol_info.bid
+            
+            # Validar SL
+            if sl is not None and sl > 0:
+                distance = abs(current_price - sl)
+                if distance < stops_level:
+                    logger.warning(
+                        f"SL muito próximo do preço atual: {distance:.5f} < {stops_level:.5f}. "
+                        f"Ajustando para distância mínima..."
+                    )
+                    # Ajustar SL para distância mínima
+                    if position.type == 0:  # BUY
+                        sl = current_price - stops_level
+                    else:  # SELL
+                        sl = current_price + stops_level
+            
+            # Validar TP
+            if tp is not None and tp > 0:
+                distance = abs(current_price - tp)
+                if distance < stops_level:
+                    logger.warning(
+                        f"TP muito próximo do preço atual: {distance:.5f} < {stops_level:.5f}. "
+                        f"Ajustando para distância mínima..."
+                    )
+                    # Ajustar TP para distância mínima
+                    if position.type == 0:  # BUY
+                        tp = current_price + stops_level
+                    else:  # SELL
+                        tp = current_price - stops_level
+            
             request = {
                 "action": mt5.TRADE_ACTION_SLTP,
                 "symbol": position.symbol,
