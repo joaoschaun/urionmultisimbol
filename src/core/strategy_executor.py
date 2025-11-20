@@ -171,8 +171,23 @@ class StrategyExecutor:
                         f"[{self.strategy_name}] Desabilitada"
                     )
                 
-                # Aguardar próximo ciclo
-                time.sleep(self.cycle_seconds)
+                # 🚨 HEARTBEAT ANTES de dormir
+                if self.watchdog:
+                    self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
+                
+                # Aguardar próximo ciclo (pode ser >600s para algumas estratégias)
+                # Dividir sleep em chunks para enviar heartbeat periodicamente
+                sleep_remaining = self.cycle_seconds
+                sleep_chunk = 60  # Heartbeat a cada 60 segundos durante o sleep
+                
+                while sleep_remaining > 0 and self.running:
+                    chunk = min(sleep_chunk, sleep_remaining)
+                    time.sleep(chunk)
+                    sleep_remaining -= chunk
+                    
+                    # 🚨 HEARTBEAT durante o sleep (a cada 60s)
+                    if sleep_remaining > 0 and self.watchdog:
+                        self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
                 
             except KeyboardInterrupt:
                 logger.info(f"[{self.strategy_name}] Interrompido pelo usuário")
