@@ -154,12 +154,92 @@ class OrderManager:
             closed_tickets = set(self.monitored_positions.keys()) - current_tickets
             for ticket in closed_tickets:
                 logger.info(f"Posição {ticket} foi fechada")
+                
+                # 🤖 APRENDIZAGEM: Aprender com posições fechadas
+                try:
+                    monitored = self.monitored_positions.get(ticket)
+                    if monitored:
+                        # Buscar dados completos do trade no histórico MT5
+                        import MetaTrader5 as mt5
+                        from datetime import timedelta
+                        
+                        # Buscar trade fechado nos últimos 5 minutos
+                        deals = mt5.history_deals_get(
+                            datetime.now() - timedelta(minutes=5),
+                            datetime.now()
+                        )
+                        
+                        if deals:
+                            for deal in deals:
+                                # Procurar o deal correspondente ao ticket
+                                if deal.position_id == ticket:
+                                    # Identificar estratégia pelo magic number
+                                    magic = deal.magic
+                                    
+                                    # Mapear magic → estratégia
+                                    strategy_map = {
+                                        100541: 'trend_following',
+                                        100512: 'mean_reversion',
+                                        100517: 'breakout',
+                                        100540: 'news_trading',
+                                        100531: 'scalping',
+                                        100525: 'range_trading'
+                                    }
+                                    
+                                    strategy_name = strategy_map.get(magic, 'Unknown')
+                                    
+                                    if strategy_name and strategy_name != 'Unknown':
+                                        # Calcular duração do trade
+                                        duration = datetime.now(timezone.utc) - monitored['first_seen']
+                                        duration_minutes = duration.total_seconds() / 60
+                                        
+                                        # Preparar dados para aprendizagem
+                                        trade_data = {
+                                            'profit': deal.profit + monitored.get('profit_realizado', 0.0),
+                                            'signal_confidence': monitored.get('confidence', 0.5),
+                                            'market_conditions': monitored.get('conditions', ''),
+                                            'volume': monitored.get('volume_inicial', deal.volume),
+                                            'duration_minutes': duration_minutes
+                                        }
+                                        
+                                        # Aprender!
+                                        self.learner.learn_from_trade(strategy_name, trade_data)
+                                        
+                                        emoji = "🟢" if trade_data['profit'] > 0 else "🔴"
+                                        logger.info(
+                                            f"🤖 [{strategy_name}] Aprendeu com trade: "
+                                            f"{emoji} ${trade_data['profit']:.2f} "
+                                            f"(duração: {duration_minutes:.1f}min)"
+                                        )
+                                    
+                                    break
+                
+                except Exception as learn_error:
+                    logger.debug(f"Erro na aprendizagem (não crítico): {learn_error}")
+                
+                # Remover da lista monitorada
                 del self.monitored_positions[ticket]
             
             # Adicionar novas posições
             for position in current_positions:
                 ticket = position['ticket']
                 if ticket not in self.monitored_positions:
+                    # 🤖 Buscar dados do trade no database para aprendizagem
+                    confidence = 0.5
+                    conditions = ''
+                    
+                    try:
+                        # Buscar no database
+                        trade_info = self.stats_db.get_trade_by_ticket(ticket)
+                        if trade_info:
+                            confidence = trade_info.get('signal_confidence', 0.5)
+                            # Normalizar confiança (database salva como %, aprendizagem usa 0-1)
+                            if confidence > 1:
+                                confidence = confidence / 100.0
+                            conditions = trade_info.get('market_conditions', '')
+                    except Exception as e:
+                        logger.debug(f"Não foi possível buscar dados do trade {ticket}: {e}")
+                    
                     self.monitored_positions[ticket] = {
                         'ticket': ticket,
                         'type': position['type'],
@@ -174,7 +254,9 @@ class OrderManager:
                         'breakeven_applied': False,
                         'trailing_active': False,
                         'highest_profit': position['profit'],
-                        'lowest_profit': position['profit']
+                        'lowest_profit': position['profit'],
+                        'confidence': confidence,  # 🤖 Para aprendizagem
+                        'conditions': conditions   # 🤖 Para aprendizagem
                     }
                     logger.info(
                         f"Nova posição monitorada: {ticket} | "

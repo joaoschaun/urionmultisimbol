@@ -201,6 +201,52 @@ class StrategyStatsDB:
         # Atualizar estatísticas diárias
         self._update_daily_stats(close_data.get('strategy_name'))
     
+    def get_trade_by_ticket(self, ticket: int) -> Optional[Dict]:
+        """
+        Busca informações de um trade pelo ticket
+        
+        Args:
+            ticket: Número do ticket
+            
+        Returns:
+            Dict com dados do trade ou None se não encontrado
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT strategy_name, ticket, symbol, type, volume,
+                   open_price, close_price, sl, tp, open_time,
+                   close_time, profit, signal_confidence, market_conditions,
+                   status
+            FROM strategy_trades
+            WHERE ticket = ?
+            LIMIT 1
+        """, (ticket,))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return {
+                'strategy_name': row[0],
+                'ticket': row[1],
+                'symbol': row[2],
+                'type': row[3],
+                'volume': row[4],
+                'open_price': row[5],
+                'close_price': row[6],
+                'sl': row[7],
+                'tp': row[8],
+                'open_time': row[9],
+                'close_time': row[10],
+                'profit': row[11],
+                'signal_confidence': row[12],
+                'market_conditions': row[13],
+                'status': row[14]
+            }
+        return None
+    
     def _update_daily_stats(self, strategy_name: str):
         """Atualiza estatísticas diárias da estratégia"""
         conn = sqlite3.connect(self.db_path)
