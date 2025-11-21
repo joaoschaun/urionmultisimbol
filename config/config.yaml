@@ -65,9 +65,9 @@ strategies:
   trend_following:
     enabled: true
     timeframe: H1
-    cycle_seconds: 900
+    cycle_seconds: 600  # 🔧 MUDADO: 900→600 (10min ao invés de 15min)
     max_positions: 2
-    min_confidence: 0.65
+    min_confidence: 0.70  # 🔧 MUDADO: 0.65→0.70 (mais seletivo)
     ema_fast: 12
     ema_slow: 26
     adx_threshold: 25
@@ -141,9 +141,9 @@ strategies:
   range_trading:
     enabled: true
     timeframe: M5
-    cycle_seconds: 180
-    max_positions: 2
-    min_confidence: 0.60
+    cycle_seconds: 300  # 🔧 MUDADO: 180→300 (5min ao invés de 3min)
+    max_positions: 1  # 🔧 MUDADO: 2→1 (menos agressivo)
+    min_confidence: 0.70  # 🔧 MUDADO: 0.60→0.70 (mais seletivo)
     adx_max: 25
     rsi_buy_min: 35
     rsi_buy_max: 45

@@ -1,8 +1,8 @@
 {
   "range_trading": {
-    "total_trades": 26,
-    "wins": 11,
-    "losses": 15,
+    "total_trades": 59,
+    "wins": 27,
+    "losses": 32,
     "min_confidence": 0.5,
     "best_conditions": [
       {
@@ -59,14 +59,94 @@
         "conditions": "{'current_price': 4038.09, 'adx': 20.376902151262794, 'bb_lower': 4027.5965720585527, 'bb_middle': 4042.6815, 'distance_from_support': 10.493427941447408, 'rsi': 45.15238577780127, 'stoch_k': 29.012048192770997, 'conditions_met': 5, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
         "confidence": 0.675,
         "profit": 2.7299999999999995
+      },
+      {
+        "conditions": "{'current_price': 4036.07, 'adx': 14.850619403742504, 'bb_lower': 4032.6723758027865, 'bb_middle': 4038.2885, 'distance_from_support': 3.397624197213645, 'rsi': 42.31887883240283, 'stoch_k': 21.659324522762823, 'conditions_met': 5, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.675,
+        "profit": 0.39
+      },
+      {
+        "conditions": "{'current_price': 4036.58, 'adx': 14.850619403742504, 'bb_lower': 4032.733883872308, 'bb_middle': 4038.314, 'distance_from_support': 3.8461161276918574, 'rsi': 43.032908033936934, 'stoch_k': 25.403817914831603, 'conditions_met': 5, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.675,
+        "profit": 1.1399999999999997
+      },
+      {
+        "conditions": "{'current_price': 4035.57, 'adx': 14.850619403742504, 'bb_lower': 4032.603813524715, 'bb_middle': 4038.2635, 'distance_from_support': 2.9661864752852125, 'rsi': 41.64148488201874, 'stoch_k': 17.988252569752515, 'conditions_met': 5, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.675,
+        "profit": 2.04
+      },
+      {
+        "conditions": "{'current_price': 4036.21, 'adx': 14.850619403742504, 'bb_lower': 4032.690115178373, 'bb_middle': 4038.2955, 'distance_from_support': 3.5198848216268743, 'rsi': 42.512516548492755, 'stoch_k': 22.687224669604774, 'conditions_met': 5, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.675,
+        "profit": 0.3
+      },
+      {
+        "conditions": "{'current_price': 4035.51, 'adx': 14.750610996565015, 'bb_lower': 4032.624609002, 'bb_middle': 4037.9685000000004, 'distance_from_support': 2.8853909980002754, 'rsi': 41.439428417076236, 'stoch_k': 17.547723935391677, 'conditions_met': 5, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.675,
+        "profit": 1.5899999999999996
+      },
+      {
+        "conditions": "{'current_price': 4035.04, 'adx': 14.750610996565015, 'bb_lower': 4032.5541429254245, 'bb_middle': 4037.9450000000006, 'distance_from_support': 2.485857074575506, 'rsi': 40.78181033388171, 'stoch_k': 14.09691629956012, 'conditions_met': 5, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.675,
+        "profit": 2.6099999999999994
+      },
+      {
+        "conditions": "{'current_price': 4033.75, 'adx': 14.90284413468913, 'bb_lower': 4032.3238374226516, 'bb_middle': 4037.8805, 'distance_from_support': 1.4261625773483502, 'rsi': 39.07964232854254, 'stoch_k': 4.62555066079379, 'conditions_met': 6, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.8,
+        "profit": 0.44999999999999996
+      },
+      {
+        "conditions": "{'current_price': 4034.6, 'adx': 14.942181667754934, 'bb_lower': 4032.481547620487, 'bb_middle': 4037.9230000000002, 'distance_from_support': 2.118452379512746, 'rsi': 40.184807081996624, 'stoch_k': 10.866372980910647, 'conditions_met': 6, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.8,
+        "profit": 1.2899999999999998
+      },
+      {
+        "conditions": "{'current_price': 4033.71, 'adx': 15.185175720519615, 'bb_lower': 4031.7097198709685, 'bb_middle': 4037.6, 'distance_from_support': 2.00028012903158, 'rsi': 39.396919465474895, 'stoch_k': 4.120676968358779, 'conditions_met': 6, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.8,
+        "profit": 0.3
+      },
+      {
+        "conditions": "{'current_price': 4031.07, 'adx': 15.694911606245142, 'bb_lower': 4031.133375780801, 'bb_middle': 4037.468, 'distance_from_support': -0.06337578080092499, 'rsi': 35.78106200150451, 'stoch_k': 0.6341154090067465, 'conditions_met': 7, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.925,
+        "profit": 3.5799999999999996
+      },
+      {
+        "conditions": "{'current_price': 4032.01, 'adx': 15.703444174513104, 'bb_lower': 4031.359539010077, 'bb_middle': 4037.5149999999994, 'distance_from_support': 0.650460989923431, 'rsi': 36.887272929908946, 'stoch_k': 6.83111954459447, 'conditions_met': 6, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.8,
+        "profit": 5.52
+      },
+      {
+        "conditions": "{'current_price': 4033.11, 'adx': 15.409215175131369, 'bb_lower': 4031.5952698807005, 'bb_middle': 4037.5699999999997, 'distance_from_support': 1.5147301192996565, 'rsi': 38.27188926540243, 'stoch_k': 6.000000000002384, 'conditions_met': 6, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.8,
+        "profit": 1.37
+      },
+      {
+        "conditions": "{'current_price': 4032.15, 'adx': 16.334270219187815, 'bb_lower': 4030.837973820897, 'bb_middle': 4037.007, 'distance_from_support': 1.3120261791032135, 'rsi': 37.20864031558357, 'stoch_k': 7.7166350411148565, 'conditions_met': 7, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.925,
+        "profit": 5.140000000000001
+      },
+      {
+        "conditions": "{'current_price': 4035.36, 'adx': 16.15622757251206, 'bb_lower': 4031.35559196576, 'bb_middle': 4037.1675000000005, 'distance_from_support': 4.004408034239987, 'rsi': 43.586649677852414, 'stoch_k': 28.020240354208138, 'conditions_met': 6, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.8,
+        "profit": 5.33
+      },
+      {
+        "conditions": "{'current_price': 4033.67, 'adx': 16.334270219187815, 'bb_lower': 4031.121221406454, 'bb_middle': 4037.083, 'distance_from_support': 2.5487785935461034, 'rsi': 40.3993885002749, 'stoch_k': 17.330803289059116, 'conditions_met': 6, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.8,
+        "profit": 12.279999999999998
+      },
+      {
+        "conditions": "{'current_price': 4033.67, 'adx': 16.334270219187815, 'bb_lower': 4031.121221406454, 'bb_middle': 4037.083, 'distance_from_support': 2.5487785935461034, 'rsi': 40.3993885002749, 'stoch_k': 17.330803289059116, 'conditions_met': 6, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.8,
+        "profit": 14.459999999999999
       }
     ],
     "last_adjustment": null
   },
   "trend_following": {
-    "total_trades": 14,
-    "wins": 5,
-    "losses": 9,
+    "total_trades": 23,
+    "wins": 7,
+    "losses": 16,
     "min_confidence": 0.5,
     "best_conditions": [
       {
@@ -93,6 +173,16 @@
         "conditions": "{'current_price': 4037.08, 'adx': 21.8841659337446, 'ema_9': 4038.0976121059134, 'ema_21': 4040.9944651374353, 'ema_50': 4043.341556678915, 'rsi': 43.69437346086588, 'macd_histogram': -0.8100218526661433, 'conditions_met': 7, 'total_conditions': 8}",
         "confidence": 0.875,
         "profit": 2.82
+      },
+      {
+        "conditions": "{'current_price': 4033.11, 'adx': 15.409215175131369, 'ema_9': 4036.566383718152, 'ema_21': 4038.7502427295985, 'ema_50': 4041.5087628455954, 'rsi': 38.27188926540243, 'macd_histogram': -0.3843145785155273, 'conditions_met': 7, 'total_conditions': 8}",
+        "confidence": 0.875,
+        "profit": 1.67
+      },
+      {
+        "conditions": "{'current_price': 4037.99, 'adx': 14.468629523966014, 'ema_9': 4036.7160055796176, 'ema_21': 4038.4208542468505, 'ema_50': 4041.1460151562846, 'rsi': 48.08176335533937, 'macd_histogram': -0.014544298563198721, 'conditions_met': 6, 'total_conditions': 8}",
+        "confidence": 0.75,
+        "profit": 4.08
       }
     ],
     "last_adjustment": null

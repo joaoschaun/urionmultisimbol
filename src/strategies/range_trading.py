@@ -89,6 +89,42 @@ class RangeTradingStrategy(BaseStrategy):
                     f'market_trending_adx_{adx:.1f}'
                 )
             
+            # 🔧 FILTRO DE TENDÊNCIA MULTI-TIMEFRAME
+            # Verificar tendência em H1 para evitar operar contra a maré
+            h1_trend = None
+            h1_trend_strength = 0.0
+            
+            if 'H1' in technical_analysis:
+                h1_data = technical_analysis['H1']
+                h1_ema = h1_data.get('ema', {})
+                h1_ema_12 = h1_ema.get('ema_12', 0)
+                h1_ema_26 = h1_ema.get('ema_26', 0)
+                h1_adx = h1_data.get('adx', {}).get('adx', 0)
+                h1_current = h1_data.get('current_price', current_price)
+                
+                # Determinar tendência H1
+                if h1_ema_12 and h1_ema_26:
+                    if h1_ema_12 > h1_ema_26 and h1_current > h1_ema_12:
+                        h1_trend = 'UP'
+                        h1_trend_strength = min(h1_adx / 25.0, 1.0)  # Normalizar
+                    elif h1_ema_12 < h1_ema_26 and h1_current < h1_ema_12:
+                        h1_trend = 'DOWN'
+                        h1_trend_strength = min(h1_adx / 25.0, 1.0)
+                    else:
+                        h1_trend = 'NEUTRAL'
+                
+                # 🚨 FILTRO CRÍTICO: Não operar contra tendência forte em H1
+                if h1_trend and h1_trend_strength > 0.6:  # Tendência forte
+                    logger.warning(
+                        f"⚠️ Range Trading BLOQUEADO: H1 em {h1_trend} forte "
+                        f"(ADX: {h1_adx:.1f}). Range só opera com H1 lateral!"
+                    )
+                    return self.create_signal(
+                        'HOLD', 0.0,
+                        f'h1_strong_trend_{h1_trend.lower()}',
+                        {'h1_adx': h1_adx, 'h1_trend': h1_trend}
+                    )
+            
             # === COMPRA NO SUPORTE (banda inferior) ===
             buy_range_conditions = {
                 # Mercado lateral (ADX baixo)
@@ -146,6 +182,19 @@ class RangeTradingStrategy(BaseStrategy):
             # Calcular scores
             buy_score = self.calculate_score(buy_range_conditions)
             sell_score = self.calculate_score(sell_range_conditions)
+            
+            # 🔧 FILTRO DIRECIONAL: Alinhar com tendência H1 (se existir)
+            if h1_trend == 'UP' and h1_trend_strength > 0.4:
+                # H1 em alta: PREFERIR BUY, PENALIZAR SELL
+                buy_score += 0.10  # Boost para compra
+                sell_score -= 0.20  # Penalidade severa para venda
+                logger.debug(f"🔼 H1 em alta: Buy+0.10, Sell-0.20")
+                
+            elif h1_trend == 'DOWN' and h1_trend_strength > 0.4:
+                # H1 em baixa: PREFERIR SELL, PENALIZAR BUY
+                sell_score += 0.10  # Boost para venda
+                buy_score -= 0.20  # Penalidade severa para compra
+                logger.debug(f"🔽 H1 em baixa: Sell+0.10, Buy-0.20")
             
             # Determinar ação
             if buy_score > sell_score and buy_score >= self.min_confidence:

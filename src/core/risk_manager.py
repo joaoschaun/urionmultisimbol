@@ -48,6 +48,13 @@ class RiskManager:
         self.last_reset_date = datetime.now().date()
         self.peak_balance = 0.0
         
+        # 🚨 PROTEÇÃO ADICIONAL
+        self.consecutive_losses = 0
+        self.max_consecutive_losses = 3
+        self.last_10_trades = []  # Rastrear últimas 10 direções
+        self.pause_until = None  # Pausa temporária após drawdown
+        self.pause_duration_minutes = 60
+        
         logger.info("Risk Manager initialized")
         logger.info(f"Max risk per trade: {self.max_risk_per_trade * 100}%")
         logger.info(f"Max drawdown: {self.max_drawdown * 100}%")
@@ -250,6 +257,47 @@ class RiskManager:
             logger.exception(f"Error calculating take profit: {e}")
             return 0.0
     
+    def register_trade_result(self, profit: float, order_type: str):
+        """
+        Registra resultado de trade para proteção
+        
+        Args:
+            profit: Lucro/prejuízo do trade
+            order_type: 'BUY' ou 'SELL'
+        """
+        # Atualizar contador de perdas consecutivas
+        if profit < 0:
+            self.consecutive_losses += 1
+            logger.warning(f"🔴 Perda consecutiva #{self.consecutive_losses}: ${profit:.2f}")
+            
+            # Ativar pausa se atingir limite
+            if self.consecutive_losses >= self.max_consecutive_losses:
+                self.pause_until = datetime.now() + timedelta(minutes=self.pause_duration_minutes)
+                logger.error(
+                    f"🛑 PAUSA ATIVADA! {self.max_consecutive_losses} perdas consecutivas. "
+                    f"Bot pausado até {self.pause_until.strftime('%H:%M')}"
+                )
+        else:
+            # Reset no contador se ganhou
+            if self.consecutive_losses > 0:
+                logger.success(f"✅ Perda consecutiva resetada após ganho de ${profit:.2f}")
+            self.consecutive_losses = 0
+        
+        # Rastrear direção dos últimos trades (detectar "travamento")
+        self.last_10_trades.append(order_type)
+        if len(self.last_10_trades) > 10:
+            self.last_10_trades.pop(0)
+        
+        # Alertar se 80%+ em uma direção
+        if len(self.last_10_trades) >= 8:
+            buy_count = self.last_10_trades.count('BUY')
+            sell_count = self.last_10_trades.count('SELL')
+            
+            if buy_count >= 8:
+                logger.warning(f"⚠️ ALERTA: {buy_count}/10 últimos trades são BUY - Bot pode estar travado!")
+            elif sell_count >= 8:
+                logger.warning(f"⚠️ ALERTA: {sell_count}/10 últimos trades são SELL - Bot pode estar travado!")
+    
     def can_open_position(
         self,
         symbol: str,
@@ -268,6 +316,20 @@ class RiskManager:
             Dictionary with 'allowed' (bool) and 'reason' (str)
         """
         self.reset_daily_stats()
+        
+        # 🚨 VERIFICAR PAUSA TEMPORÁRIA
+        if self.pause_until and datetime.now() < self.pause_until:
+            remaining = (self.pause_until - datetime.now()).total_seconds() / 60
+            return {
+                'allowed': False,
+                'reason': f'🛑 Bot em pausa ({remaining:.0f}min restantes após perdas consecutivas)'
+            }
+        
+        # Reset pausa se já passou
+        if self.pause_until and datetime.now() >= self.pause_until:
+            logger.info("✅ Pausa finalizada - Bot retomando operações")
+            self.pause_until = None
+            self.consecutive_losses = 0
         
         # Check max open positions (CRITICAL - Always enforced)
         open_positions = self.mt5.get_open_positions(symbol)
@@ -351,15 +413,20 @@ class RiskManager:
             'reason': 'All risk checks passed'
         }
     
-    def register_trade(self, profit: float):
+    def register_trade(self, profit: float, order_type: str = 'UNKNOWN'):
         """
         Register a completed trade
         
         Args:
             profit: Trade profit/loss
+            order_type: 'BUY' ou 'SELL' para rastreamento
         """
         self.reset_daily_stats()
         self.daily_profit += profit
+        
+        # Registrar para sistema de proteção
+        if order_type != 'UNKNOWN':
+            self.register_trade_result(profit, order_type)
         
         logger.info(
             f"Trade registered: Profit=${profit:.2f}, "
