@@ -158,64 +158,129 @@ class OrderManager:
                 # 🤖 APRENDIZAGEM: Aprender com posições fechadas
                 try:
                     monitored = self.monitored_positions.get(ticket)
-                    if monitored:
-                        # Buscar dados completos do trade no histórico MT5
-                        import MetaTrader5 as mt5
-                        from datetime import timedelta
-                        
-                        # Buscar trade fechado nos últimos 5 minutos
-                        deals = mt5.history_deals_get(
-                            datetime.now() - timedelta(minutes=5),
-                            datetime.now()
+                    if not monitored:
+                        logger.warning(f"🤖 Ticket {ticket} não encontrado em monitored_positions")
+                        continue
+                    
+                    # Buscar dados completos do trade no histórico MT5
+                    import MetaTrader5 as mt5
+                    from datetime import timedelta
+                    
+                    logger.debug(f"🤖 Buscando deal para ticket {ticket} no histórico MT5...")
+                    
+                    # Buscar trade fechado nos últimos 10 minutos (aumentado de 5)
+                    deals = mt5.history_deals_get(
+                        datetime.now() - timedelta(minutes=10),
+                        datetime.now()
+                    )
+                    
+                    if not deals:
+                        logger.warning(f"🤖 Nenhum deal encontrado no histórico dos últimos 10min")
+                        continue
+                    
+                    logger.debug(f"🤖 Encontrados {len(deals)} deals no histórico")
+                    
+                    deal_found = False
+                    for deal in deals:
+                        # Procurar o deal correspondente ao ticket
+                        if deal.position_id == ticket:
+                            deal_found = True
+                            logger.debug(f"🤖 Deal encontrado! Magic: {deal.magic}, Profit: {deal.profit}")
+                            
+                            # Identificar estratégia pelo magic number
+                            magic = deal.magic
+                            
+                            # Mapear magic → estratégia
+                            strategy_map = {
+                                100541: 'trend_following',
+                                100512: 'mean_reversion',
+                                100517: 'breakout',
+                                100540: 'news_trading',
+                                100531: 'scalping',
+                                100525: 'range_trading'
+                            }
+                            
+                            strategy_name = strategy_map.get(magic, 'Unknown')
+                            logger.debug(f"🤖 Magic {magic} → Estratégia: {strategy_name}")
+                            
+                            if strategy_name and strategy_name != 'Unknown':
+                                # Calcular duração do trade
+                                duration = datetime.now(timezone.utc) - monitored['first_seen']
+                                duration_minutes = duration.total_seconds() / 60
+                                
+                                # Preparar dados para aprendizagem
+                                trade_data = {
+                                    'profit': deal.profit + monitored.get('profit_realizado', 0.0),
+                                    'signal_confidence': monitored.get('confidence', 0.5),
+                                    'market_conditions': monitored.get('conditions', ''),
+                                    'volume': monitored.get('volume_inicial', deal.volume),
+                                    'duration_minutes': duration_minutes
+                                }
+                                
+                                logger.debug(f"🤖 Chamando learner.learn_from_trade({strategy_name}, {trade_data})")
+                                
+                                # Aprender!
+                                self.learner.learn_from_trade(strategy_name, trade_data)
+                                
+                                emoji = "🟢" if trade_data['profit'] > 0 else "🔴"
+                                logger.info(
+                                    f"🤖 [{strategy_name}] Aprendeu com trade: "
+                                    f"{emoji} ${trade_data['profit']:.2f} "
+                                    f"(duração: {duration_minutes:.1f}min)"
+                                )
+                            else:
+                                logger.warning(f"🤖 Magic {magic} não mapeado para estratégia conhecida")
+                            
+                            break
+                    
+                    if not deal_found:
+                        logger.warning(
+                            f"🤖 Deal não encontrado no histórico MT5 para ticket {ticket} "
+                            f"(verificados {len(deals)} deals). Tentando buscar no database..."
                         )
                         
-                        if deals:
-                            for deal in deals:
-                                # Procurar o deal correspondente ao ticket
-                                if deal.position_id == ticket:
-                                    # Identificar estratégia pelo magic number
-                                    magic = deal.magic
+                        # FALLBACK: Buscar dados do database
+                        try:
+                            trade_info = self.stats_db.get_trade_by_ticket(ticket)
+                            if trade_info:
+                                strategy_name = trade_info.get('strategy_name')
+                                
+                                if strategy_name:
+                                    # Calcular duração
+                                    duration = datetime.now(timezone.utc) - monitored['first_seen']
+                                    duration_minutes = duration.total_seconds() / 60
                                     
-                                    # Mapear magic → estratégia
-                                    strategy_map = {
-                                        100541: 'trend_following',
-                                        100512: 'mean_reversion',
-                                        100517: 'breakout',
-                                        100540: 'news_trading',
-                                        100531: 'scalping',
-                                        100525: 'range_trading'
+                                    # Preparar dados (profit pode não estar disponível)
+                                    trade_data = {
+                                        'profit': monitored.get('profit_realizado', 0.0),  # Usar lucro acumulado
+                                        'signal_confidence': monitored.get('confidence', 0.5),
+                                        'market_conditions': monitored.get('conditions', ''),
+                                        'volume': monitored.get('volume_inicial', trade_info.get('volume', 0.05)),
+                                        'duration_minutes': duration_minutes
                                     }
                                     
-                                    strategy_name = strategy_map.get(magic, 'Unknown')
+                                    logger.debug(f"🤖 Dados encontrados no database: {strategy_name}")
                                     
-                                    if strategy_name and strategy_name != 'Unknown':
-                                        # Calcular duração do trade
-                                        duration = datetime.now(timezone.utc) - monitored['first_seen']
-                                        duration_minutes = duration.total_seconds() / 60
-                                        
-                                        # Preparar dados para aprendizagem
-                                        trade_data = {
-                                            'profit': deal.profit + monitored.get('profit_realizado', 0.0),
-                                            'signal_confidence': monitored.get('confidence', 0.5),
-                                            'market_conditions': monitored.get('conditions', ''),
-                                            'volume': monitored.get('volume_inicial', deal.volume),
-                                            'duration_minutes': duration_minutes
-                                        }
-                                        
-                                        # Aprender!
-                                        self.learner.learn_from_trade(strategy_name, trade_data)
-                                        
-                                        emoji = "🟢" if trade_data['profit'] > 0 else "🔴"
-                                        logger.info(
-                                            f"🤖 [{strategy_name}] Aprendeu com trade: "
-                                            f"{emoji} ${trade_data['profit']:.2f} "
-                                            f"(duração: {duration_minutes:.1f}min)"
-                                        )
+                                    # Aprender!
+                                    self.learner.learn_from_trade(strategy_name, trade_data)
                                     
-                                    break
+                                    emoji = "🟢" if trade_data['profit'] > 0 else "🔴"
+                                    logger.info(
+                                        f"🤖 [{strategy_name}] Aprendeu com trade (via database): "
+                                        f"{emoji} ${trade_data['profit']:.2f} "
+                                        f"(duração: {duration_minutes:.1f}min)"
+                                    )
+                                else:
+                                    logger.warning(f"🤖 Strategy_name não encontrado no database para {ticket}")
+                            else:
+                                logger.warning(f"🤖 Trade {ticket} não encontrado no database")
+                        except Exception as db_error:
+                            logger.error(f"🤖 Erro ao buscar no database: {db_error}")
                 
                 except Exception as learn_error:
-                    logger.debug(f"Erro na aprendizagem (não crítico): {learn_error}")
+                    logger.error(f"🤖 ERRO na aprendizagem para ticket {ticket}: {learn_error}")
+                    import traceback
+                    logger.error(traceback.format_exc())
                 
                 # Remover da lista monitorada
                 del self.monitored_positions[ticket]
