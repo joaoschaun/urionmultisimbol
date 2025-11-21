@@ -256,10 +256,32 @@ class OrderManager:
                                     duration = datetime.now(timezone.utc) - monitored['first_seen']
                                     duration_minutes = duration.total_seconds() / 60
                                     
-                                    # 🚨 CORREÇÃO: Buscar lucro real do último profit conhecido
-                                    # O profit_realizado é apenas de fechamentos parciais
-                                    # Precisamos do último profit da posição antes de fechar
-                                    final_profit = monitored.get('profit', 0.0) + monitored.get('profit_realizado', 0.0)
+                                    # 🚨 BUSCAR PROFIT REAL: tentar pegar do histórico de posições
+                                    final_profit = 0.0
+                                    try:
+                                        # Buscar posição fechada no histórico
+                                        from datetime import timedelta
+                                        history = mt5.history_orders_get(
+                                            datetime.now() - timedelta(minutes=10),
+                                            datetime.now(),
+                                            position=ticket
+                                        )
+                                        
+                                        if history and len(history) > 0:
+                                            # Somar profit de todas as ordens dessa posição
+                                            for order in history:
+                                                if hasattr(order, 'profit'):
+                                                    final_profit += order.profit
+                                            
+                                            logger.debug(f"🤖 Profit do histórico MT5: ${final_profit:.2f}")
+                                        else:
+                                            # Fallback: usar último profit conhecido + parciais
+                                            final_profit = monitored.get('profit', 0.0) + monitored.get('profit_realizado', 0.0)
+                                            logger.debug(f"🤖 Usando profit monitorado: ${final_profit:.2f}")
+                                    except Exception as hist_error:
+                                        # Se falhar, usar profit monitorado
+                                        final_profit = monitored.get('profit', 0.0) + monitored.get('profit_realizado', 0.0)
+                                        logger.debug(f"🤖 Erro ao buscar histórico, usando monitorado: ${final_profit:.2f}")
                                     
                                     # Preparar dados
                                     trade_data = {
