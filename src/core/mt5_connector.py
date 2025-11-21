@@ -496,6 +496,91 @@ class MT5Connector:
             logger.exception(f"Error closing position: {e}")
             return False
     
+    def close_position_partial(self, ticket: int, volume: float) -> Optional[Dict]:
+        """
+        Close a position partially
+        
+        Args:
+            ticket: Position ticket number
+            volume: Volume to close (must be less than position volume)
+            
+        Returns:
+            Dictionary with result or None if failed
+        """
+        if not self.ensure_connection():
+            return None
+        
+        try:
+            position = mt5.positions_get(ticket=ticket)
+            if not position:
+                logger.error(f"Position {ticket} not found")
+                return None
+            
+            position = position[0]
+            
+            # Validate volume
+            if volume > position.volume:
+                logger.error(
+                    f"Partial close volume ({volume}) > position volume ({position.volume})"
+                )
+                return None
+            
+            if volume < 0.01:
+                logger.error(f"Minimum volume is 0.01 (requested: {volume})")
+                return None
+            
+            # Opposite order type for closing
+            order_type = (mt5.ORDER_TYPE_SELL if position.type == mt5.ORDER_TYPE_BUY 
+                         else mt5.ORDER_TYPE_BUY)
+            price = (mt5.symbol_info_tick(position.symbol).bid 
+                    if order_type == mt5.ORDER_TYPE_SELL 
+                    else mt5.symbol_info_tick(position.symbol).ask)
+            
+            # 🚨 IMPORTANTE: Para fechamento parcial, NÃO incluir sl/tp
+            # e usar "position" para vincular à posição original
+            request = {
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": position.symbol,
+                "volume": volume,
+                "type": order_type,
+                "position": ticket,  # Link to original position
+                "price": price,
+                "deviation": self.config.get('trading', {}).get('slippage', 10),
+                "magic": position.magic,
+                "comment": f"Partial close {ticket}",
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": mt5.ORDER_FILLING_IOC,
+            }
+            
+            result = mt5.order_send(request)
+            
+            if result is None:
+                logger.error(f"Partial close failed: {mt5.last_error()}")
+                return None
+            
+            if result.retcode != mt5.TRADE_RETCODE_DONE:
+                logger.error(
+                    f"Partial close failed: {result.retcode}, {result.comment}"
+                )
+                return None
+            
+            logger.info(
+                f"Position {ticket} partially closed: {volume} lots "
+                f"(remaining: {position.volume - volume})"
+            )
+            
+            return {
+                'ticket': result.order,
+                'closed_volume': volume,
+                'remaining_volume': position.volume - volume,
+                'price': result.price,
+                'retcode': result.retcode
+            }
+            
+        except Exception as e:
+            logger.exception(f"Error closing position partially: {e}")
+            return None
+    
     def modify_position(self, ticket: int, sl: float = None, tp: float = None) -> bool:
         """
         Modify position's stop loss and/or take profit

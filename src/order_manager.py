@@ -548,34 +548,24 @@ class OrderManager:
                     logger.error(f"Volume mínimo é 0.01 (solicitado: {volume})")
                     return False
                 
-                # Fechar parcialmente com ordem inversa
-                symbol = position['symbol']
-                position_type = position['type']
-                
-                # Ordem inversa para fechamento parcial
-                close_type = 'SELL' if position_type == 'BUY' else 'BUY'
-                
+                # Fechar parcialmente usando método correto do MT5
                 logger.info(
                     f"Fechando parcialmente {ticket} | "
                     f"Volume: {volume}/{position['volume']} | "
                     f"Restante: {position['volume'] - volume}"
                 )
                 
-                result = self.mt5.place_order(
-                    symbol=symbol,
-                    order_type=close_type,
-                    volume=volume,
-                    sl=0,
-                    tp=0,
-                    comment=f"Partial close {ticket}",
-                    magic=position.get('magic', 0)
+                # 🚨 CORREÇÃO: Usar close_position_partial em vez de place_order
+                result = self.mt5.close_position_partial(
+                    ticket=ticket,
+                    volume=volume
                 )
                 
                 if result:
                     logger.success(
                         f"✅ Fechamento parcial: {ticket} | "
                         f"Volume fechado: {volume} | "
-                        f"Restante: {position['volume'] - volume}"
+                        f"Restante: {result['remaining_volume']}"
                     )
                     
                     # 🔒 THREAD SAFETY: Atualização protegida
