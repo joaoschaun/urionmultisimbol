@@ -64,9 +64,9 @@
     "last_adjustment": null
   },
   "trend_following": {
-    "total_trades": 13,
+    "total_trades": 14,
     "wins": 5,
-    "losses": 8,
+    "losses": 9,
     "min_confidence": 0.5,
     "best_conditions": [
       {

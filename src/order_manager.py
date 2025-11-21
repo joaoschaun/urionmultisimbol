@@ -256,16 +256,23 @@ class OrderManager:
                                     duration = datetime.now(timezone.utc) - monitored['first_seen']
                                     duration_minutes = duration.total_seconds() / 60
                                     
+                                    logger.info(f"🤖 Iniciando busca de profit para {ticket} ({strategy_name})")
+                                    
                                     # 🚨 BUSCAR PROFIT REAL: tentar pegar do histórico de posições
                                     final_profit = 0.0
                                     try:
                                         # Buscar posição fechada no histórico
                                         from datetime import timedelta
+                                        
+                                        logger.info(f"🤖 Chamando history_orders_get para ticket {ticket}...")
+                                        
                                         history = mt5.history_orders_get(
                                             datetime.now() - timedelta(minutes=10),
                                             datetime.now(),
                                             position=ticket
                                         )
+                                        
+                                        logger.info(f"🤖 history_orders_get retornou: {type(history)}, len={len(history) if history else 0}")
                                         
                                         if history and len(history) > 0:
                                             # Somar profit de todas as ordens dessa posição
@@ -281,7 +288,8 @@ class OrderManager:
                                     except Exception as hist_error:
                                         # Se falhar, usar profit monitorado
                                         final_profit = monitored.get('profit', 0.0) + monitored.get('profit_realizado', 0.0)
-                                        logger.warning(f"🤖 Erro ao buscar histórico: {hist_error}. Usando monitorado: ${final_profit:.2f}")
+                                        logger.warning(f"🤖 EXCEÇÃO ao buscar histórico: {type(hist_error).__name__}: {hist_error}")
+                                        logger.warning(f"🤖 Usando profit monitorado: ${final_profit:.2f}")
                                     
                                     # Preparar dados
                                     trade_data = {
