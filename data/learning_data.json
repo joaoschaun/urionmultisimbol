@@ -1,0 +1,24 @@
+{
+  "range_trading": {
+    "total_trades": 3,
+    "wins": 1,
+    "losses": 2,
+    "min_confidence": 0.5,
+    "best_conditions": [
+      {
+        "conditions": "{'current_price': 4039.26, 'adx': 22.798805949761796, 'bb_lower': 4034.5872408148684, 'bb_middle': 4049.0364999999997, 'distance_from_support': 4.672759185131781, 'rsi': 41.07763196416207, 'stoch_k': 14.617823177175447, 'conditions_met': 7, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
+        "confidence": 0.925,
+        "profit": 2.29
+      }
+    ],
+    "last_adjustment": null
+  },
+  "trend_following": {
+    "total_trades": 1,
+    "wins": 0,
+    "losses": 1,
+    "min_confidence": 0.5,
+    "best_conditions": [],
+    "last_adjustment": null
+  }
+}
