@@ -273,15 +273,15 @@ class OrderManager:
                                                 if hasattr(order, 'profit'):
                                                     final_profit += order.profit
                                             
-                                            logger.debug(f"🤖 Profit do histórico MT5: ${final_profit:.2f}")
+                                            logger.info(f"🤖 Profit do histórico MT5: ${final_profit:.2f} ({len(history)} ordens)")
                                         else:
                                             # Fallback: usar último profit conhecido + parciais
                                             final_profit = monitored.get('profit', 0.0) + monitored.get('profit_realizado', 0.0)
-                                            logger.debug(f"🤖 Usando profit monitorado: ${final_profit:.2f}")
+                                            logger.info(f"🤖 Histórico vazio, usando profit monitorado: ${final_profit:.2f}")
                                     except Exception as hist_error:
                                         # Se falhar, usar profit monitorado
                                         final_profit = monitored.get('profit', 0.0) + monitored.get('profit_realizado', 0.0)
-                                        logger.debug(f"🤖 Erro ao buscar histórico, usando monitorado: ${final_profit:.2f}")
+                                        logger.warning(f"🤖 Erro ao buscar histórico: {hist_error}. Usando monitorado: ${final_profit:.2f}")
                                     
                                     # Preparar dados
                                     trade_data = {
@@ -292,7 +292,7 @@ class OrderManager:
                                         'duration_minutes': duration_minutes
                                     }
                                     
-                                    logger.debug(f"🤖 Dados encontrados no database: {strategy_name}, profit: ${final_profit:.2f}")
+                                    logger.info(f"🤖 [{strategy_name}] Profit final calculado: ${final_profit:.2f}")
                                     
                                     # Aprender!
                                     self.learner.learn_from_trade(strategy_name, trade_data)
