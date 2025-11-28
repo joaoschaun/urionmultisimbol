@@ -126,7 +126,21 @@
       {
         "conditions": "{'price': 4162.58, 'bb_upper': 4161.837700793856, 'distance_from_upper': 0.7422992061437981, 'bb_width': 6.94140158771188, 'adx': 20.758171995788793, 'macd_histogram': 0.3098802339756449, 'breakout_type': 'confirmed', 'conditions_met': 7, 'total_conditions': 8, 'h1_confirmation': False}",
         "confidence": 0.713,
-        "profit": 0.18
+        "profit": 0.24
+      }
+    ],
+    "last_adjustment": null
+  },
+  "scalping": {
+    "total_trades": 1,
+    "wins": 1,
+    "losses": 0,
+    "min_confidence": 0.5,
+    "best_conditions": [
+      {
+        "conditions": "{'entry_price': 4157.45, 'target_pips': 8, 'stop_pips': 4, 'rsi': 47.93636556778329, 'macd_hist': -0.10854517551918064, 'momentum_score': '3/5', 'spread_pips': 8.3}",
+        "confidence": 0.6,
+        "profit": 0.1
       }
     ],
     "last_adjustment": null
