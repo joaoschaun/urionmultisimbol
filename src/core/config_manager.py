@@ -7,6 +7,7 @@ import yaml
 from pathlib import Path
 from typing import Any, Dict, Optional
 from dotenv import load_dotenv
+from loguru import logger
 
 
 class ConfigManager:
@@ -26,9 +27,20 @@ class ConfigManager:
     
     def load_env(self):
         """Load environment variables from .env file"""
-        env_path = Path(".env")
-        if env_path.exists():
-            load_dotenv(env_path)
+        # Tentar múltiplos caminhos para .env
+        env_paths = [
+            Path(".env"),                           # Diretório atual
+            Path(__file__).parent.parent / ".env",  # src/../.env (raiz do projeto)
+            Path(__file__).parent.parent.parent / ".env"  # Caso esteja em src/core
+        ]
+        
+        for env_path in env_paths:
+            if env_path.exists():
+                load_dotenv(env_path)
+                logger.debug(f"✅ .env carregado de: {env_path}")
+                return
+        
+        logger.warning("⚠️ Arquivo .env não encontrado em nenhum caminho esperado")
     
     def load_config(self):
         """Load configuration from YAML file"""
