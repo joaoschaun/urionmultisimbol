@@ -1,0 +1,70 @@
+﻿python : 2025-11-21 18:37:06.870 | INFO     | ml.strategy_learner:_load_learning_data:48 - Dados de aprendizagem 
+carregados: 2 estrat├⌐gias
+No linha:1 caractere:1
++ python testar_learner.py 2>&1 | Out-File -FilePath "teste_learner_res ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2025-11-21 18:3... 2 estrat├⌐gias:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2025-11-21 18:37:06.872 | INFO     | ml.strategy_learner:__init__:40 - StrategyLearner inicializado
+2025-11-21 18:37:06.882 | DEBUG    | ml.strategy_learner:_save_learning_data:60 - Dados de aprendizagem salvos
+================================================================================
+≡ƒºá TESTE DO SISTEMA DE APRENDIZADO (STRATEGY LEARNER)
+================================================================================
+
+1∩╕ÅΓâú AN├üLISE DE PERFORMANCE (├║ltimos 7 dias)
+--------------------------------------------------------------------------------
+
+≡ƒôè TREND_FOLLOWING: Sem trades nos ├║ltimos 7 dias
+
+≡ƒôè MEAN_REVERSION: Sem trades nos ├║ltimos 7 dias
+
+≡ƒôè BREAKOUT: Sem trades nos ├║ltimos 7 dias
+
+≡ƒôè SCALPING: Sem trades nos ├║ltimos 7 dias
+
+≡ƒôè RANGE_TRADING: Sem trades nos ├║ltimos 7 dias
+
+≡ƒôè NEWS_TRADING: Sem trades nos ├║ltimos 7 dias
+
+
+2∩╕ÅΓâú RANKING DE ESTRAT├ëGIAS (por performance)
+--------------------------------------------------------------------------------
+
+
+3∩╕ÅΓâú AJUSTES RECOMENDADOS PELO LEARNER
+--------------------------------------------------------------------------------
+
+
+4∩╕ÅΓâú DADOS DE APRENDIZAGEM SALVOS
+--------------------------------------------------------------------------------
+Estrat├⌐gias com dados de aprendizagem: 2
+
+Resumo:
+
+≡ƒôÜ range_trading:
+   - Last update: N/A
+   - Total trades aprendidos: 0
+   - Min confidence atual: 0.00%
+   - Cycle seconds atual: 0
+
+≡ƒôÜ trend_following:
+   - Last update: N/A
+   - Total trades aprendidos: 0
+   - Min confidence atual: 0.00%
+   - Cycle seconds atual: 0
+
+
+5∩╕ÅΓâú TESTE DE APRENDIZADO COM TRADE SIMULADO
+--------------------------------------------------------------------------------
+Simulando trade de teste: $50.00 (confian├ºa: 75%)
+Γ£à Learner processou trade de teste com sucesso
+Γ£à Dados salvos corretamente
+
+================================================================================
+≡ƒÄ» RESUMO:
+   - Estrat├⌐gias testadas: 6
+   - Estrat├⌐gias com dados: 0
+   - Total de trades analisados: 0
+   - Sistema de aprendizado: Γ£à Funcionando
+================================================================================

@@ -12,10 +12,12 @@ from loguru import logger
 from core.mt5_connector import MT5Connector
 from core.config_manager import ConfigManager
 from core.risk_manager import RiskManager
-from core.market_hours import MarketHoursManager
+from core.market_hours import MarketHoursManager, ForexMarketHours
 from core.watchdog import ThreadWatchdog
 from analysis.technical_analyzer import TechnicalAnalyzer
 from analysis.news_analyzer import NewsAnalyzer
+from analysis.macro_context_analyzer import MacroContextAnalyzer  # 🔥 FASE 1
+from analysis.smart_money_detector import SmartMoneyDetector  # 🔥 FASE 1
 from database.strategy_stats import StrategyStatsDB
 from ml.strategy_learner import StrategyLearner
 
@@ -33,7 +35,8 @@ class StrategyExecutor:
                  news_analyzer: NewsAnalyzer,
                  telegram=None,
                  learner: Optional[StrategyLearner] = None,
-                 watchdog: Optional[ThreadWatchdog] = None):
+                 watchdog: Optional[ThreadWatchdog] = None,
+                 market_hours=None):  # 🆕 Aceita market_hours customizado
         """
         Inicializa executor de estratégia
         
@@ -48,16 +51,41 @@ class StrategyExecutor:
             telegram: Notificador Telegram (opcional)
             learner: Sistema de aprendizagem ML (opcional)
             watchdog: Sistema de monitoramento de threads (opcional)
+            market_hours: Gerenciador de horários (opcional, cria automático se None)
         """
         self.strategy_name = strategy_name
         self.strategy = strategy_instance
+        
+        # 🔥 FASE 1: Injetar risk_manager na estratégia para cálculos ATR
+        if hasattr(self.strategy, 'risk_manager'):
+            self.strategy.risk_manager = risk_manager
+        
         self.config = config
         self.mt5 = mt5
         self.risk_manager = risk_manager
-        self.market_hours = MarketHoursManager(config)
+        
+        # 🆕 Usar market_hours customizado ou criar padrão (XAUUSD)
+        self.market_hours = market_hours if market_hours else MarketHoursManager(config)
+        
         self.technical_analyzer = technical_analyzer
         self.news_analyzer = news_analyzer
         self.telegram = telegram
+        
+        # 🔥 FASE 1: Macro Context Analyzer
+        try:
+            self.macro_analyzer = MacroContextAnalyzer()
+            logger.info(f"[{strategy_name}] ✅ MacroContextAnalyzer inicializado")
+        except Exception as e:
+            logger.warning(f"[{strategy_name}] ⚠️  MacroContextAnalyzer não disponível: {e}")
+            self.macro_analyzer = None
+        
+        # 🔥 FASE 1: Smart Money Detector
+        try:
+            self.smart_money = SmartMoneyDetector()
+            logger.info(f"[{strategy_name}] ✅ SmartMoneyDetector inicializado")
+        except Exception as e:
+            logger.warning(f"[{strategy_name}] ⚠️  SmartMoneyDetector não disponível: {e}")
+            self.smart_money = None
         
         # Sistema de aprendizagem
         self.learner = learner if learner else StrategyLearner()
@@ -72,17 +100,17 @@ class StrategyExecutor:
         self.symbol = config.get('trading', {}).get('symbol', 'XAUUSD')
         
         # Configuração da estratégia
-        strategy_config = config.get('strategies', {}).get(
+        self.strategy_config = config.get('strategies', {}).get(
             strategy_name, {}
         )
         
-        self.enabled = strategy_config.get('enabled', True)
-        self.cycle_seconds = strategy_config.get('cycle_seconds', 300)
-        self.max_positions = strategy_config.get('max_positions', 2)
+        self.enabled = self.strategy_config.get('enabled', True)
+        self.cycle_seconds = self.strategy_config.get('cycle_seconds', 300)
+        self.max_positions = self.strategy_config.get('max_positions', 2)
         
         # Usar min_confidence aprendido ou padrão do config
         learned_confidence = self.learner.get_learned_confidence(strategy_name)
-        config_confidence = strategy_config.get('min_confidence', 0.6)
+        config_confidence = self.strategy_config.get('min_confidence', 0.6)
         
         # Se já aprendeu algo, usar valor aprendido
         if self.learner.learning_data.get(strategy_name, {}).get('total_trades', 0) >= 10:
@@ -331,6 +359,62 @@ class StrategyExecutor:
                     self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
                 return
             
+            # 🔥 FASE 1: Verificar Smart Money antes de executar
+            if self.smart_money:
+                try:
+                    # Obter dados de preço
+                    rates = self.mt5.get_rates(self.symbol, '1H', 500)
+                    if rates is not None and not rates.empty:
+                        smart_analysis = self.smart_money.detect_patterns(rates)
+                        
+                        # Verificar se Smart Money contradiz o sinal
+                        action = signal.get('action')
+                        
+                        # Stop Hunting ativo = mercado enganoso, evitar
+                        if smart_analysis.get('stop_hunting', {}).get('active', False):
+                            logger.warning(
+                                f"[{self.strategy_name}] "
+                                f"🎣 STOP HUNTING detectado - Sinal suspenso"
+                            )
+                            if self.watchdog:
+                                self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
+                            return
+                        
+                        # Acumulação favorece compra, Distribuição favorece venda
+                        accumulation = smart_analysis.get('accumulation', {}).get('active', False)
+                        distribution = smart_analysis.get('distribution', {}).get('active', False)
+                        
+                        # SELL durante Acumulação = Contra Smart Money
+                        if action == 'SELL' and accumulation:
+                            logger.warning(
+                                f"[{self.strategy_name}] "
+                                f"🐋 Smart Money acumulando - SELL bloqueado"
+                            )
+                            if self.watchdog:
+                                self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
+                            return
+                        
+                        # BUY durante Distribuição = Contra Smart Money
+                        if action == 'BUY' and distribution:
+                            logger.warning(
+                                f"[{self.strategy_name}] "
+                                f"🐋 Smart Money distribuindo - BUY bloqueado"
+                            )
+                            if self.watchdog:
+                                self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
+                            return
+                        
+                        # Sinal alinhado com Smart Money
+                        if (action == 'BUY' and accumulation) or (action == 'SELL' and distribution):
+                            logger.info(
+                                f"[{self.strategy_name}] "
+                                f"✅ Smart Money alinhado: {action} com "
+                                f"{'Acumulação' if accumulation else 'Distribuição'}"
+                            )
+                        
+                except Exception as smart_error:
+                    logger.debug(f"[{self.strategy_name}] Erro ao verificar Smart Money: {smart_error}")
+            
             # 5. Calcular parâmetros da ordem
             order_params = self._calculate_order_params(signal)
             
@@ -440,18 +524,29 @@ class StrategyExecutor:
             sl = signal.get('sl')
             tp = signal.get('tp')
             
+            # 🔥 FASE 1: SL/TP são OPCIONAIS - vão no comentário para gerenciamento mental
+            # Se não tiver SL/TP, usar valores padrão baseados em ATR
             if not sl or not tp:
-                logger.warning(
+                logger.debug(
                     f"[{self.strategy_name}] "
-                    f"Sinal sem SL/TP válidos"
+                    f"Sinal sem SL/TP - usando valores padrão baseados em ATR"
                 )
-                return None
+                # Calcular SL/TP padrão (2x ATR para SL, 3x ATR para TP)
+                atr = signal.get('details', {}).get('atr', entry_price * 0.02)  # 2% padrão
+                sl = entry_price - (2 * atr) if action == 'BUY' else entry_price + (2 * atr)
+                tp = entry_price + (3 * atr) if action == 'BUY' else entry_price - (3 * atr)
+                logger.debug(
+                    f"[{self.strategy_name}] "
+                    f"SL/TP calculado: SL={sl:.5f}, TP={tp:.5f} (ATR={atr:.5f})"
+                )
             
-            # Calcular volume (precisa de symbol, entry_price, stop_loss)
+            # Calcular volume com Kelly Criterion (precisa de symbol, entry_price, stop_loss)
             volume = self.risk_manager.calculate_position_size(
                 symbol=self.symbol,
                 entry_price=entry_price,
-                stop_loss=sl
+                stop_loss=sl,
+                strategy_name=self.strategy_name,
+                use_kelly=True  # 🔥 FASE 1: Kelly Criterion ativado
             )
             if volume <= 0:
                 return None
@@ -462,7 +557,7 @@ class StrategyExecutor:
                 'sl': sl,
                 'tp': tp,
                 'magic': self.magic_number,
-                'comment': f"URION_{self.strategy_name}",
+                'comment': f"URION_{self.strategy_name}|SL:{sl:.5f}|TP:{tp:.5f}",  # 🔥 METADATA com SL/TP mental
                 'signal': signal
             }
             
@@ -484,22 +579,96 @@ class StrategyExecutor:
             comment = params['comment']
             signal = params.get('signal', {})  # Extrair signal de params
             
+            # 🔥 SOLUÇÃO: Comment do MT5 tem limite de 31 caracteres
+            # Formato ULTRA compacto: "S|4172.8|4096.7" (apenas SL|TP)
+            # O strategy_name está no MAGIC number, não precisa no comment
+            if sl is not None and tp is not None:
+                # Arredondar para 1 casa decimal
+                comment = f"S|{sl:.1f}|{tp:.1f}"
+                
+                # Garantir limite de 31 caracteres (15 chars é suficiente)
+                if len(comment) > 31:
+                    # Remover casas decimais se necessário
+                    comment = f"S|{int(sl)}|{int(tp)}"
+            else:
+                comment = "URION"  # Fallback genérico
+            
+            logger.debug(f"[{self.strategy_name}] Comment: '{comment}' ({len(comment)} chars)")
+            
+            # 🔥 FASE 1: Verificar macro context antes de executar
+            # 🎯 ESTRATÉGIAS DE TENDÊNCIA: macro confirma direção
+            # 🎯 ESTRATÉGIAS DE REVERSÃO/SCALPING: macro NÃO se aplica
+            
+            # Verificar se estratégia está isenta do filtro macro
+            exempt_from_macro = self.strategy_config.get('exempt_from_macro', False)
+            trend_strategies = ['trend_following', 'breakout', 'news_trading']  # Seguem tendência
+            
+            if exempt_from_macro:
+                logger.debug(
+                    f"[{self.strategy_name}] "
+                    f"⚡ Estratégia ISENTA do filtro macro (config: exempt_from_macro=true)"
+                )
+            elif self.macro_analyzer and self.strategy_name.lower() in trend_strategies:
+                try:
+                    macro = self.macro_analyzer.analyze()
+                    
+                    # Se macro tem viés forte, verificar alinhamento
+                    if macro.confidence >= 0.6:
+                        # BUY mas macro BEARISH = NÃO executar
+                        if action == 'BUY' and macro.gold_bias == 'BEARISH':
+                            logger.warning(
+                                f"[{self.strategy_name}] "
+                                f"🚫 SINAL BLOQUEADO: BUY com macro BEARISH "
+                                f"(confiança {macro.confidence*100:.0f}%)"
+                            )
+                            return
+                        
+                        # SELL mas macro BULLISH = NÃO executar
+                        if action == 'SELL' and macro.gold_bias == 'BULLISH':
+                            logger.warning(
+                                f"[{self.strategy_name}] "
+                                f"🚫 SINAL BLOQUEADO: SELL com macro BULLISH "
+                                f"(confiança {macro.confidence*100:.0f}%)"
+                            )
+                            return
+                        
+                        # Sinal alinhado com macro
+                        logger.info(
+                            f"[{self.strategy_name}] "
+                            f"✅ Macro alinhado: {action} com bias {macro.gold_bias} "
+                            f"({macro.confidence*100:.0f}%)"
+                        )
+                except Exception as macro_error:
+                    logger.debug(f"[{self.strategy_name}] Erro ao verificar macro: {macro_error}")
+            elif self.strategy_name.lower() not in trend_strategies:
+                logger.debug(
+                    f"[{self.strategy_name}] "
+                    f"⚡ Estratégia de reversão - Macro context ignorado"
+                )
+            
             logger.info(
                 f"[{self.strategy_name}] "
                 f"🚀 EXECUTANDO ORDEM: {action} {volume} lots"
             )
             logger.info(
                 f"[{self.strategy_name}] "
-                f"   SL: {sl} | TP: {tp} | Magic: {magic}"
+                f"   SL mental: {sl} | TP: {tp} | Magic: {magic}"
             )
             
-            # Executar ordem
+            # 🔥 FASE 1: Gerenciamento manual - NÃO enviar SL/TP inicialmente
+            # Vamos gerenciar manualmente até passar o tempo mínimo
+            logger.info(
+                f"[{self.strategy_name}] "
+                f"🛡️  Proteção ativa: SL/TP serão gerenciados manualmente"
+            )
+            
+            # Executar ordem SEM SL/TP (gerenciamento manual)
             result = self.mt5.place_order(
                 symbol=self.symbol,
                 order_type=action,
                 volume=volume,
-                sl=sl,
-                tp=tp,
+                sl=None,  # 🔥 SEM SL inicial
+                tp=None,  # 🔥 SEM TP inicial
                 comment=comment,
                 magic=magic
             )

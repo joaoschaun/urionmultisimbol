@@ -13,18 +13,20 @@ class BaseStrategy(ABC):
     Classe abstrata base para todas as estratégias
     """
     
-    def __init__(self, name: str, config: Dict):
+    def __init__(self, name: str, config: Dict, risk_manager=None):
         """
         Inicializa a estratégia
         
         Args:
             name: Nome da estratégia
             config: Configurações da estratégia
+            risk_manager: RiskManager para cálculos ATR (opcional)
         """
         self.name = name
         self.config = config
         self.enabled = config.get('enabled', True)
         self.min_confidence = config.get('min_confidence', 0.6)
+        self.risk_manager = risk_manager  # 🔥 FASE 1: Armazenar RiskManager
         
         logger.info(f"Estratégia {self.name} inicializada")
     
@@ -106,7 +108,7 @@ class BaseStrategy(ABC):
     def create_signal(self, action: str, confidence: float, 
                      reason: str, details: Optional[Dict] = None) -> Dict:
         """
-        Cria sinal padronizado
+        Cria sinal padronizado com SL/TP baseados em ATR (se disponível)
         
         Args:
             action: BUY, SELL ou HOLD
@@ -131,14 +133,40 @@ class BaseStrategy(ABC):
         sl = None
         tp = None
         
-        if action == 'BUY' and current_price > 0:
-            # Para BUY: SL abaixo, TP acima
-            sl = current_price - (current_price * 0.005)  # 0.5% abaixo
-            tp = current_price + (current_price * 0.015)  # 1.5% acima (R:R 1:3)
-        elif action == 'SELL' and current_price > 0:
-            # Para SELL: SL acima, TP abaixo
-            sl = current_price + (current_price * 0.005)  # 0.5% acima
-            tp = current_price - (current_price * 0.015)  # 1.5% abaixo (R:R 1:3)
+        if action in ['BUY', 'SELL'] and current_price > 0:
+            # 🔥 FASE 1: Usar ATR para stops dinâmicos se disponível
+            if self.risk_manager:
+                try:
+                    sl = self.risk_manager.calculate_stop_loss(
+                        symbol='XAUUSD',  # TODO: pegar do config
+                        order_type=action,  # BUY ou SELL
+                        entry_price=current_price,
+                        strategy_name=self.name  # ATR é calculado automaticamente
+                    )
+                    # TP baseado em múltiplo do risco (1:3)
+                    if sl:
+                        risk = abs(current_price - sl)
+                        if action == 'BUY':
+                            tp = current_price + (risk * 3)
+                        else:  # SELL
+                            tp = current_price - (risk * 3)
+                except Exception as e:
+                    logger.warning(f"{self.name}: Erro ao calcular SL/TP com ATR: {e}, usando fixo")
+                    sl = None
+                    tp = None
+            
+            # Fallback: Valores fixos se ATR não disponível
+            if sl is None:
+                if action == 'BUY':
+                    sl_distance = 50  # $50 de stop loss
+                    tp_distance = 150  # $150 de take profit - R:R 1:3
+                    sl = current_price - sl_distance
+                    tp = current_price + tp_distance
+                elif action == 'SELL':
+                    sl_distance = 50  # $50 de stop loss
+                    tp_distance = 150  # $150 de take profit - R:R 1:3
+                    sl = current_price + sl_distance
+                    tp = current_price - tp_distance
         
         signal = {
             'strategy': self.name,

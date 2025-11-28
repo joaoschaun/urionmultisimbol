@@ -6,6 +6,7 @@ from typing import Dict, Optional, List, Any
 from datetime import datetime, timedelta
 from loguru import logger
 import MetaTrader5 as mt5
+import numpy as np
 
 
 class RiskManager:
@@ -74,16 +75,20 @@ class RiskManager:
         symbol: str,
         entry_price: float,
         stop_loss: float,
-        risk_percent: Optional[float] = None
+        risk_percent: Optional[float] = None,
+        strategy_name: Optional[str] = None,
+        use_kelly: bool = True
     ) -> float:
         """
-        Calculate position size based on risk percentage
+        🔥 MELHORADO: Calculate position size com Kelly Criterion
         
         Args:
             symbol: Trading symbol
             entry_price: Entry price
             stop_loss: Stop loss price
-            risk_percent: Risk percentage (uses default if None)
+            risk_percent: Risk percentage (usa Kelly se None e use_kelly=True)
+            strategy_name: Nome da estratégia (para buscar stats)
+            use_kelly: Se True, usa Kelly Criterion baseado em performance
             
         Returns:
             Position size in lots
@@ -97,8 +102,18 @@ class RiskManager:
             
             balance = account_info['balance']
             
-            # Use provided risk or default
-            risk = risk_percent if risk_percent is not None else self.max_risk_per_trade
+            # 🔥 NOVO: Usar Kelly Criterion se habilitado e temos dados
+            if use_kelly and strategy_name and risk_percent is None:
+                kelly_risk = self._calculate_kelly_size(strategy_name)
+                if kelly_risk:
+                    risk = kelly_risk
+                    logger.info(f"[{strategy_name}] 📊 Using Kelly Criterion: {risk*100:.2f}%")
+                else:
+                    risk = self.max_risk_per_trade
+                    logger.info(f"[{strategy_name}] ⚠️ Kelly unavailable, using default: {risk*100:.2f}%")
+            else:
+                # Use provided risk or default
+                risk = risk_percent if risk_percent is not None else self.max_risk_per_trade
             
             # Calculate risk amount in currency
             risk_amount = balance * risk
@@ -155,23 +170,148 @@ class RiskManager:
             logger.exception(f"Error calculating position size: {e}")
             return 0.0
     
+    def _calculate_kelly_size(self, strategy_name: str) -> Optional[float]:
+        """
+        🔥 NOVO: Calcula tamanho ideal de posição usando Kelly Criterion
+        
+        Formula de Kelly:
+        f = (p × b - q) / b
+        
+        Onde:
+        f = fração do capital a arriscar
+        p = probabilidade de ganhar (Win Rate)
+        b = razão ganho/perda (avg_win / avg_loss)
+        q = probabilidade de perder (1 - p)
+        
+        Args:
+            strategy_name: Nome da estratégia
+            
+        Returns:
+            Fração de risco (0.01 a 0.05) ou None se dados insuficientes
+        """
+        try:
+            # Buscar estatísticas da estratégia no banco
+            from database.strategy_stats import StrategyStatsDB
+            stats_db = StrategyStatsDB()
+            
+            stats = stats_db.get_strategy_stats(strategy_name)
+            
+            if not stats or stats['total_trades'] < 20:
+                logger.debug(f"[{strategy_name}] Dados insuficientes para Kelly (<20 trades)")
+                return None
+            
+            win_rate = stats['win_rate']
+            avg_win = stats.get('avg_win', 0)
+            avg_loss = abs(stats.get('avg_loss', 1))  # Garantir positivo
+            
+            # Validações
+            if win_rate <= 0 or avg_loss == 0 or avg_win <= 0:
+                logger.warning(f"[{strategy_name}] Stats inválidas para Kelly")
+                return None
+            
+            # Calcular Kelly
+            p = win_rate / 100  # Converter % para decimal
+            q = 1 - p
+            b = avg_win / avg_loss  # Razão gain/loss
+            
+            kelly_fraction = (p * b - q) / b
+            
+            # Kelly pode ser negativo (estratégia perdedora) ou muito alto
+            if kelly_fraction <= 0:
+                logger.warning(
+                    f"[{strategy_name}] 🚨 Kelly NEGATIVO ({kelly_fraction:.3f}) - Estratégia perdedora!"
+                )
+                return 0.005  # Risco mínimo (0.5%)
+            
+            # 🔥 IMPORTANTE: Usar HALF KELLY por segurança
+            # Kelly completo é muito agressivo e pode levar a drawdowns grandes
+            safe_kelly = kelly_fraction * 0.5
+            
+            # Limitar entre 0.5% e 5%
+            safe_kelly = max(0.005, min(safe_kelly, 0.05))
+            
+            logger.info(
+                f"[{strategy_name}] 📊 Kelly Criterion | "
+                f"WR: {win_rate:.1f}% | "
+                f"Avg W/L: {b:.2f} | "
+                f"Full Kelly: {kelly_fraction*100:.2f}% | "
+                f"Safe Kelly (0.5x): {safe_kelly*100:.2f}%"
+            )
+            
+            return safe_kelly
+            
+        except Exception as e:
+            logger.error(f"Erro ao calcular Kelly: {e}")
+            return None
+    
+    def calculate_atr(self, symbol: str, timeframe: int = mt5.TIMEFRAME_H1, period: int = 14) -> Optional[float]:
+        """
+        🔥 NOVO: Calcula ATR (Average True Range) para stops dinâmicos
+        
+        ATR mede volatilidade:
+        - Alta volatilidade → ATR alto → Stops mais largos
+        - Baixa volatilidade → ATR baixo → Stops mais apertados
+        
+        Args:
+            symbol: Símbolo (ex: XAUUSD)
+            timeframe: Timeframe (default: H1)
+            period: Período do ATR (default: 14)
+            
+        Returns:
+            Valor do ATR ou None se erro
+        """
+        try:
+            # Obter dados históricos
+            rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, period + 1)
+            
+            if rates is None or len(rates) < period:
+                logger.warning(f"Dados insuficientes para calcular ATR de {symbol}")
+                return None
+            
+            # Calcular True Range para cada candle
+            true_ranges = []
+            for i in range(1, len(rates)):
+                high = rates[i]['high']
+                low = rates[i]['low']
+                prev_close = rates[i-1]['close']
+                
+                # True Range = max(H-L, |H-PC|, |L-PC|)
+                tr = max(
+                    high - low,
+                    abs(high - prev_close),
+                    abs(low - prev_close)
+                )
+                true_ranges.append(tr)
+            
+            # ATR = Média dos True Ranges
+            atr = np.mean(true_ranges[-period:])
+            
+            logger.debug(f"ATR calculado para {symbol}: {atr:.5f}")
+            return atr
+            
+        except Exception as e:
+            logger.error(f"Erro ao calcular ATR: {e}")
+            return None
+    
     def calculate_stop_loss(
         self,
         symbol: str,
         order_type: str,
         entry_price: float,
         atr_value: Optional[float] = None,
-        atr_multiplier: Optional[float] = None
+        atr_multiplier: Optional[float] = None,
+        strategy_name: Optional[str] = None
     ) -> float:
         """
-        Calculate stop loss price
+        🔥 MELHORADO: Calculate stop loss price com ATR dinâmico
         
         Args:
             symbol: Trading symbol
             order_type: 'BUY' or 'SELL'
             entry_price: Entry price
-            atr_value: ATR value (if available)
-            atr_multiplier: ATR multiplier
+            atr_value: ATR value (calculado automaticamente se None)
+            atr_multiplier: ATR multiplier (usa padrão por estratégia se None)
+            strategy_name: Nome da estratégia (para multiplicador customizado)
             
         Returns:
             Stop loss price
@@ -183,15 +323,34 @@ class RiskManager:
             
             point = symbol_info['point']
             
-            # Get stop loss distance from config or ATR
-            if atr_value and atr_multiplier:
+            # 🔥 NOVO: Calcular ATR se não fornecido
+            if atr_value is None:
+                atr_value = self.calculate_atr(symbol)
+            
+            # Determinar multiplicador baseado na estratégia
+            if atr_multiplier is None:
+                # Multiplicadores customizados por estratégia
+                strategy_multipliers = {
+                    'scalping': 1.0,          # 1x ATR (apertado)
+                    'range_trading': 1.5,     # 1.5x ATR
+                    'mean_reversion': 1.5,    # 1.5x ATR
+                    'trend_following': 2.5,   # 2.5x ATR (largo - deixa correr)
+                    'breakout': 2.0,          # 2x ATR
+                    'news_trading': 2.5,      # 2.5x ATR (volatilidade alta)
+                }
+                atr_multiplier = strategy_multipliers.get(strategy_name, 2.0)
+            
+            # Get stop loss distance from ATR ou config
+            if atr_value and atr_value > 0:
                 sl_distance = atr_value * atr_multiplier
-                logger.debug(f"Using ATR-based SL: {sl_distance:.5f}")
+                logger.info(
+                    f"[{strategy_name}] 🎯 ATR-based SL: {atr_value:.5f} × {atr_multiplier} = {sl_distance:.5f}"
+                )
             else:
-                # Use fixed pips from config
+                # Fallback: usar pips fixos
                 sl_pips = self.risk_config.get('stop_loss_pips', 20)
-                sl_distance = sl_pips * point * 10  # Convert pips to price
-                logger.debug(f"Using fixed SL: {sl_pips} pips")
+                sl_distance = sl_pips * point * 10
+                logger.warning(f"ATR indisponível, usando SL fixo: {sl_pips} pips")
             
             # Calculate stop loss
             if order_type == 'BUY':
@@ -203,9 +362,9 @@ class RiskManager:
             digits = symbol_info['digits']
             stop_loss = round(stop_loss, digits)
             
-            logger.info(
-                f"Stop loss calculated: {stop_loss:.5f} "
-                f"(Distance: {sl_distance:.5f})"
+            logger.success(
+                f"✅ Stop loss: {stop_loss:.5f} | Distância: {sl_distance:.5f} "
+                f"({(sl_distance/entry_price)*10000:.1f} pips)"
             )
             
             return stop_loss
@@ -298,11 +457,66 @@ class RiskManager:
             elif sell_count >= 8:
                 logger.warning(f"⚠️ ALERTA: {sell_count}/10 últimos trades são SELL - Bot pode estar travado!")
     
+    def check_position_spacing(
+        self,
+        symbol: str,
+        magic_number: int,
+        proposed_entry: float,
+        min_distance_pips: float = 20.0
+    ) -> Dict[str, Any]:
+        """
+        Verifica se nova ordem está a distância mínima de posições existentes
+        da mesma estratégia (mesmo magic_number)
+        
+        Args:
+            symbol: Símbolo de negociação
+            magic_number: Magic number da estratégia
+            proposed_entry: Preço de entrada proposto
+            min_distance_pips: Distância mínima em pips (padrão: 20)
+            
+        Returns:
+            Dictionary com 'allowed' (bool) e 'reason' (str)
+        """
+        try:
+            # Buscar posições abertas da mesma estratégia
+            all_positions = self.mt5.get_open_positions(symbol)
+            strategy_positions = [
+                p for p in all_positions
+                if p.get('magic', 0) == magic_number
+            ]
+            
+            if not strategy_positions:
+                return {'allowed': True}
+            
+            # Verificar distância de cada posição existente
+            for pos in strategy_positions:
+                pos_price = pos.get('price_open', 0)
+                if pos_price == 0:
+                    continue
+                
+                distance = abs(proposed_entry - pos_price)
+                distance_pips = distance / 0.1  # Para XAUUSD (1 pip = 0.1)
+                
+                if distance_pips < min_distance_pips:
+                    return {
+                        'allowed': False,
+                        'reason': f'Ordem muito próxima de posição existente (#{pos.get("ticket")}) - {distance_pips:.1f} pips < {min_distance_pips} pips mínimo'
+                    }
+            
+            return {'allowed': True}
+            
+        except Exception as e:
+            logger.error(f"Erro ao verificar distanciamento: {e}")
+            # Em caso de erro, permitir (não bloquear por falha técnica)
+            return {'allowed': True}
+    
     def can_open_position(
         self,
         symbol: str,
         order_type: str,
-        lot_size: float
+        lot_size: float,
+        magic_number: Optional[int] = None,
+        entry_price: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Validate if a new position can be opened
@@ -311,6 +525,8 @@ class RiskManager:
             symbol: Trading symbol
             order_type: 'BUY' or 'SELL'
             lot_size: Proposed lot size
+            magic_number: Magic number da estratégia (para verificar distanciamento)
+            entry_price: Preço de entrada proposto (para verificar distanciamento)
             
         Returns:
             Dictionary with 'allowed' (bool) and 'reason' (str)
@@ -330,6 +546,17 @@ class RiskManager:
             logger.info("✅ Pausa finalizada - Bot retomando operações")
             self.pause_until = None
             self.consecutive_losses = 0
+        
+        # 🚨 VERIFICAR DISTANCIAMENTO (se magic_number e entry_price fornecidos)
+        if magic_number is not None and entry_price is not None:
+            spacing_check = self.check_position_spacing(
+                symbol=symbol,
+                magic_number=magic_number,
+                proposed_entry=entry_price,
+                min_distance_pips=20.0
+            )
+            if not spacing_check.get('allowed', True):
+                return spacing_check
         
         # Check max open positions (CRITICAL - Always enforced)
         open_positions = self.mt5.get_open_positions(symbol)

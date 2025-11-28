@@ -275,7 +275,7 @@ class MT5Connector:
         
         Args:
             symbol: Symbol name
-            timeframe: MT5 timeframe constant
+            timeframe: MT5 timeframe constant OR string ('1M', '5M', '15M', '30M', '1H', '4H', '1D')
             count: Number of bars to retrieve
             
         Returns:
@@ -285,6 +285,19 @@ class MT5Connector:
             return None
         
         try:
+            # 🔥 FASE 1: Converter string para constante MT5 se necessário
+            if isinstance(timeframe, str):
+                timeframe_map = {
+                    '1M': mt5.TIMEFRAME_M1,
+                    '5M': mt5.TIMEFRAME_M5,
+                    '15M': mt5.TIMEFRAME_M15,
+                    '30M': mt5.TIMEFRAME_M30,
+                    '1H': mt5.TIMEFRAME_H1,
+                    '4H': mt5.TIMEFRAME_H4,
+                    '1D': mt5.TIMEFRAME_D1,
+                }
+                timeframe = timeframe_map.get(timeframe, mt5.TIMEFRAME_H1)
+            
             rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, count)
             if rates is None or len(rates) == 0:
                 logger.error(f"Failed to get rates for {symbol}: {mt5.last_error()}")
@@ -335,13 +348,15 @@ class MT5Connector:
                 {
                     'ticket': pos.ticket,
                     'symbol': pos.symbol,
-                    'type': 'BUY' if pos.type == mt5.ORDER_TYPE_BUY else 'SELL',
+                    'type': pos.type,  # 🔥 FIX: Manter valor inteiro (0=BUY, 1=SELL)
+                    'type_str': 'BUY' if pos.type == mt5.ORDER_TYPE_BUY else 'SELL',
                     'volume': pos.volume,
                     'price_open': pos.price_open,
                     'price_current': pos.price_current,
                     'sl': pos.sl,
                     'tp': pos.tp,
                     'profit': pos.profit,
+                    'magic': pos.magic,  # 🔥 FIX: Adicionar magic number!
                     'time': datetime.fromtimestamp(pos.time),
                     'comment': pos.comment
                 }
@@ -374,8 +389,8 @@ class MT5Connector:
             symbol: Symbol name
             order_type: 'BUY' or 'SELL'
             volume: Lot size
-            sl: Stop loss price
-            tp: Take profit price
+            sl: Stop loss price (0 or None = sem SL)
+            tp: Take profit price (0 or None = sem TP)
             comment: Order comment
             magic: Magic number for identifying orders
             
@@ -400,20 +415,32 @@ class MT5Connector:
             order_type_mt5 = mt5.ORDER_TYPE_BUY if order_type == 'BUY' else mt5.ORDER_TYPE_SELL
             price = symbol_info.ask if order_type == 'BUY' else symbol_info.bid
             
+            # 🔥 FASE 1: Converter None para 0 e validar tipo
+            sl = 0 if sl is None else float(sl) if sl else 0
+            tp = 0 if tp is None else float(tp) if tp else 0
+            
+            # Debug log para investigar erro "Invalid sl argument"
+            logger.debug(f"📊 place_order debug | sl={sl} (type={type(sl).__name__}) | tp={tp} (type={type(tp).__name__}) | price={price}")
+            
+            # 🔥 SOLUÇÃO: Remover sl/tp do request se forem 0 (MT5 não aceita 0 em alguns casos)
             request = {
                 "action": mt5.TRADE_ACTION_DEAL,
                 "symbol": symbol,
                 "volume": volume,
                 "type": order_type_mt5,
                 "price": price,
-                "sl": sl,
-                "tp": tp,
                 "deviation": self.config.get('trading', {}).get('slippage', 10),
-                "magic": magic,  # Magic number from parameter
+                "magic": magic,
                 "comment": comment,
                 "type_time": mt5.ORDER_TIME_GTC,
                 "type_filling": mt5.ORDER_FILLING_IOC,
             }
+            
+            # Adicionar sl/tp SOMENTE se não forem 0
+            if sl != 0:
+                request["sl"] = sl
+            if tp != 0:
+                request["tp"] = tp
             
             # Send order
             result = mt5.order_send(request)

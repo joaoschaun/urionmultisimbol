@@ -12,12 +12,15 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from core.config_manager import ConfigManager
 from core.logger import setup_logger
-from core.mt5_connector import MT5Connector
-from database.strategy_stats import StrategyStatsDB
-from order_generator import OrderGenerator
-from order_manager import OrderManager
+from core.symbol_manager import SymbolManager  # 🆕 Multi-símbolo
+from core.auto_backup import get_auto_backup  # 🆕 Backup automático
 from notifications.telegram_bot import TelegramNotifier
+from notifications.news_notifier import NewsNotifier  # 🆕 Notificações de notícias
+from analysis.news_analyzer import NewsAnalyzer  # 🆕 Análise de notícias
 from monitoring.prometheus_metrics import get_metrics
+from reporting.daily_report import DailyReportGenerator
+from reporting.weekly_report import WeeklyReportGenerator
+from reporting.monthly_report import MonthlyReportGenerator
 from loguru import logger
 
 
@@ -55,50 +58,135 @@ def main():
     logger.info(f"Environment: {config.get('ENVIRONMENT', 'production')}")
     
     # Initialize Prometheus metrics
-    metrics = get_metrics()
-    logger.success("✅ Prometheus metrics disponíveis em http://localhost:8000/metrics")
+    _ = get_metrics()  # Inicia servidor HTTP
+    logger.success(
+        "✅ Prometheus metrics disponíveis em "
+        "http://localhost:8000/metrics"
+    )
     
-    # Initialize MT5 and Database for Telegram commands
-    mt5 = MT5Connector(config)
+    # Initialize Telegram (SymbolManager cria MT5/DB internamente)
+    telegram = TelegramNotifier(config)
+    telegram.send_message_sync("🚀 Urion Trading Bot iniciado!")
+    
+    # 🆕 Initialize News Notifier (notificações em português)
+    news_analyzer = NewsAnalyzer(config)
+    news_notifier = NewsNotifier(news_analyzer, telegram, config)
+    news_notifier.start()
+    logger.success("✅ NewsNotifier iniciado - Notícias em português ativas")
+    
+    # Initialize Report Generators
+    # (usam SymbolManager.stats_db depois)
+    from database.strategy_stats import StrategyStatsDB
     stats_db = StrategyStatsDB()
     
-    # Initialize Telegram notifications with command support
-    telegram = TelegramNotifier(config, mt5=mt5, stats_db=stats_db)
-    telegram.send_message_sync("🚀 Urion Trading Bot iniciado!")
+    daily_report = DailyReportGenerator(stats_db, telegram)
+    weekly_report = WeeklyReportGenerator(stats_db, telegram)
+    monthly_report = MonthlyReportGenerator(stats_db, telegram)
+    
+    # Schedule reports
+    import schedule
+    
+    # Relatório diário às 23:59
+    def generate_daily():
+        try:
+            report = daily_report.generate_report()
+            daily_report.send_report(report)
+        except Exception as e:
+            logger.error(f"Erro ao gerar relatório diário: {e}")
+    
+    schedule.every().day.at("23:59").do(generate_daily)
+    
+    # Relatório semanal domingo 23:59
+    def generate_weekly():
+        try:
+            report = weekly_report.generate_report()
+            weekly_report.send_report(report)
+        except Exception as e:
+            logger.error(f"Erro ao gerar relatório semanal: {e}")
+    
+    schedule.every().sunday.at("23:59").do(generate_weekly)
+    
+    # Relatório mensal último dia do mês 23:59
+    def generate_monthly():
+        try:
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc)
+            # Verificar se é último dia do mês
+            import calendar
+            last_day = calendar.monthrange(now.year, now.month)[1]
+            if now.day == last_day:
+                report = monthly_report.generate_report()
+                monthly_report.send_report(report)
+        except Exception as e:
+            logger.error(f"Erro ao gerar relatório mensal: {e}")
+    
+    schedule.every().day.at("23:59").do(generate_monthly)
+    
+    logger.success("✅ Relatórios agendados (diário, semanal, mensal)")
+    
+    # 🆕 Inicializar backup automático
+    auto_backup = get_auto_backup(enabled=True)
+    auto_backup.start_scheduler()
+    logger.success("✅ Backup automático ativado (diário às 00:00)")
+    
+    # Start schedule checker thread
+    def run_schedule():
+        while True:
+            schedule.run_pending()
+            import time
+            time.sleep(60)  # Check every minute
+    
+    schedule_thread = threading.Thread(target=run_schedule, daemon=True)
+    schedule_thread.start()
+    logger.success("✅ Thread de agendamento iniciada")
     
     try:
         if args.mode == 'full':
-            # Run both generator and manager in separate threads
-            logger.info("Starting in FULL mode (Generator + Manager)")
+            # ════════════════════════════════════════════════════════
+            # 🌍 MODO MULTI-SÍMBOLO (NOVA ARQUITETURA)
+            # ════════════════════════════════════════════════════════
+            logger.info("Starting in FULL mode (Multi-Symbol)")
             
-            generator = OrderGenerator(config=config, telegram=telegram)
-            manager = OrderManager(config=config, telegram=telegram)
+            # Criar SymbolManager (gerencia XAUUSD, EURUSD, etc)
+            symbol_manager = SymbolManager(config)
             
-            # Start OrderManager in separate thread
-            manager_thread = threading.Thread(
-                target=manager.start,
-                name="OrderManager-Thread",
-                daemon=True
-            )
-            manager_thread.start()
-            logger.success("✅ OrderManager iniciado em thread separada")
+            # Iniciar todos os símbolos ativos
+            symbol_manager.start_all()
             
-            # Start OrderGenerator in main thread (blocks)
-            logger.info("🚀 Iniciando OrderGenerator (main thread)...")
-            generator.start()
-            logger.info("⚠️ OrderGenerator.start() retornou (não deveria!)")
+            # Manter thread principal viva
+            logger.info("✅ SymbolManager ativo. Aguardando sinais...")
+            import signal
+            
+            def signal_handler(sig, frame):
+                logger.info("🛑 Sinal de interrupção recebido")
+                symbol_manager.stop_all()
+                raise KeyboardInterrupt
+            
+            signal.signal(signal.SIGINT, signal_handler)
+            signal.signal(signal.SIGTERM, signal_handler)
+            
+            # Loop infinito (aguarda Ctrl+C)
+            while True:
+                import time
+                time.sleep(60)  # Check a cada minuto
             
         elif args.mode == 'generator':
-            # Run only order generator
-            logger.info("Starting in GENERATOR mode")
-            
+            # Modo legado (compatibilidade)
+            logger.warning(
+                "⚠️ Modo 'generator' está deprecated. "
+                "Use 'full' com multi-symbol."
+            )
+            from order_generator import OrderGenerator
             generator = OrderGenerator(config=config, telegram=telegram)
             generator.start()
             
         elif args.mode == 'manager':
-            # Run only order manager
-            logger.info("Starting in MANAGER mode")
-            
+            # Modo legado (compatibilidade)
+            logger.warning(
+                "⚠️ Modo 'manager' está deprecated. "
+                "Use 'full' com multi-symbol."
+            )
+            from order_manager import OrderManager
             manager = OrderManager(config=config, telegram=telegram)
             manager.start()
             

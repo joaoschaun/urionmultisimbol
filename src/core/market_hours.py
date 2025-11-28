@@ -4,9 +4,83 @@ Gerencia horários de abertura/fechamento do mercado
 Fecha posições automaticamente antes do fechamento
 """
 from datetime import datetime, time, timedelta
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Any
 from loguru import logger
 import pytz
+
+
+class ForexMarketHours:
+    """
+    Gerenciador simples para pares Forex (EURUSD, GBPUSD, USDJPY, etc)
+    Opera 24h/5 - Domingo 22:00 UTC até Sexta 22:00 UTC
+    SEM FERIADOS (mercado global descentralizado)
+    """
+    
+    def __init__(self, config: Dict):
+        self.config = config
+        schedule_config = config.get('schedule', {})
+        tz_str = schedule_config.get('timezone', 'UTC')
+        self.timezone = pytz.timezone(tz_str)
+        
+        logger.info("✅ ForexMarketHours: Opera 24/5, SEM feriados")
+    
+    def get_current_time(self) -> datetime:
+        """Retorna hora atual UTC"""
+        return datetime.now(pytz.UTC)
+    
+    def is_market_open(self) -> bool:
+        """
+        Forex abre Domingo 22:00 UTC, fecha Sexta 22:00 UTC
+        Não tem feriados (mercado descentralizado)
+        """
+        now = self.get_current_time()
+        weekday = now.weekday()
+        current_hour = now.hour
+        
+        # Sábado: Fechado
+        if weekday == 5:
+            return False
+        
+        # Domingo: Abre 22:00 UTC
+        if weekday == 6:
+            return current_hour >= 22
+        
+        # Sexta: Fecha 22:00 UTC
+        if weekday == 4:
+            return current_hour < 22
+        
+        # Segunda a Quinta: Sempre aberto
+        return True
+    
+    def has_daily_pause(self) -> bool:
+        """Forex não tem pausa diária"""
+        return False
+    
+    def should_close_positions(self) -> bool:
+        """Fecha posições Sexta 21:30 UTC (30 min antes)"""
+        now = self.get_current_time()
+        if now.weekday() == 4:  # Sexta
+            return now.hour == 21 and now.minute >= 30
+        return False
+    
+    def can_open_new_positions(self) -> Tuple[bool, str]:
+        """Forex pode abrir posições quando mercado está aberto"""
+        is_open = self.is_market_open()
+        reason = "" if is_open else "Forex fechado (fim de semana)"
+        return is_open, reason
+    
+    def get_market_status(self) -> Dict[str, Any]:
+        """Retorna status do mercado forex"""
+        is_open = self.is_market_open()
+        should_close = self.should_close_positions()
+        
+        return {
+            'is_open': is_open,
+            'reason': None if is_open else "Mercado fechado",
+            'should_close_positions': should_close,
+            'has_daily_pause': False,
+            'is_holiday': False
+        }
 
 
 class MarketHoursManager:
@@ -16,10 +90,11 @@ class MarketHoursManager:
         """
         Inicializa gerenciador de horários
         
-        Horários Forex (UTC):
-        - Domingo: 18:20 - 23:59
-        - Segunda a Quinta: 00:00 - 16:30 e 18:20 - 23:59 (pausa 16:30-18:20)
-        - Sexta: 00:00 - 16:30 (fechamento semanal)
+        🔥 HORÁRIOS XAUUSD (COMEX Gold) - NY Timezone:
+        - Segunda a Sexta: 18:00 - 17:00 NY (pausa rollover 17:00-18:00)
+        - Sexta: Fecha 17:00 NY
+        - Domingo: Abre 18:00 NY
+        - Sábado: FECHADO
         
         Args:
             config: Configuração completa
@@ -27,25 +102,34 @@ class MarketHoursManager:
         self.config = config
         schedule_config = config.get('schedule', {})
         
-        # Timezone
-        tz_str = schedule_config.get('timezone', 'UTC')
+        # Timezone - NY para XAUUSD
+        tz_str = schedule_config.get('timezone', 'America/New_York')
         self.timezone = pytz.timezone(tz_str)
         
-        # Horários de pausa diária (segunda a sexta)
-        self.daily_close_time = time(16, 30)  # Fecha diariamente às 16:30
-        self.daily_open_time = time(18, 20)   # Reabre às 18:20
+        # Horários XAUUSD (NY)
+        self.daily_close_time = time(17, 0)   # Pausa diária 17:00 NY
+        self.daily_open_time = time(18, 0)    # Reabre 18:00 NY
         
         # Dias especiais
-        self.weekly_close_day = 4  # Sexta-feira (não reabre após 16:30)
-        self.weekly_open_day = 6   # Domingo (abre às 18:20)
+        self.weekly_close_day = 4  # Sexta-feira (não reabre após 17:00)
+        self.weekly_open_day = 6   # Domingo (abre 18:00)
         
         # Janelas de segurança
         self.close_before_minutes = 30  # Fechar posições 30 min antes
         self.no_trade_after_open_minutes = 15  # Não operar 15 min após abertura
         
+        # 🆕 Importar MarketHolidays
+        try:
+            from .market_holidays import get_market_holidays
+            self.holidays = get_market_holidays()
+            logger.info("✅ MarketHolidays integrado (Thanksgiving, Christmas, etc)")
+        except Exception as e:
+            logger.warning(f"⚠️ MarketHolidays não disponível: {e}")
+            self.holidays = None
+        
         logger.info("MarketHoursManager inicializado")
         logger.info(f"Timezone: {tz_str}")
-        logger.info(f"Pausa diária: {self.daily_close_time} - {self.daily_open_time}")
+        logger.info(f"Pausa diária: {self.daily_close_time} - {self.daily_open_time} NY")
         logger.info(f"Fecha posições: {self.close_before_minutes} min antes")
         logger.info(f"Bloqueia trades: {self.no_trade_after_open_minutes} min após abertura")
     
@@ -55,13 +139,16 @@ class MarketHoursManager:
     
     def is_market_open(self) -> bool:
         """
-        Verifica se mercado está aberto (considera pausa diária)
+        Verifica se mercado está aberto
         
-        Horários:
-        - Domingo: 18:20 - 23:59
-        - Segunda a Quinta: 00:00 - 16:30 e 18:20 - 23:59
-        - Sexta: 00:00 - 16:30
-        - Sábado: Fechado
+        🔥 Horários XAUUSD (NY):
+        - Domingo: 18:00 - 23:59
+        - Segunda a Quinta: 00:00 - 17:00 e 18:00 - 23:59
+        - Sexta: 00:00 - 17:00 (não reabre)
+        - Sábado: FECHADO
+        
+        ⚠️ XAUUSD opera 23h/dia, 5 dias/semana
+        Feriados dos EUA NÃO afetam trading (apenas COMEX físico)
         
         Returns:
             True se mercado aberto
@@ -70,21 +157,25 @@ class MarketHoursManager:
         weekday = now.weekday()
         current_time = now.time()
         
+        # 🔥 XAUUSD: Sem verificação de feriados
+        # Ouro opera 23/5 exceto manutenção técnica diária
+        # Feriados dos EUA afetam apenas COMEX físico, não CFDs/Forex
+        
         # Sábado: Fechado
         if weekday == 5:
             return False
         
-        # Domingo: Abre às 18:20
+        # Domingo: Abre às 18:00 NY
         if weekday == 6:
             return current_time >= self.daily_open_time
         
-        # Sexta-feira: Fecha às 16:30 (não reabre)
+        # Sexta-feira: Fecha às 17:00 (não reabre)
         if weekday == 4:
             return current_time < self.daily_close_time
         
-        # Segunda a Quinta: Aberto exceto na pausa 16:30-18:20
+        # Segunda a Quinta: Aberto exceto na pausa 17:00-18:00
         if weekday in [0, 1, 2, 3]:
-            # Se está na pausa diária
+            # Se está na pausa diária (rollover)
             if self.daily_close_time <= current_time < self.daily_open_time:
                 return False
             return True
@@ -96,13 +187,29 @@ class MarketHoursManager:
         Verifica se deve fechar posições (30 min antes do fechamento)
         
         Fecha posições:
-        - Segunda a Sexta às 16:00 (30 min antes de 16:30)
+        - Segunda a Sexta às 16:30 (30 min antes de 17:00)
         
         Returns:
             True se deve fechar posições
         """
         now = self.get_current_time()
         weekday = now.weekday()
+        
+        # Segunda a Sexta: Fechar 30 min antes da pausa/fechamento (16:30)
+        if weekday in [0, 1, 2, 3, 4]:  # Segunda a Sexta
+            close_time = datetime.combine(
+                now.date(),
+                self.daily_close_time,
+                tzinfo=self.timezone
+            )
+            close_warning_time = close_time - timedelta(
+                minutes=self.close_before_minutes
+            )
+            
+            if now >= close_warning_time and now.time() < self.daily_close_time:
+                return True
+        
+        return False
         
         # Segunda a Sexta: Fechar 30 min antes da pausa/fechamento (16:00)
         if weekday in [0, 1, 2, 3, 4]:  # Segunda a Sexta

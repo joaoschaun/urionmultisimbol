@@ -20,11 +20,6 @@ try:
 except ImportError:
     logger.warning("Biblioteca 'ta' não encontrada. Instale com: pip install ta")
 
-try:
-    import pandas_ta as pta
-except ImportError:
-    logger.warning("Biblioteca 'pandas_ta' não encontrada. Instale com: pip install pandas_ta")
-
 
 class TechnicalAnalyzer:
     """

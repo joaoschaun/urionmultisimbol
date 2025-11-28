@@ -1,0 +1,219 @@
+﻿python : 2025-11-21 18:35:13.973 | INFO     | ml.strategy_learner:_load_learning_data:48 - Dados de aprendizagem 
+carregados: 2 estrat├⌐gias
+No linha:1 caractere:32
++ $env:PYTHONIOENCODING='utf-8'; python testar_completo.py 2>&1 | Out-F ...
++                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2025-11-21 18:3... 2 estrat├⌐gias:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2025-11-21 18:35:13.973 | INFO     | ml.strategy_learner:__init__:40 - StrategyLearner inicializado
+2025-11-21 18:35:13.997 | WARNING  | analysis.technical_analyzer:<module>:26 - Biblioteca 'pandas_ta' n├úo encontrada. 
+Instale com: pip install pandas_ta
+2025-11-21 18:35:14.030 | INFO     | core.mt5_connector:connect:86 - Connecting to MetaTrader 5...
+2025-11-21 18:35:14.030 | INFO     | core.mt5_connector:connect:100 - MT5 initialized successfully
+2025-11-21 18:35:14.035 | INFO     | core.mt5_connector:connect:109 - Logged in to account 61430712 on server 
+Pepperstone-Demo
+2025-11-21 18:35:14.036 | INFO     | core.mt5_connector:connect:120 - Account Balance: 5103.73 USD
+2025-11-21 18:35:14.036 | INFO     | core.mt5_connector:connect:121 - Account Leverage: 1:200
+2025-11-21 18:35:14.036 | INFO     | core.mt5_connector:connect:122 - Account Company: Pepperstone Group Limited
+2025-11-21 18:35:14.036 | INFO     | analysis.technical_analyzer:__init__:62 - TechnicalAnalyzer inicializado para XAUUSD
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:780: RuntimeWarning: invalid 
+value encountered in scalar divide
+  dip[idx] = 100 * (self._dip[idx] / value)
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:785: RuntimeWarning: invalid 
+value encountered in scalar divide
+  din[idx] = 100 * (self._din[idx] / value)
+2025-11-21 18:35:14.148 | DEBUG    | analysis.technical_analyzer:analyze_timeframe:440 - An├ílise completa para M5: 14 
+indicadores
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:780: RuntimeWarning: invalid 
+value encountered in scalar divide
+  dip[idx] = 100 * (self._dip[idx] / value)
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:785: RuntimeWarning: invalid 
+value encountered in scalar divide
+  din[idx] = 100 * (self._din[idx] / value)
+2025-11-21 18:35:14.173 | DEBUG    | analysis.technical_analyzer:analyze_timeframe:440 - An├ílise completa para M15: 14 
+indicadores
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:780: RuntimeWarning: invalid 
+value encountered in scalar divide
+  dip[idx] = 100 * (self._dip[idx] / value)
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:785: RuntimeWarning: invalid 
+value encountered in scalar divide
+  din[idx] = 100 * (self._din[idx] / value)
+2025-11-21 18:35:14.218 | DEBUG    | analysis.technical_analyzer:analyze_timeframe:440 - An├ílise completa para M30: 14 
+indicadores
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:780: RuntimeWarning: invalid 
+value encountered in scalar divide
+  dip[idx] = 100 * (self._dip[idx] / value)
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:785: RuntimeWarning: invalid 
+value encountered in scalar divide
+  din[idx] = 100 * (self._din[idx] / value)
+2025-11-21 18:35:14.262 | DEBUG    | analysis.technical_analyzer:analyze_timeframe:440 - An├ílise completa para H1: 14 
+indicadores
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:780: RuntimeWarning: invalid 
+value encountered in scalar divide
+  dip[idx] = 100 * (self._dip[idx] / value)
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:785: RuntimeWarning: invalid 
+value encountered in scalar divide
+  din[idx] = 100 * (self._din[idx] / value)
+2025-11-21 18:35:14.332 | DEBUG    | analysis.technical_analyzer:analyze_timeframe:440 - An├ílise completa para H4: 14 
+indicadores
+2025-11-21 18:35:14.332 | INFO     | analysis.technical_analyzer:analyze_multi_timeframe:588 - An├ílise multi-timeframe 
+completa: 6 timeframes
+2025-11-21 18:35:14.332 | INFO     | core.mt5_connector:disconnect:139 - Disconnected from MetaTrader 5
+2025-11-21 18:35:14.377 | INFO     | strategies.base_strategy:__init__:29 - Estrat├⌐gia TrendFollowing inicializada
+2025-11-21 18:35:14.377 | INFO     | strategies.base_strategy:__init__:29 - Estrat├⌐gia MeanReversion inicializada
+2025-11-21 18:35:14.378 | INFO     | strategies.base_strategy:__init__:29 - Estrat├⌐gia Breakout inicializada
+2025-11-21 18:35:14.378 | INFO     | strategies.base_strategy:__init__:29 - Estrat├⌐gia NewsTrading inicializada
+2025-11-21 18:35:14.378 | INFO     | strategies.base_strategy:__init__:29 - Estrat├⌐gia Scalping inicializada
+2025-11-21 18:35:14.378 | DEBUG    | strategies.strategy_manager:__init__:64 - Estrat├⌐gia Scalping carregada
+2025-11-21 18:35:14.378 | INFO     | strategies.base_strategy:__init__:29 - Estrat├⌐gia RangeTrading inicializada
+2025-11-21 18:35:14.378 | DEBUG    | strategies.strategy_manager:__init__:70 - Estrat├⌐gia RangeTrading carregada
+2025-11-21 18:35:14.378 | INFO     | strategies.strategy_manager:__init__:72 - StrategyManager inicializado com 6 
+estrat├⌐gias
+2025-11-21 18:35:14.378 | INFO     | core.mt5_connector:connect:86 - Connecting to MetaTrader 5...
+2025-11-21 18:35:14.379 | INFO     | core.mt5_connector:connect:100 - MT5 initialized successfully
+2025-11-21 18:35:14.381 | INFO     | core.mt5_connector:connect:109 - Logged in to account 61430712 on server 
+Pepperstone-Demo
+2025-11-21 18:35:14.381 | INFO     | core.mt5_connector:connect:120 - Account Balance: 5103.73 USD
+2025-11-21 18:35:14.382 | INFO     | core.mt5_connector:connect:121 - Account Leverage: 1:200
+2025-11-21 18:35:14.382 | INFO     | core.mt5_connector:connect:122 - Account Company: Pepperstone Group Limited
+2025-11-21 18:35:14.382 | INFO     | analysis.technical_analyzer:__init__:62 - TechnicalAnalyzer inicializado para XAUUSD
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:780: RuntimeWarning: invalid 
+value encountered in scalar divide
+  dip[idx] = 100 * (self._dip[idx] / value)
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:785: RuntimeWarning: invalid 
+value encountered in scalar divide
+  din[idx] = 100 * (self._din[idx] / value)
+2025-11-21 18:35:14.402 | DEBUG    | analysis.technical_analyzer:analyze_timeframe:440 - An├ílise completa para M5: 14 
+indicadores
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:780: RuntimeWarning: invalid 
+value encountered in scalar divide
+  dip[idx] = 100 * (self._dip[idx] / value)
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:785: RuntimeWarning: invalid 
+value encountered in scalar divide
+  din[idx] = 100 * (self._din[idx] / value)
+2025-11-21 18:35:14.422 | DEBUG    | analysis.technical_analyzer:analyze_timeframe:440 - An├ílise completa para M15: 14 
+indicadores
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:780: RuntimeWarning: invalid 
+value encountered in scalar divide
+  dip[idx] = 100 * (self._dip[idx] / value)
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:785: RuntimeWarning: invalid 
+value encountered in scalar divide
+  din[idx] = 100 * (self._din[idx] / value)
+2025-11-21 18:35:14.444 | DEBUG    | analysis.technical_analyzer:analyze_timeframe:440 - An├ílise completa para M30: 14 
+indicadores
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:780: RuntimeWarning: invalid 
+value encountered in scalar divide
+  dip[idx] = 100 * (self._dip[idx] / value)
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:785: RuntimeWarning: invalid 
+value encountered in scalar divide
+  din[idx] = 100 * (self._din[idx] / value)
+2025-11-21 18:35:14.462 | DEBUG    | analysis.technical_analyzer:analyze_timeframe:440 - An├ílise completa para H1: 14 
+indicadores
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:780: RuntimeWarning: invalid 
+value encountered in scalar divide
+  dip[idx] = 100 * (self._dip[idx] / value)
+C:\Users\Administrator\AppData\Local\Programs\Python\Python310\lib\site-packages\ta\trend.py:785: RuntimeWarning: invalid 
+value encountered in scalar divide
+  din[idx] = 100 * (self._din[idx] / value)
+2025-11-21 18:35:14.479 | DEBUG    | analysis.technical_analyzer:analyze_timeframe:440 - An├ílise completa para H4: 14 
+indicadores
+2025-11-21 18:35:14.479 | INFO     | analysis.technical_analyzer:analyze_multi_timeframe:588 - An├ílise multi-timeframe 
+completa: 6 timeframes
+2025-11-21 18:35:14.479 | INFO     | strategies.trend_following:analyze:208 - TrendFollowing: SELL @ 4065.80 (confian├ºa: 
+75.00%)
+2025-11-21 18:35:14.479 | DEBUG    | strategies.strategy_manager:analyze_all:97 - trend_following: SELL (confian├ºa: 75.00%)
+2025-11-21 18:35:14.480 | INFO     | core.mt5_connector:disconnect:139 - Disconnected from MetaTrader 5
+================================================================================
+≡ƒöì TESTE COMPLETO DO SISTEMA URION
+================================================================================
+
+1∩╕ÅΓâú TESTANDO BANCO DE DADOS...
+   Γ£à Tabelas encontradas: ['strategy_trades', 'sqlite_sequence', 'strategy_daily_stats', 'strategy_weekly_ranking']
+   Γ£à Total de trades: 571
+   ≡ƒôè Por estrat├⌐gia:
+   ≡ƒôê ├Ültimos 5 trades:
+   Γ¥î ERRO no banco: unsupported format string passed to NoneType.__format__
+
+2∩╕ÅΓâú TESTANDO CONEX├âO MT5...
+   Γ£à Conta: 61430712
+   ≡ƒÆ░ Balance: $5103.73
+   ≡ƒôè Equity: $5103.73
+   ≡ƒôë Profit: $0.00
+   ≡ƒôì Nenhuma posi├º├úo aberta
+   ≡ƒÆ╣ XAUUSD: Bid=4065.80, Ask=4065.98, Spread=0.18
+   Γ£à MT5 OK
+
+3∩╕ÅΓâú TESTANDO CONFIGURA├ç├òES...
+   Γ£à Estrat├⌐gias habilitadas: 5
+      - trend_following: Ciclo=600s, Max=2
+      - mean_reversion: Ciclo=600s, Max=2
+      - breakout: Ciclo=1800s, Max=2
+      - news_trading: Ciclo=300s, Max=2
+      - scalping: Ciclo=120s, Max=1
+   ≡ƒ¢í∩╕Å Risk Management:
+      - Max risk/trade: 2.0%
+      - Max drawdown: 8.0%
+      - Max daily loss: 5.0%
+   ≡ƒÆ╝ Trading:
+      - Max posi├º├╡es: 4
+      - S├¡mbolo: XAUUSD
+   Γ£à Configura├º├╡es OK
+
+4∩╕ÅΓâú TESTANDO SISTEMA DE APRENDIZADO...
+   ≡ƒôÜ Estrat├⌐gias com dados de aprendizagem: 2
+   Γ£à Sistema de aprendizado OK
+
+5∩╕ÅΓâú TESTANDO AN├üLISE T├ëCNICA...
+   Γ£à Timeframes analisados: 6
+   ≡ƒôè M5:
+      - Pre├ºo: 4065.80
+      - RSI: 0.0
+      - ADX: 0.0
+      - MACD: 0.0000
+   ≡ƒôè M15:
+      - Pre├ºo: 4065.80
+      - RSI: 0.0
+      - ADX: 0.0
+      - MACD: 0.0000
+   ≡ƒôè M30:
+      - Pre├ºo: 4065.80
+      - RSI: 0.0
+      - ADX: 0.0
+      - MACD: 0.0000
+   ≡ƒôè H1:
+      - Pre├ºo: 4065.80
+      - RSI: 0.0
+      - ADX: 0.0
+      - MACD: 0.0000
+   ≡ƒôè H4:
+      - Pre├ºo: 4065.80
+      - RSI: 0.0
+      - ADX: 0.0
+      - MACD: 0.0000
+   ≡ƒôè consensus:
+      - Pre├ºo: 0.00
+      - RSI: 0.0
+      - ADX: 0.0
+      - MACD: 0.0000
+   Γ£à An├ílise t├⌐cnica OK
+
+6∩╕ÅΓâú TESTANDO ESTRAT├ëGIAS...
+   Γ£à Estrat├⌐gias carregadas: 6
+   ≡ƒôí Sinais gerados: 1
+      - TrendFollowing: SELL (confian├ºa: 75.0%)
+   Γ£à Estrat├⌐gias OK
+
+7∩╕ÅΓâú TESTANDO NOTIFICA├ç├òES TELEGRAM...
+   Γ£à Telegram OK
+
+================================================================================
+≡ƒôï RESUMO DOS TESTES
+================================================================================
+Γ£à = Funcionando
+ΓÜá∩╕Å = Funcionando com avisos
+Γ¥î = Com problemas
+================================================================================
+
+Testes conclu├¡dos!
+sys:1: RuntimeWarning: coroutine 'TelegramNotifier.send_message' was never awaited

@@ -47,47 +47,68 @@ class ScalpingStrategy(BaseStrategy):
             Sinal de trading
         """
         try:
+            logger.debug(f"[SCALPING] Iniciando análise...")
+            
             # Usar M5 como principal (mais estável que M1)
             if 'M5' not in technical_analysis:
-                logger.debug("M5 não disponível para Scalping")
+                logger.warning("[SCALPING] ❌ M5 não disponível")
                 return self.create_signal('HOLD', 0.0, 'no_data')
             
             m5 = technical_analysis['M5']
             
-            # Extrair indicadores
-            indicators = m5.get('indicators', {})
+            # Extrair dados (estrutura nova: indicadores na raiz)
             price = m5.get('current_price', 0)
             
-            if not indicators or price == 0:
+            logger.debug(f"[SCALPING] Price: {price}")
+            
+            if price == 0:
+                logger.warning(f"[SCALPING] ❌ Preço inválido: {price}")
+                return self.create_signal('HOLD', 0.0, 'no_price')
+            
+            # Extrair indicadores da estrutura correta
+            rsi = m5.get('rsi', 50)
+            macd_data = m5.get('macd', {})
+            stochastic_data = m5.get('stochastic', {})
+            ema_data = m5.get('ema', {})
+            
+            logger.debug(f"[SCALPING] RSI: {rsi}, MACD: {macd_data}, Stoch: {stochastic_data}")
+            
+            if not macd_data or not stochastic_data:
+                logger.warning(f"[SCALPING] ❌ Faltam indicadores: MACD={bool(macd_data)}, Stoch={bool(stochastic_data)}")
                 return self.create_signal('HOLD', 0.0, 'no_indicators')
             
             # 1. Verificar spread (simular - 0.2 = 2 pips para XAUUSD)
             estimated_spread = price * 0.0002  # 0.02% = ~2 pips
             spread_pips = estimated_spread / 0.1  # Converter para pips
             
+            logger.debug(f"[SCALPING] Spread: {spread_pips:.1f} pips (max: {self.max_spread_pips})")
+            
             if spread_pips > self.max_spread_pips:
+                logger.warning(f"[SCALPING] ❌ Spread alto: {spread_pips:.1f} > {self.max_spread_pips}")
                 return self.create_signal(
                     'HOLD', 0.0, 
                     f'high_spread_{spread_pips:.1f}pips'
                 )
             
             # 2. Verificar RSI (deve estar neutro)
-            rsi = indicators.get('RSI', 50)
+            logger.debug(f"[SCALPING] RSI: {rsi:.1f} (range: {self.rsi_min}-{self.rsi_max})")
+            
             if rsi < self.rsi_min or rsi > self.rsi_max:
+                logger.warning(f"[SCALPING] ❌ RSI fora do range: {rsi:.1f}")
                 return self.create_signal(
                     'HOLD', 0.0,
                     f'rsi_extreme_{rsi:.1f}'
                 )
             
             # 3. Verificar momentum (MACD e Stochastic)
-            macd = indicators.get('MACD', {})
-            macd_line = macd.get('macd', 0)
-            macd_signal = macd.get('signal', 0)
-            macd_hist = macd.get('histogram', 0)
+            macd_line = macd_data.get('macd', 0)
+            macd_signal = macd_data.get('signal', 0)
+            macd_hist = macd_data.get('histogram', 0)
             
-            stochastic = indicators.get('Stochastic', {})
-            stoch_k = stochastic.get('k', 50)
-            stoch_d = stochastic.get('d', 50)
+            stoch_k = stochastic_data.get('k', 50)
+            stoch_d = stochastic_data.get('d', 50)
+            
+            logger.debug(f"[SCALPING] MACD hist: {macd_hist:.4f}, Stoch K/D: {stoch_k:.1f}/{stoch_d:.1f}")
             
             # 4. Calcular momentum score
             momentum_score = 0
@@ -113,14 +134,14 @@ class ScalpingStrategy(BaseStrategy):
                 reasons.append('stoch_bearish')
             
             # 5. Verificar volume (se disponível)
-            volume_ratio = indicators.get('volume_ratio', 1.0)
+            volume_ratio = m5.get('volume_ratio', 1.0)
             if volume_ratio >= self.min_volume_ratio:
                 momentum_score += 1
                 reasons.append(f'volume_{volume_ratio:.1f}x')
             
             # 6. Verificar EMAs curtas (9, 21)
-            ema_9 = indicators.get('EMA_9', price)
-            ema_21 = indicators.get('EMA_21', price)
+            ema_9 = ema_data.get('ema_9', price)
+            ema_21 = ema_data.get('ema_21', price)
             
             if action == 'BUY' and price > ema_9 > ema_21:
                 momentum_score += 1
@@ -133,8 +154,16 @@ class ScalpingStrategy(BaseStrategy):
             max_score = 5
             confidence = min(momentum_score / max_score, 1.0)
             
+            logger.info(
+                f"[SCALPING] 📊 Action: {action}, Score: {momentum_score}/{max_score}, "
+                f"Confidence: {confidence:.2%}, Reasons: {reasons}"
+            )
+            
             # Precisamos de pelo menos 60% de confiança (3/5 pontos)
             if confidence < 0.6:
+                logger.warning(
+                    f"[SCALPING] ❌ Confiança baixa: {confidence:.2%} < 60%"
+                )
                 return self.create_signal(
                     'HOLD', confidence,
                     f'low_momentum_{momentum_score}/{max_score}'
@@ -143,8 +172,7 @@ class ScalpingStrategy(BaseStrategy):
             # 8. Confirmar com timeframe M15 (se disponível)
             if 'M15' in technical_analysis:
                 m15 = technical_analysis['M15']
-                m15_indicators = m15.get('indicators', {})
-                m15_rsi = m15_indicators.get('RSI', 50)
+                m15_rsi = m15.get('rsi', 50)
                 
                 # M15 deve estar na mesma direção
                 if action == 'BUY' and m15_rsi > 55:

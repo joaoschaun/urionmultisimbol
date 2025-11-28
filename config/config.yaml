@@ -6,21 +6,89 @@ mt5:
   timeout: 60000
   max_reconnect_attempts: 5
 trading:
-  symbol: XAUUSD
-  timeframes:
-  - M1
-  - M5
-  - M15
-  - M30
-  - H1
-  - H4
-  - D1
-  default_lot_size: 0.01
-  min_lot_size: 0.01
-  max_lot_size: 1.0
-  max_open_positions: 6  # ⬆️ AUMENTADO: 3→6 (1 por estratégia)
-  spread_threshold: 5
-  slippage: 3
+  # ════════════════════════════════════════════════════════════════
+  # 🌍 MULTI-SÍMBOLO: Configure múltiplos símbolos independentes
+  # ════════════════════════════════════════════════════════════════
+  symbols:
+    XAUUSD:
+      enabled: true
+      timeframes:
+      - M1
+      - M5
+      - M15
+      - M30
+      - H1
+      - H4
+      - D1
+      default_lot_size: 0.01
+      min_lot_size: 0.01
+      max_lot_size: 1.0
+      max_open_positions: 12  # 6 estratégias × 2 posições = 12 max
+      spread_threshold: 5
+      slippage: 3
+      
+    EURUSD:
+      enabled: true  # ✅ ATIVO: Opera enquanto XAUUSD fechado (Thanksgiving)
+      timeframes:
+      - M1
+      - M5
+      - M15
+      - M30
+      - H1
+      - H4
+      - D1
+      default_lot_size: 0.1   # Forex usa lotes maiores (0.1 = 10k unidades)
+      min_lot_size: 0.01
+      max_lot_size: 2.0       # Até 2 lotes padrão
+      max_open_positions: 8   # Menos agressivo que XAUUSD
+      spread_threshold: 3     # EURUSD tem spread menor (0.5-2 pips)
+      slippage: 2
+    
+    GBPUSD:
+      enabled: true  # ✅ ATIVO: Cable (volatilidade média-alta)
+      timeframes:
+      - M1
+      - M5
+      - M15
+      - M30
+      - H1
+      - H4
+      - D1
+      default_lot_size: 0.1   # 0.1 = 10k unidades (padrão forex)
+      min_lot_size: 0.01
+      max_lot_size: 2.0
+      max_open_positions: 8
+      spread_threshold: 4     # GBPUSD spread 1-3 pips (mais volátil que EUR)
+      slippage: 3             # Mais slippage por volatilidade
+    
+    USDJPY:
+      enabled: true  # ✅ ATIVO: Yen (baixa volatilidade, alta liquidez)
+      timeframes:
+      - M1
+      - M5
+      - M15
+      - M30
+      - H1
+      - H4
+      - D1
+      default_lot_size: 0.1   # 0.1 = 10k unidades
+      min_lot_size: 0.01
+      max_lot_size: 2.0
+      max_open_positions: 8
+      spread_threshold: 3     # USDJPY spread 0.5-2 pips (muito líquido)
+      slippage: 2
+
+# 🌍 Market Condition Analysis - Seleção Inteligente de Estratégias
+market_analysis:
+  enabled: true  # ✅ ATIVO - Filtra estratégias por condição de mercado
+  min_priority_threshold: 0.3  # 30% mínimo para operar (0.0-1.0)
+  # Condições detectadas: TRENDING_UP, TRENDING_DOWN, RANGING, VOLATILE, QUIET, NEWS_IMPACT
+  # - TRENDING: Recomenda trend_following, breakout
+  # - RANGING: Recomenda range_trading, scalping, mean_reversion
+  # - VOLATILE: Recomenda breakout, news_trading, scalping
+  # - QUIET: Recomenda scalping, range_trading
+  # - NEWS_IMPACT: Recomenda news_trading, breakout
+
 risk:
   max_risk_per_trade: 0.02
   max_drawdown: 0.08  # ⬇️ REDUZIDO: 15%→8% (day trading seguro)
@@ -56,21 +124,24 @@ schedule:
   avoid_news_minutes_before: 0
   avoid_news_minutes_after: 0
 strategies:
+  # 🚀 TODAS ESTRATÉGIAS ATIVAS - CONTA DEMO
   enabled:
-  - trend_following
-  - mean_reversion
-  - breakout
-  - news_trading
-  - scalping
+    - trend_following
+    - range_trading
+    - mean_reversion
+    - breakout
+    - news_trading
+    - scalping
+  
   trend_following:
-    enabled: true
+    enabled: true  # ✅ REATIVADA com SL/TP corrigidos
     timeframe: H1
     cycle_seconds: 600  # 🔧 MUDADO: 900→600 (10min ao invés de 15min)
     max_positions: 2
-    min_confidence: 0.70  # 🔧 MUDADO: 0.65→0.70 (mais seletivo)
+    min_confidence: 0.75  # 🔧 CORRIGIDO: 0.60→0.75 (exigir 6/8 condições, não 5/8)
     ema_fast: 12
     ema_slow: 26
-    adx_threshold: 25
+    adx_threshold: 30  # 🔧 AUMENTADO: 25→30 (tendências mais fortes)
     min_trend_strength: 0.6
     trailing_stop_distance: 25  # 🎯 Stop dinâmico acompanha tendência
     break_even_trigger: 50  # Ignorado (desativado globalmente)
@@ -78,11 +149,11 @@ strategies:
     max_spread_pips: 2.0
     volume_confirmation: true
   mean_reversion:
-    enabled: true
+    enabled: true  # ✅ ATIVADA PARA TESTES
     timeframe: M15
     cycle_seconds: 600
     max_positions: 2
-    min_confidence: 0.70
+    min_confidence: 0.60  # 🧪 TESTE: 0.75→0.60 (mais permissivo)
     bollinger_period: 20
     bollinger_std: 2
     rsi_period: 14
@@ -94,11 +165,11 @@ strategies:
     max_spread_pips: 2.0
     volume_confirmation: true
   breakout:
-    enabled: true
+    enabled: true  # ✅ ATIVADA PARA TESTES
     timeframe: M30
     cycle_seconds: 1800
     max_positions: 2
-    min_confidence: 0.75
+    min_confidence: 0.65  # 🧪 TESTE: 0.80→0.65 (mais permissivo)
     support_resistance_lookback: 50
     breakout_confirmation_candles: 2
     volume_threshold: 1.5
@@ -111,7 +182,7 @@ strategies:
     enabled: true
     cycle_seconds: 300
     max_positions: 2
-    min_confidence: 0.80
+    min_confidence: 0.65  # 🧪 TESTE: 0.80→0.65 (mais permissivo)
     high_impact_only: true
     min_sentiment_confidence: 0.7
     trade_on_prediction: true
@@ -121,15 +192,15 @@ strategies:
     max_spread_pips: 2.0
     volume_confirmation: true
   scalping:
-    enabled: true
+    enabled: true  # ✅ ATIVADA PARA TESTES
     timeframe: M5
-    cycle_seconds: 60
-    max_positions: 2
-    min_confidence: 0.65
-    max_spread_pips: 3
-    min_momentum: 0.0002
-    rsi_min: 40
-    rsi_max: 60
+    cycle_seconds: 120  # 🔧 MUDADO: 60→120s (menos agressivo)
+    max_positions: 1  # 🔧 MUDADO: 2→1 (mais conservador)
+    min_confidence: 0.60  # 🧪 TESTE: 0.70→0.60 (mais permissivo)
+    max_spread_pips: 12  # 🔧 AJUSTADO: 3→12 (XAUUSD tem spread maior que forex)
+    min_momentum: 0.00015  # 🔧 MUDADO: 0.0002→0.00015 (menos restritivo)
+    rsi_min: 35  # 🔧 MUDADO: 40→35 (faixa mais ampla)
+    rsi_max: 65  # 🔧 MUDADO: 60→65 (faixa mais ampla)
     target_pips: 8
     stop_pips: 4
     min_volume_ratio: 1.2
@@ -138,13 +209,14 @@ strategies:
     partial_close_trigger: 12  # Fecha 50% aos 12 pips
     volume_confirmation: true
     max_trades_per_hour: 2
+    exempt_from_macro: true  # 🔥 NOVO: Scalping não usa filtro macro (rápido demais)
   range_trading:
-    enabled: true
+    enabled: true  # ✅ REATIVADA com SL/TP corrigidos (MONITORAR CLOSELY!)
     timeframe: M5
     cycle_seconds: 300  # 🔧 MUDADO: 180→300 (5min ao invés de 3min)
     max_positions: 1  # 🔧 MUDADO: 2→1 (menos agressivo)
-    min_confidence: 0.70  # 🔧 MUDADO: 0.60→0.70 (mais seletivo)
-    adx_max: 25
+    min_confidence: 0.65  # 🧪 TESTE: 0.75→0.65 (mais permissivo)
+    adx_max: 20  # 🔧 REDUZIDO: 25→20 (apenas ranges muito claros)
     rsi_buy_min: 35
     rsi_buy_max: 45
     rsi_sell_min: 55
@@ -263,7 +335,7 @@ order_generator:
     end_minute: 59
 order_manager:
   enabled: true
-  cycle_interval_seconds: 60
+  cycle_interval_seconds: 5  # 🚀 REDUZIDO: 60→5s (captura movimentos rápidos)
   partial_close:
     enabled: true
     target_pips: 50  # ⬆️ AUMENTADO: 20→50 pips (fecha 50% só após lucro consistente)
@@ -277,6 +349,11 @@ notifications:
     send_daily_summary: true
     send_errors: true
     send_warnings: true
+  # 🆕 Notificações de Notícias em Português
+  news:
+    enabled: true
+    min_importance: 3  # Importância mínima (1-5): 3=média, 4=alta, 5=crítica
+    interval_minutes: 15  # Verificar notícias a cada 15 minutos
   email:
     enabled: false
     smtp_server: smtp.gmail.com
@@ -302,6 +379,22 @@ redis:
   url: ${REDIS_URL}
   decode_responses: true
   max_connections: 50
+# 📊 Sistema de Relatórios Automáticos
+reporting:
+  daily_report:
+    enabled: true
+    time: "23:59"  # Horário de envio
+    telegram: true  # Enviar via Telegram
+  weekly_report:
+    enabled: true
+    day: "sunday"  # Dia da semana
+    time: "23:59"
+    telegram: true
+  monthly_report:
+    enabled: true
+    time: "23:59"  # Último dia do mês
+    telegram: true
+
 monitoring:
   prometheus_enabled: false
   prometheus_port: 9090
