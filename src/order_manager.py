@@ -923,6 +923,15 @@ class OrderManager:
                 )
                 return False
         
+        # 🔥 FIX: Se current_sl == 0, é primeira vez colocando SL (mental → real)
+        # Permitir modificação independente da mudança de pips
+        if current_sl == 0 or current_sl is None:
+            logger.debug(
+                f"Primeira aplicação de SL/TP real para #{ticket} "
+                f"(current_sl={current_sl}) - permitindo modificação"
+            )
+            return True
+        
         # Verificar se mudança é significativa (mínimo 2 pips)
         sl_change_pips = abs(new_sl - current_sl) * 10000
         
