@@ -195,7 +195,7 @@ strategies:
     enabled: true  # ✅ ATIVADA PARA TESTES
     timeframe: M5
     cycle_seconds: 120  # 🔧 MUDADO: 60→120s (menos agressivo)
-    max_positions: 1  # 🔧 MUDADO: 2→1 (mais conservador)
+    max_positions: 2  # 🔧 AUMENTADO: 1→2 (2 posições simultâneas por mercado)
     min_confidence: 0.60  # 🧪 TESTE: 0.70→0.60 (mais permissivo)
     max_spread_pips: 12  # 🔧 AJUSTADO: 3→12 (XAUUSD tem spread maior que forex)
     min_momentum: 0.00015  # 🔧 MUDADO: 0.0002→0.00015 (menos restritivo)
@@ -214,7 +214,7 @@ strategies:
     enabled: true  # ✅ REATIVADA com SL/TP corrigidos (MONITORAR CLOSELY!)
     timeframe: M5
     cycle_seconds: 300  # 🔧 MUDADO: 180→300 (5min ao invés de 3min)
-    max_positions: 1  # 🔧 MUDADO: 2→1 (menos agressivo)
+    max_positions: 2  # 🔧 AUMENTADO: 1→2 (2 posições simultâneas por mercado)
     min_confidence: 0.65  # 🧪 TESTE: 0.75→0.65 (mais permissivo)
     adx_max: 20  # 🔧 REDUZIDO: 25→20 (apenas ranges muito claros)
     rsi_buy_min: 35
