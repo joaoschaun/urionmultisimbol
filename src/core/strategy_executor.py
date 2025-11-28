@@ -36,7 +36,8 @@ class StrategyExecutor:
                  telegram=None,
                  learner: Optional[StrategyLearner] = None,
                  watchdog: Optional[ThreadWatchdog] = None,
-                 market_hours=None):  # 🆕 Aceita market_hours customizado
+                 market_hours=None,  # 🆕 Aceita market_hours customizado
+                 market_analyzer=None):  # 🚪 PORTEIRO (opcional)
         """
         Inicializa executor de estratégia
         
@@ -52,6 +53,7 @@ class StrategyExecutor:
             learner: Sistema de aprendizagem ML (opcional)
             watchdog: Sistema de monitoramento de threads (opcional)
             market_hours: Gerenciador de horários (opcional, cria automático se None)
+            market_analyzer: Porteiro de condições de mercado (opcional)
         """
         self.strategy_name = strategy_name
         self.strategy = strategy_instance
@@ -66,6 +68,11 @@ class StrategyExecutor:
         
         # 🆕 Usar market_hours customizado ou criar padrão (XAUUSD)
         self.market_hours = market_hours if market_hours else MarketHoursManager(config)
+        
+        # 🚪 PORTEIRO: Market Condition Analyzer
+        self.market_analyzer = market_analyzer
+        if self.market_analyzer:
+            logger.info(f"[{strategy_name}] 🚪 Porteiro ativo - verificará condições de mercado")
         
         self.technical_analyzer = technical_analyzer
         self.news_analyzer = news_analyzer
@@ -487,6 +494,37 @@ class StrategyExecutor:
             except Exception as e:
                 logger.warning(f"[{self.strategy_name}] Erro ao verificar janela de notícias: {e}")
                 # Continuar mesmo com erro na verificação de notícias
+            
+            # 🚪 PORTEIRO: Verificar se condições de mercado permitem esta estratégia
+            if self.market_analyzer:
+                try:
+                    # Analisar condições atuais do mercado
+                    market_analysis = self.market_analyzer.analyze()
+                    
+                    if market_analysis:
+                        # Verificar se estratégia pode operar (strict_mode via config)
+                        strict_mode = self.config.get('trading', {}).get('market_filter_strict', False)
+                        
+                        if not self.market_analyzer.is_strategy_allowed(
+                            self.strategy_name, 
+                            market_analysis, 
+                            strict_mode=strict_mode
+                        ):
+                            logger.info(
+                                f"[{self.strategy_name}] 🚫 BLOQUEADO pelo porteiro | "
+                                f"Condição: {market_analysis.condition.value} | "
+                                f"Confiança: {market_analysis.confidence*100:.0f}% | "
+                                f"Recomendadas: {', '.join(market_analysis.recommended_strategies)}"
+                            )
+                            return False
+                        else:
+                            logger.debug(
+                                f"[{self.strategy_name}] ✅ Liberado pelo porteiro | "
+                                f"Condição: {market_analysis.condition.value}"
+                            )
+                except Exception as e:
+                    logger.warning(f"[{self.strategy_name}] Erro ao verificar porteiro: {e}")
+                    # Continuar mesmo com erro (fail-safe)
             
             return True
             

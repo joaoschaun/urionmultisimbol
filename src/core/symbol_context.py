@@ -14,6 +14,7 @@ from core.watchdog import ThreadWatchdog
 from core.market_hours import MarketHoursManager, ForexMarketHours
 from analysis.technical_analyzer import TechnicalAnalyzer
 from analysis.news_analyzer import NewsAnalyzer
+from analysis.market_condition_analyzer import MarketConditionAnalyzer  # 🚪 PORTEIRO
 from strategies.strategy_manager import StrategyManager
 from notifications.telegram_bot import TelegramNotifier
 from database.strategy_stats import StrategyStatsDB
@@ -74,6 +75,10 @@ class SymbolContext:
         self.strategy_manager = StrategyManager(
             self._build_symbol_config()
         )
+        
+        # 🚪 PORTEIRO: Market Condition Analyzer (verifica se estratégia pode operar)
+        self.market_analyzer = MarketConditionAnalyzer(symbol=self.symbol)
+        logger.info(f"  🚪 Porteiro ativado para {symbol} - bloqueará estratégias incompatíveis")
         
         # 🆕 Criar MarketHours apropriado para o tipo de símbolo
         self.market_hours = self._create_market_hours()
@@ -143,7 +148,8 @@ class SymbolContext:
                     telegram=self.telegram,
                     learner=self.learner,
                     watchdog=self.watchdog,
-                    market_hours=self.market_hours  # 🆕 Passar market_hours customizado
+                    market_hours=self.market_hours,  # 🆕 Passar market_hours customizado
+                    market_analyzer=self.market_analyzer  # 🚪 PORTEIRO
                 )
                 self.executors.append(executor)
                 logger.info(f"  ├─ Executor {name} criado para {self.symbol}")

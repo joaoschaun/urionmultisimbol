@@ -182,6 +182,56 @@
       "stage_history": [
         "ABERTA"
       ]
+    },
+    "209178774": {
+      "stage": 0,
+      "max_profit": 2.3,
+      "max_rr": 0.0076404043684011975,
+      "risk_1r": 418.826,
+      "entry_time": "2025-11-28 02:13:12.235697+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209182799": {
+      "stage": 0,
+      "max_profit": -2.2,
+      "max_rr": 0.0,
+      "risk_1r": 0.13234200000000002,
+      "entry_time": "2025-11-28 02:31:39.155947+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209183624": {
+      "stage": 0,
+      "max_profit": 0.2,
+      "max_rr": 0.0,
+      "risk_1r": 0.0,
+      "entry_time": "2025-11-28 02:33:43.477172+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209183625": {
+      "stage": 0,
+      "max_profit": 14.1,
+      "max_rr": 0.05228851801446887,
+      "risk_1r": 418.83000000000004,
+      "entry_time": "2025-11-28 02:33:43.477172+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209181077": {
+      "stage": 0,
+      "max_profit": -7.52,
+      "max_rr": 0.0,
+      "risk_1r": 0.31,
+      "entry_time": "2025-11-28 02:36:40.901694+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
     }
   },
   "position_performance": {
@@ -292,7 +342,37 @@
       "max_drawdown": 0.0,
       "entry_time": "2025-11-28 00:42:38.643460+00:00",
       "entry_price": 1.15964
+    },
+    "209178774": {
+      "max_profit": 3.2,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 02:13:12.235697+00:00",
+      "entry_price": 4188.26
+    },
+    "209182799": {
+      "max_profit": -1.2,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 02:31:39.155947+00:00",
+      "entry_price": 1.32342
+    },
+    "209183624": {
+      "max_profit": 0.2,
+      "max_drawdown": 0.05000000000000002,
+      "entry_time": "2025-11-28 02:33:43.477172+00:00",
+      "entry_price": 1.15861
+    },
+    "209183625": {
+      "max_profit": 21.9,
+      "max_drawdown": 11.899999999999999,
+      "entry_time": "2025-11-28 02:33:43.477172+00:00",
+      "entry_price": 4188.3
+    },
+    "209181077": {
+      "max_profit": -7.52,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 02:36:40.901694+00:00",
+      "entry_price": 4190.8
     }
   },
-  "last_update": "2025-11-28T00:52:23.544178+00:00"
+  "last_update": "2025-11-28T02:37:12.668246+00:00"
 }

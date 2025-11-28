@@ -9,6 +9,10 @@ trading:
   # ════════════════════════════════════════════════════════════════
   # 🌍 MULTI-SÍMBOLO: Configure múltiplos símbolos independentes
   # ════════════════════════════════════════════════════════════════
+  
+  # 🚪 PORTEIRO: Filtro inteligente de condições de mercado
+  market_filter_strict: false  # false=aviso (permite operar), true=bloqueio (impede ordem)
+  
   symbols:
     XAUUSD:
       enabled: true

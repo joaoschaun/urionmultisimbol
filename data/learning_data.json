@@ -59,9 +59,9 @@
     "last_adjustment": null
   },
   "trend_following": {
-    "total_trades": 43,
+    "total_trades": 48,
     "wins": 11,
-    "losses": 32,
+    "losses": 37,
     "min_confidence": 0.7,
     "best_conditions": [
       {
@@ -118,9 +118,9 @@
     "last_adjustment": "2025-11-27T06:38:21.341170"
   },
   "breakout": {
-    "total_trades": 1,
+    "total_trades": 3,
     "wins": 1,
-    "losses": 0,
+    "losses": 2,
     "min_confidence": 0.5,
     "best_conditions": [
       {
@@ -132,8 +132,8 @@
     "last_adjustment": null
   },
   "scalping": {
-    "total_trades": 1,
-    "wins": 1,
+    "total_trades": 2,
+    "wins": 2,
     "losses": 0,
     "min_confidence": 0.5,
     "best_conditions": [
@@ -141,6 +141,11 @@
         "conditions": "{'entry_price': 4157.45, 'target_pips': 8, 'stop_pips': 4, 'rsi': 47.93636556778329, 'macd_hist': -0.10854517551918064, 'momentum_score': '3/5', 'spread_pips': 8.3}",
         "confidence": 0.6,
         "profit": 0.1
+      },
+      {
+        "conditions": "{'entry_price': 4188.14, 'target_pips': 8, 'stop_pips': 4, 'rsi': 59.24338426951219, 'macd_hist': -1.040939615106911, 'momentum_score': '3/5', 'spread_pips': 8.4}",
+        "confidence": 0.6,
+        "profit": 0.35
       }
     ],
     "last_adjustment": null
