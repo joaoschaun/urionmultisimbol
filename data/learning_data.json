@@ -1,8 +1,8 @@
 {
   "range_trading": {
-    "total_trades": 17,
+    "total_trades": 18,
     "wins": 10,
-    "losses": 7,
+    "losses": 8,
     "min_confidence": 0.5,
     "best_conditions": [
       {
@@ -116,5 +116,19 @@
       }
     ],
     "last_adjustment": "2025-11-27T06:38:21.341170"
+  },
+  "breakout": {
+    "total_trades": 1,
+    "wins": 1,
+    "losses": 0,
+    "min_confidence": 0.5,
+    "best_conditions": [
+      {
+        "conditions": "{'price': 4162.58, 'bb_upper': 4161.837700793856, 'distance_from_upper': 0.7422992061437981, 'bb_width': 6.94140158771188, 'adx': 20.758171995788793, 'macd_histogram': 0.3098802339756449, 'breakout_type': 'confirmed', 'conditions_met': 7, 'total_conditions': 8, 'h1_confirmation': False}",
+        "confidence": 0.713,
+        "profit": 0.18
+      }
+    ],
+    "last_adjustment": null
   }
 }
