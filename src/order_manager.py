@@ -17,6 +17,7 @@ from core.mt5_connector import MT5Connector
 from core.config_manager import ConfigManager
 from core.risk_manager import RiskManager
 from core.market_hours import MarketHoursManager, ForexMarketHours
+from core.adaptive_spread_manager import AdaptiveSpreadManager
 from analysis.technical_analyzer import TechnicalAnalyzer
 from notifications.telegram_bot import TelegramNotifier
 from database.strategy_stats import StrategyStatsDB
@@ -64,6 +65,9 @@ class OrderManager:
         # Inicializar componentes
         self.mt5 = MT5Connector(self.config)
         self.risk_manager = RiskManager(self.config, self.mt5)
+        
+        # 🆕 Adaptive Spread Manager - Adapta estratégias ao spread
+        self.spread_manager = AdaptiveSpreadManager(self.config)
         
         # 🆕 Usar market_hours customizado ou criar padrão (XAUUSD)
         self.market_hours = market_hours if market_hours else MarketHoursManager(self.config)
@@ -883,15 +887,17 @@ class OrderManager:
             # Spread já vem em pips do MT5Connector (após fix)
             spread_pips = symbol_info['spread']
             
-            # Obter threshold do config (em pips)
-            spread_threshold_pips = self.config.get('trading', {}).get('spread_threshold', 5)
+            # 🎯 NOVA LÓGICA: Usar Adaptive Spread Manager
+            can_modify, reason = self.spread_manager.should_modify_position(spread_pips)
             
-            if spread_pips > spread_threshold_pips:
-                logger.warning(
-                    f"⚠️ Spread muito alto para modificar posição: "
-                    f"{spread_pips:.1f} pips (max: {spread_threshold_pips} pips)"
-                )
+            if not can_modify:
+                logger.warning(reason)
                 return False
+            
+            # Log apenas se spread não for normal
+            spread_level = self.spread_manager.classify_spread(spread_pips)
+            if spread_level != 'normal':
+                logger.info(reason)
             
             return True
             
@@ -1399,13 +1405,49 @@ class OrderManager:
                         f"Ativando SL/TP real (idade: {age_minutes:.1f}min)"
                     )
                     
+                    # 🔍 DEBUG: Log valores antes de enviar ao MT5
+                    current_price = position.get('price_current', 0)
+                    position_type = position.get('type')
+                    spread_pips = position.get('spread', 0)
+                    
+                    logger.debug(
+                        f"🔍 #{ticket} Valores para modificação | "
+                        f"Tipo: {'BUY' if position_type == 0 else 'SELL'} | "
+                        f"Preço: {current_price:.5f} | "
+                        f"mental_sl: {mental_sl:.5f} | mental_tp: {mental_tp:.5f} | "
+                        f"Spread: {spread_pips} pips"
+                    )
+                    
+                    # 🎯 ADAPTAÇÃO DE SPREAD: Ajustar SL/TP se spread estiver alto
+                    adapted = self.spread_manager.get_adapted_parameters(
+                        strategy_name=strategy_name,
+                        spread_pips=spread_pips,
+                        original_sl=mental_sl,
+                        original_tp=mental_tp,
+                        entry_price=monitored.get('entry_price', current_price),
+                        position_type=position_type,
+                        confidence=1.0  # Já passou do tempo mínimo
+                    )
+                    
+                    # Usar valores adaptados se spread não for normal
+                    final_sl = adapted['adapted_sl']
+                    final_tp = adapted['adapted_tp']
+                    
+                    if adapted['spread_level'] != 'normal':
+                        logger.info(
+                            f"🎯 #{ticket} Adaptação de spread ({adapted['spread_level'].upper()}) | "
+                            f"SL: {mental_sl:.5f} → {final_sl:.5f} (×{adapted['sl_multiplier']}) | "
+                            f"TP: {mental_tp:.5f} → {final_tp:.5f} (×{adapted['tp_multiplier']}) | "
+                            f"{adapted['recommendation']}"
+                        )
+                    
                     # Modificar posição para adicionar SL/TP
-                    if self.modify_position(ticket, mental_sl, mental_tp):
+                    if self.modify_position(ticket, final_sl, final_tp):
                         monitored['real_sl_set'] = True
-                        monitored['sl'] = mental_sl
-                        monitored['tp'] = mental_tp
+                        monitored['sl'] = final_sl
+                        monitored['tp'] = final_tp
                         logger.success(
-                            f"✅ #{ticket} SL/TP real ativado | SL: {mental_sl} | TP: {mental_tp}"
+                            f"✅ #{ticket} SL/TP real ativado | SL: {final_sl} | TP: {final_tp}"
                         )
                     else:
                         logger.error(f"❌ Falha ao ativar SL/TP real em #{ticket}")

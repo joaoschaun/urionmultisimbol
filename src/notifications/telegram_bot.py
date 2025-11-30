@@ -86,6 +86,8 @@ class TelegramNotifier:
         self.app.add_handler(CommandHandler("balance", self.cmd_balance))
         self.app.add_handler(CommandHandler("positions", self.cmd_positions))
         self.app.add_handler(CommandHandler("stats", self.cmd_stats))
+        self.app.add_handler(CommandHandler("metrics", self.cmd_metrics))  # 🆕
+        self.app.add_handler(CommandHandler("report", self.cmd_report))    # 🆕
         self.app.add_handler(CommandHandler("help", self.cmd_help))
     
     def send_message_sync(self, message: str, parse_mode: str = None):
@@ -628,9 +630,223 @@ class TelegramNotifier:
             "/balance - Ver saldo\n"
             "/positions - Ver posições abertas\n"
             "/stats - Ver estatísticas\n"
+            "/metrics - Métricas avançadas (SQN, R-Multiple)\n"
+            "/report - Relatório completo\n"
             "/help - Mostrar esta ajuda"
         )
         await update.message.reply_text(help_text, parse_mode='HTML')
+    
+    async def cmd_metrics(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /metrics command - Advanced trading metrics (SQN, R-Multiple)"""
+        try:
+            if not self.stats_db:
+                await update.message.reply_text("❌ Database não disponível")
+                return
+            
+            # Importar AdvancedMetrics
+            try:
+                from core.advanced_metrics import AdvancedMetrics
+            except ImportError:
+                await update.message.reply_text("❌ Módulo de métricas não disponível")
+                return
+            
+            # Obter trades
+            from datetime import date, timedelta
+            today = date.today()
+            
+            # Coletar trades dos últimos 30 dias
+            trades = []
+            for i in range(30):
+                day = today - timedelta(days=i)
+                day_trades = self.stats_db.get_trades_by_date(day)
+                trades.extend(day_trades)
+            
+            if len(trades) < 10:
+                await update.message.reply_text(
+                    "⚠️ Dados insuficientes para métricas avançadas\n"
+                    f"Trades nos últimos 30 dias: {len(trades)}\n"
+                    "Mínimo recomendado: 10 trades"
+                )
+                return
+            
+            # Calcular métricas
+            metrics = AdvancedMetrics()
+            result = metrics.calculate(trades)
+            
+            metrics_msg = "<b>📊 MÉTRICAS AVANÇADAS</b>\n\n"
+            
+            # SQN (System Quality Number)
+            sqn = result.get('sqn', 0)
+            sqn_rating = result.get('sqn_rating', 'N/A')
+            metrics_msg += f"<b>📈 SQN (Van K. Tharp)</b>\n"
+            metrics_msg += f"Valor: {sqn:.2f}\n"
+            metrics_msg += f"Rating: {sqn_rating}\n"
+            
+            # Escala SQN
+            if sqn >= 3.0:
+                metrics_msg += "⭐⭐⭐ Excelente\n"
+            elif sqn >= 2.0:
+                metrics_msg += "⭐⭐ Muito Bom\n"
+            elif sqn >= 1.5:
+                metrics_msg += "⭐ Bom\n"
+            elif sqn >= 0.5:
+                metrics_msg += "⚠️ Médio\n"
+            else:
+                metrics_msg += "❌ Ruim\n"
+            metrics_msg += "\n"
+            
+            # R-Multiple
+            avg_r = result.get('avg_r_multiple', 0)
+            r_expectancy = result.get('r_expectancy', 0)
+            metrics_msg += f"<b>📉 R-Multiple</b>\n"
+            metrics_msg += f"Média R: {avg_r:.2f}R\n"
+            metrics_msg += f"R-Expectancy: {r_expectancy:.2f}R\n\n"
+            
+            # Duração
+            avg_win_duration = result.get('avg_win_duration', 0)
+            avg_loss_duration = result.get('avg_loss_duration', 0)
+            metrics_msg += f"<b>⏱ Duração Média</b>\n"
+            metrics_msg += f"Wins: {avg_win_duration:.1f}h\n"
+            metrics_msg += f"Losses: {avg_loss_duration:.1f}h\n\n"
+            
+            # Métricas tradicionais
+            metrics_msg += f"<b>📋 Resumo</b>\n"
+            metrics_msg += f"Trades: {result.get('total_trades', 0)}\n"
+            metrics_msg += f"Win Rate: {result.get('win_rate', 0):.1f}%\n"
+            metrics_msg += f"Profit Factor: {result.get('profit_factor', 0):.2f}\n"
+            metrics_msg += f"Max Drawdown: {result.get('max_drawdown', 0):.1f}%\n"
+            
+            await update.message.reply_text(metrics_msg, parse_mode='HTML')
+            
+        except Exception as e:
+            logger.error(f"Erro no comando /metrics: {e}")
+            await update.message.reply_text(f"❌ Erro: {e}")
+    
+    async def cmd_report(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /report command - Complete trading report"""
+        try:
+            await update.message.reply_text("📊 Gerando relatório completo...")
+            
+            if not self.stats_db:
+                await update.message.reply_text("❌ Database não disponível")
+                return
+            
+            # Importar dependências
+            try:
+                from core.advanced_metrics import AdvancedMetrics
+                from core.trade_journal import get_trade_journal
+            except ImportError:
+                pass
+            
+            from datetime import date, timedelta
+            today = date.today()
+            
+            # Coletar dados
+            trades_today = self.stats_db.get_trades_by_date(today)
+            trades_week = []
+            trades_month = []
+            
+            for i in range(7):
+                day = today - timedelta(days=i)
+                trades_week.extend(self.stats_db.get_trades_by_date(day))
+            
+            for i in range(30):
+                day = today - timedelta(days=i)
+                trades_month.extend(self.stats_db.get_trades_by_date(day))
+            
+            report = "📊 <b>RELATÓRIO COMPLETO</b>\n"
+            report += f"<i>Gerado em: {datetime.now().strftime('%Y-%m-%d %H:%M')}</i>\n\n"
+            
+            # Seção 1: Hoje
+            report += "━━━━━━━━━━━━━━━━━━━━\n"
+            report += "<b>📅 HOJE</b>\n"
+            if trades_today:
+                wins = sum(1 for t in trades_today if t.get('profit', 0) > 0)
+                pnl = sum(t.get('profit', 0) for t in trades_today)
+                wr = (wins / len(trades_today)) * 100
+                report += f"Trades: {len(trades_today)} ({wins}W / {len(trades_today)-wins}L)\n"
+                report += f"Win Rate: {wr:.0f}%\n"
+                report += f"P&L: ${pnl:+.2f}\n"
+            else:
+                report += "Nenhum trade hoje\n"
+            
+            # Seção 2: Semana
+            report += "\n━━━━━━━━━━━━━━━━━━━━\n"
+            report += "<b>📆 ÚLTIMOS 7 DIAS</b>\n"
+            if trades_week:
+                wins = sum(1 for t in trades_week if t.get('profit', 0) > 0)
+                pnl = sum(t.get('profit', 0) for t in trades_week)
+                wr = (wins / len(trades_week)) * 100
+                avg_trade = pnl / len(trades_week)
+                report += f"Trades: {len(trades_week)} ({wins}W / {len(trades_week)-wins}L)\n"
+                report += f"Win Rate: {wr:.0f}%\n"
+                report += f"P&L: ${pnl:+.2f}\n"
+                report += f"Média/Trade: ${avg_trade:+.2f}\n"
+            else:
+                report += "Nenhum trade na semana\n"
+            
+            # Seção 3: Mês
+            report += "\n━━━━━━━━━━━━━━━━━━━━\n"
+            report += "<b>📈 ÚLTIMOS 30 DIAS</b>\n"
+            if trades_month:
+                wins = sum(1 for t in trades_month if t.get('profit', 0) > 0)
+                losses = len(trades_month) - wins
+                pnl = sum(t.get('profit', 0) for t in trades_month)
+                win_pnl = sum(t.get('profit', 0) for t in trades_month if t.get('profit', 0) > 0)
+                loss_pnl = sum(t.get('profit', 0) for t in trades_month if t.get('profit', 0) < 0)
+                wr = (wins / len(trades_month)) * 100
+                pf = abs(win_pnl / loss_pnl) if loss_pnl != 0 else float('inf')
+                
+                report += f"Trades: {len(trades_month)}\n"
+                report += f"Wins: {wins} (${win_pnl:+.2f})\n"
+                report += f"Losses: {losses} (${loss_pnl:+.2f})\n"
+                report += f"Win Rate: {wr:.0f}%\n"
+                report += f"Profit Factor: {pf:.2f}\n"
+                report += f"<b>P&L Total: ${pnl:+.2f}</b>\n"
+            else:
+                report += "Nenhum trade no mês\n"
+            
+            # Seção 4: Por Estratégia
+            if trades_month:
+                report += "\n━━━━━━━━━━━━━━━━━━━━\n"
+                report += "<b>🎯 POR ESTRATÉGIA</b>\n"
+                strategies = {}
+                for t in trades_month:
+                    strat = t.get('strategy', 'Unknown')
+                    if strat not in strategies:
+                        strategies[strat] = {'count': 0, 'pnl': 0, 'wins': 0}
+                    strategies[strat]['count'] += 1
+                    strategies[strat]['pnl'] += t.get('profit', 0)
+                    if t.get('profit', 0) > 0:
+                        strategies[strat]['wins'] += 1
+                
+                for strat, data in sorted(strategies.items(), key=lambda x: x[1]['pnl'], reverse=True)[:5]:
+                    wr = (data['wins'] / data['count']) * 100 if data['count'] > 0 else 0
+                    emoji = "🟢" if data['pnl'] > 0 else "🔴"
+                    report += f"{emoji} {strat}: {data['count']} trades, {wr:.0f}%WR, ${data['pnl']:+.2f}\n"
+            
+            # Seção 5: Conta
+            if self.mt5 and self.mt5.mt5.initialize():
+                account = self.mt5.mt5.account_info()
+                if account:
+                    report += "\n━━━━━━━━━━━━━━━━━━━━\n"
+                    report += "<b>💰 CONTA</b>\n"
+                    report += f"Balance: ${account.balance:.2f}\n"
+                    report += f"Equity: ${account.equity:.2f}\n"
+                    
+                    positions = self.mt5.get_open_positions()
+                    if positions:
+                        open_pnl = sum(p['profit'] for p in positions)
+                        report += f"Posições: {len(positions)}\n"
+                        report += f"P&L Aberto: ${open_pnl:+.2f}\n"
+            
+            report += "\n━━━━━━━━━━━━━━━━━━━━"
+            
+            await update.message.reply_text(report, parse_mode='HTML')
+            
+        except Exception as e:
+            logger.error(f"Erro no comando /report: {e}")
+            await update.message.reply_text(f"❌ Erro: {e}")
     
     async def start_polling(self):
         """Start Telegram bot polling"""

@@ -31,9 +31,10 @@ class NewsNotifier:
         # Configurações de notificação
         news_config = config.get('notifications', {}).get('news', {})
         self.enabled = news_config.get('enabled', True)
-        self.min_importance = news_config.get('min_importance', 3)
+        self.min_importance = int(news_config.get('min_importance', 3))
         # Converter para inteiro (pode vir como string do YAML)
-        self.notification_interval = int(news_config.get('interval_minutes', 15))
+        interval_raw = news_config.get('interval_minutes', 15)
+        self.notification_interval = int(interval_raw) if isinstance(interval_raw, (int, float, str)) else 15
         
         # Símbolos monitorados
         multi_config = config.get('multi_symbol', {})

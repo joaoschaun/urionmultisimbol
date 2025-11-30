@@ -1,0 +1,862 @@
+﻿mt5:
+  login: ${MT5_LOGIN}
+  password: ${MT5_PASSWORD}
+  server: ${MT5_SERVER}
+  path: ${MT5_PATH}
+  timeout: 60000
+  max_reconnect_attempts: 5
+trading:
+  # ════════════════════════════════════════════════════════════════
+  # 🌍 MULTI-SÍMBOLO: Configure múltiplos símbolos independentes
+  # ════════════════════════════════════════════════════════════════
+  
+  # 🚪 PORTEIRO: Filtro inteligente de condições de mercado
+  market_filter_strict: false  # false=aviso (permite operar), true=bloqueio (impede ordem)
+  
+  symbols:
+    XAUUSD:
+      enabled: true
+      timeframes:
+      - M1
+      - M5
+      - M15
+      - M30
+      - H1
+      - H4
+      - D1
+      default_lot_size: 0.01
+      min_lot_size: 0.01
+      max_lot_size: 1.0
+      max_open_positions: 12  # 6 estratégias × 2 posições = 12 max
+      spread_threshold: 5
+      slippage: 3
+      
+    EURUSD:
+      enabled: true  # ✅ ATIVO: Opera enquanto XAUUSD fechado (Thanksgiving)
+      timeframes:
+      - M1
+      - M5
+      - M15
+      - M30
+      - H1
+      - H4
+      - D1
+      default_lot_size: 0.1   # Forex usa lotes maiores (0.1 = 10k unidades)
+      min_lot_size: 0.01
+      max_lot_size: 2.0       # Até 2 lotes padreo
+      max_open_positions: 8   # Menos agressivo que XAUUSD
+      spread_threshold: 3     # EURUSD tem spread menor (0.5-2 pips)
+      slippage: 2
+    
+    GBPUSD:
+      enabled: true  # ✅ ATIVO: Cable (volatilidade média-alta)
+      timeframes:
+      - M1
+      - M5
+      - M15
+      - M30
+      - H1
+      - H4
+      - D1
+      default_lot_size: 0.1   # 0.1 = 10k unidades (padreo forex)
+      min_lot_size: 0.01
+      max_lot_size: 2.0
+      max_open_positions: 8
+      spread_threshold: 4     # GBPUSD spread 1-3 pips (mais volátil que EUR)
+      slippage: 3             # Mais slippage por volatilidade
+    
+    USDJPY:
+      enabled: true  # ✅ ATIVO: Yen (baixa volatilidade, alta liquidez)
+      timeframes:
+      - M1
+      - M5
+      - M15
+      - M30
+      - H1
+      - H4
+      - D1
+      default_lot_size: 0.1   # 0.1 = 10k unidades
+      min_lot_size: 0.01
+      max_lot_size: 2.0
+      max_open_positions: 8
+      spread_threshold: 3     # USDJPY spread 0.5-2 pips (muito líquido)
+      slippage: 2
+
+# 🌍 Market Condition Analysis - Seleçeo Inteligente de Estratégias
+market_analysis:
+  enabled: true  # ✅ ATIVO - Filtra estratégias por condiçeo de mercado
+  min_priority_threshold: 0.3  # 30% mínimo para operar (0.0-1.0)
+  # Condições detectadas: TRENDING_UP, TRENDING_DOWN, RANGING, VOLATILE, QUIET, NEWS_IMPACT
+  # - TRENDING: Recomenda trend_following, breakout
+  # - RANGING: Recomenda range_trading, scalping, mean_reversion
+  # - VOLATILE: Recomenda breakout, news_trading, scalping
+  # - QUIET: Recomenda scalping, range_trading
+  # - NEWS_IMPACT: Recomenda news_trading, breakout
+
+risk:
+  max_risk_per_trade: 0.02
+  max_drawdown: 0.08  # ⬇️ REDUZIDO: 15%→8% (day trading seguro)
+  max_daily_loss: 0.05
+  stop_loss_pips: 50
+  take_profit_pips: 100
+  trailing_stop_enabled: true
+  trailing_stop_distance: 25  # 🎯 OTIMIZADO: Stop din protege lucros progressivamente
+  break_even_enabled: false  # ❌ DESATIVADO: Break-even pode travar lucros prematuramente
+  break_even_trigger: 40  # Mantido para referência (desativado)
+schedule:
+  timezone: America/New_York
+  trading_days:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  market_open:
+    hour: 18
+    minute: 30
+  market_close:
+    hour: 16
+    minute: 30
+  weekend_close:
+    day: 5
+    hour: 16
+    minute: 30
+  weekend_open:
+    day: 0
+    hour: 18
+    minute: 30
+  avoid_news_minutes_before: 0
+  avoid_news_minutes_after: 0
+strategies:
+  # 🚀 TODAS ESTRATÉGIAS ATIVAS - CONTA DEMO
+  enabled:
+    - trend_following
+    - range_trading
+    - mean_reversion
+    - breakout
+    - news_trading
+    - scalping
+  
+  trend_following:
+    enabled: true  # ✅ REATIVADA com SL/TP corrigidos
+    timeframe: H1
+    cycle_seconds: 600  # 🔧 MUDADO: 900→600 (10min ao invés de 15min)
+    max_positions: 2
+    min_confidence: 0.75  # 🔧 CORRIGIDO: 0.60→0.75 (exigir 6/8 condições, neo 5/8)
+    ema_fast: 12
+    ema_slow: 26
+    adx_threshold: 30  # 🔧 AUMENTADO: 25→30 (tendências mais fortes)
+    min_trend_strength: 0.6
+    trailing_stop_distance: 25  # 🎯 Stop din acompanha tendência
+    break_even_trigger: 50  # Ignorado (desativado globalmente)
+    partial_close_trigger: 60  # Fecha 50% aos 60 pips
+    max_spread_pips: 2.0
+    volume_confirmation: true
+  mean_reversion:
+    enabled: true  # ✅ ATIVADA PARA TESTES
+    timeframe: M15
+    cycle_seconds: 600
+    max_positions: 2
+    min_confidence: 0.60  # 🧪 TESTE: 0.75→0.60 (mais permissivo)
+    bollinger_period: 20
+    bollinger_std: 2
+    rsi_period: 14
+    rsi_overbought: 70
+    rsi_oversold: 30
+    trailing_stop_distance: 15  # 🎯 Stop mais apertado para reversões
+    break_even_trigger: 18  # Ignorado (desativado globalmente)
+    partial_close_trigger: 30  # Fecha 50% aos 30 pips
+    max_spread_pips: 2.0
+    volume_confirmation: true
+  breakout:
+    enabled: true  # ✅ ATIVADA PARA TESTES
+    timeframe: M30
+    cycle_seconds: 1800
+    max_positions: 2
+    min_confidence: 0.65  # 🧪 TESTE: 0.80→0.65 (mais permissivo)
+    support_resistance_lookback: 50
+    breakout_confirmation_candles: 2
+    volume_threshold: 1.5
+    trailing_stop_distance: 30  # 🎯 Stop mais largo para capturar breakouts
+    break_even_trigger: 35  # Ignorado (desativado globalmente)
+    partial_close_trigger: 50  # Fecha 50% aos 50 pips
+    max_spread_pips: 2.0
+    volume_confirmation: true
+  news_trading:
+    enabled: true
+    cycle_seconds: 300
+    max_positions: 2
+    min_confidence: 0.65  # 🧪 TESTE: 0.80→0.65 (mais permissivo)
+    high_impact_only: true
+    min_sentiment_confidence: 0.7
+    trade_on_prediction: true
+    trailing_stop_distance: 20  # 🎯 Stop moderado para volatilidade de notícias
+    break_even_trigger: 20  # Ignorado (desativado globalmente)
+    partial_close_trigger: 35  # Fecha 50% aos 35 pips
+    max_spread_pips: 2.0
+    volume_confirmation: true
+  scalping:
+    enabled: true  # ✅ ATIVADA PARA TESTES
+    timeframe: M5
+    cycle_seconds: 120  # 🔧 MUDADO: 60→120s (menos agressivo)
+    max_positions: 2  # 🔧 AUMENTADO: 1→2 (2 posições simult por mercado)
+    min_confidence: 0.60  # 🧪 TESTE: 0.70→0.60 (mais permissivo)
+    max_spread_pips: 12  # 🔧 AJUSTADO: 3→12 (XAUUSD tem spread maior que forex)
+    min_momentum: 0.00015  # 🔧 MUDADO: 0.0002→0.00015 (menos restritivo)
+    rsi_min: 35  # 🔧 MUDADO: 40→35 (faixa mais ampla)
+    rsi_max: 65  # 🔧 MUDADO: 60→65 (faixa mais ampla)
+    target_pips: 8
+    stop_pips: 4
+    min_volume_ratio: 1.2
+    trailing_stop_distance: 6  # 🎯 Stop bem apertado para scalping rápido
+    break_even_trigger: 8  # Ignorado (desativado globalmente)
+    partial_close_trigger: 12  # Fecha 50% aos 12 pips
+    volume_confirmation: true
+    max_trades_per_hour: 2
+    exempt_from_macro: true  # 🔥 NOVO: Scalping neo usa filtro macro (rápido demais)
+  range_trading:
+    enabled: true  # ✅ REATIVADA com SL/TP corrigidos (MONITORAR CLOSELY!)
+    timeframe: M5
+    cycle_seconds: 300  # 🔧 MUDADO: 180→300 (5min ao invés de 3min)
+    max_positions: 2  # 🔧 AUMENTADO: 1→2 (2 posições simult por mercado)
+    min_confidence: 0.65  # 🧪 TESTE: 0.75→0.65 (mais permissivo)
+    adx_max: 20  # 🔧 REDUZIDO: 25→20 (apenas ranges muito claros)
+    rsi_buy_min: 35
+    rsi_buy_max: 45
+    rsi_sell_min: 55
+    rsi_sell_max: 65
+    stoch_low: 30
+    stoch_high: 70
+    bb_touch_threshold: 0.003
+    trailing_stop_distance: 18  # 🎯 Stop din para movimentos laterais
+    break_even_trigger: 35  # Ignorado (desativado globalmente)
+    partial_close_trigger: 40  # Fecha 50% aos 40 pips
+    max_spread_pips: 2.0
+    volume_confirmation: true
+technical_analysis:
+  indicators:
+  - name: EMA
+    periods:
+    - 9
+    - 21
+    - 50
+    - 200
+  - name: SMA
+    periods:
+    - 20
+    - 50
+    - 100
+    - 200
+  - name: MACD
+    fast: 12
+    slow: 26
+    signal: 9
+  - name: ADX
+    period: 14
+  - name: RSI
+    period: 14
+  - name: Stochastic
+    k_period: 14
+    d_period: 3
+  - name: CCI
+    period: 20
+  - name: Bollinger Bands
+    period: 20
+    std: 2
+  - name: ATR
+    period: 14
+  - name: Keltner Channel
+    period: 20
+    multiplier: 2
+  - name: Volume
+  - name: OBV
+  - name: MFI
+    period: 14
+  patterns:
+  - Doji
+  - Hammer
+  - Shooting Star
+  - Engulfing
+  - Morning Star
+  - Evening Star
+  - Three White Soldiers
+  - Three Black Crows
+ml:
+  enabled: true
+  model_type: ensemble
+  retrain_frequency: daily
+  min_training_samples: 1000
+  features:
+  - price_change
+  - volume_change
+  - rsi
+  - macd
+  - bollinger_position
+  - atr
+  - time_of_day
+  - day_of_week
+  - news_sentiment
+  target: profitable_trade
+  validation_split: 0.2
+  test_split: 0.1
+
+# 🤖 XGBoost Signal Predictor - ML para filtrar sinais
+xgboost_predictor:
+  enabled: true
+  data_dir: data/ml
+  min_training_samples: 100       # Mínimo de trades para treinar
+  retrain_interval_days: 7        # Retreinar a cada 7 dias
+  min_prediction_confidence: 0.6  # Confiança mínima para considerar previseo
+  
+  # Par XGBoost
+  model_params:
+    max_depth: 6
+    learning_rate: 0.1
+    n_estimators: 100
+    min_child_weight: 1
+    subsample: 0.8
+    colsample_bytree: 0.8
+  
+  # Thresholds de qualidade
+  quality_thresholds:
+    excellent: 0.80               # >80% = excelente
+    good: 0.60                    # >60% = bom
+    moderate: 0.50                # >50% = moderado
+    poor: 0.40                    # >40% = fraco
+    # <40% = evitar
+  
+  # Ações por qualidade
+  actions:
+    excellent:
+      lot_multiplier: 1.2         # +20% no lote
+      execute: true
+    good:
+      lot_multiplier: 1.0
+      execute: true
+    moderate:
+      lot_multiplier: 0.8         # -20% no lote
+      execute: true
+    poor:
+      lot_multiplier: 0.5         # -50% no lote
+      execute: true
+    avoid:
+      lot_multiplier: 0.0
+      execute: false
+  
+  # Modelos por símbolo
+  per_symbol_models: true         # Modelo separado por símbolo
+  per_strategy_models: true       # Modelo separado por estratégia
+
+# 📊 Feature Engineering Avançado
+feature_engineering:
+  enabled: true
+  # Features ativadas por categoria
+  categories:
+    price_action: true            # 10 features
+    technical: true               # 15 features
+    volume: true                  # 5 features
+    volatility: true              # 5 features
+    time_session: true            # 5 features
+    market_structure: true        # 5 features
+    momentum: true                # 5 features
+    macro_context: true           # 5 features (requer macro_context ativo)
+  
+  # Períodos para indicadores
+  periods:
+    rsi: 14
+    atr: 14
+    bb: 20
+    bb_std: 2.0
+  
+  # Normalizaçeo
+  normalize: true
+  clip_outliers: true
+  outlier_threshold: 10.0
+news:
+  forexnews_api_key: u2lyge5a8ehgtlikrv4owyqsitphrcxqu6afzuja
+  finazon_api_key: 830c05bb65994f99ae39629a0e9f8edffw
+  fmp_api_key: ZvAVZ4inPZ4mtTnJ4cuLSQYYSrLQcfkr
+  twelvedata_api_key: a0f59fab7a354ce080c93b0b019e5e61
+  finnhub_api_key: d47a14hr01qh8nnbrh7gd47a14hr01qh8nnbrh80
+  sources:
+  - forexnews
+  - finnhub
+  - financialmodelingprep
+  sentiment_analysis:
+    enabled: true
+    model: transformer
+    confidence_threshold: 0.6
+  impact_levels:
+    high:
+    - NFP
+    - FOMC
+    - CPI
+    - GDP
+    - Interest Rate Decision
+    medium:
+    - Unemployment
+    - Retail Sales
+    - Manufacturing PMI
+    low:
+    - Consumer Confidence
+    - Housing Data
+order_generator:
+  enabled: true
+  cycle_interval_seconds: 300
+  min_signal_confidence: 0.6
+  require_consensus: true
+  trading_hours:
+    start_hour: 0
+    start_minute: 0
+    end_hour: 23
+    end_minute: 59
+order_manager:
+  enabled: true
+  cycle_interval_seconds: 5  # 🚀 REDUZIDO: 60→5s (captura movimentos rápidos)
+  partial_close:
+    enabled: true
+    target_pips: 50  # ⬆️ AUMENTADO: 20→50 pips (fecha 50% só após lucro consistente)
+    close_percentage: 0.5  # Fecha metade da posiçeo = garante lucro
+notifications:
+  telegram:
+    enabled: true
+    send_trade_signals: true
+    send_trade_executions: true
+    send_trade_closures: true
+    send_daily_summary: true
+    send_errors: true
+    send_warnings: true
+  # 🆕 Notificações de Notícias em Português
+  news:
+    enabled: true
+    min_importance: 3  # Import mínima (1-5): 3=média, 4=alta, 5=crítica
+    interval_minutes: 15  # Verificar notícias a cada 15 minutos
+  email:
+    enabled: false
+    smtp_server: smtp.gmail.com
+    smtp_port: 587
+    from_email: ''
+    to_email: ''
+logging:
+  level: DEBUG  # DEBUG temporário para diagnóstico de "Invalid stops"
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  handlers:
+  - console
+  - file
+  - rotating_file
+  file_path: logs/urion.log
+  max_file_size: 10485760  # 10MB por arquivo
+  backup_count: 10  # Máximo 100MB (10 arquivos × 10MB)
+database:
+  url: ${DATABASE_URL}
+  pool_size: 10
+  max_overflow: 20
+  echo: false
+redis:
+  url: ${REDIS_URL}
+  decode_responses: true
+  max_connections: 50
+# 📊 Sistema de Relatórios Automáticos
+reporting:
+  daily_report:
+    enabled: true
+    time: "23:59"  # Horário de envio
+    telegram: true  # Enviar via Telegram
+  weekly_report:
+    enabled: true
+    day: "sunday"  # Dia da semana
+    time: "23:59"
+    telegram: true
+  monthly_report:
+    enabled: true
+    time: "23:59"  # Último dia do mês
+    telegram: true
+
+monitoring:
+  prometheus_enabled: false
+  prometheus_port: 9090
+  sentry_enabled: false
+  sentry_dsn: ${SENTRY_DSN}
+  metrics:
+  - total_trades
+  - winning_trades
+  - losing_trades
+  - win_rate
+  - profit_factor
+  - sharpe_ratio
+  - max_drawdown
+  - average_trade_duration
+
+# ═══════════════════════════════════════════════════════════════════
+# 🆕 MÓDULOS AVANÇADOS v2.0 - Melhorias de Performance e Segurança
+# ═══════════════════════════════════════════════════════════════════
+
+# 🔌 Circuit Breaker - Proteçeo contra falhas em cascata
+circuit_breaker:
+  enabled: true
+  failure_threshold: 5         # Falhas para abrir circuito
+  success_threshold: 3         # Sucessos para fechar
+  timeout_seconds: 60          # Tempo em OPEN antes de HALF_OPEN
+  half_open_max_calls: 3       # Chamadas de teste em HALF_OPEN
+  # Circuitos específicos:
+  mt5_connection:
+    failure_threshold: 3       # MT5 - mais sensível
+    timeout_seconds: 30
+  telegram:
+    failure_threshold: 10      # Telegram - mais tolerante
+    timeout_seconds: 120
+
+# 🌍 Filtro de Sesseo de Mercado
+session_filter:
+  enabled: true
+  # Qualidade mínima por símbolo (1=poor, 2=moderate, 3=good, 4=excellent)
+  min_quality:
+    XAUUSD: 2                  # Gold precisa London/NY
+    EURUSD: 2                  # EUR precisa Europa/US
+    GBPUSD: 2                  # GBP precisa London
+    USDJPY: 2                  # JPY precisa Tokyo/NY
+  # Sessões e horários (UTC)
+  sessions:
+    sydney:
+      start: "21:00"
+      end: "06:00"
+      quality: poor
+    tokyo:
+      start: "00:00"
+      end: "09:00"
+      quality: moderate
+    london:
+      start: "07:00"
+      end: "16:00"
+      quality: good
+    new_york:
+      start: "12:00"
+      end: "21:00"
+      quality: good
+  # Bonus para overlap London-NY (12:00-16:00 UTC)
+  overlap_bonus: true
+
+# 📏 SL/TP Din baseado em ATR
+dynamic_stops:
+  enabled: true
+  atr_period: 14
+  # Multiplicadores por estratégia
+  multipliers:
+    scalping:
+      sl: 1.0                  # 1x ATR = SL apertado
+      tp: 1.5                  # 1.5x ATR = Risco:Retorno 1:1.5
+    trend_following:
+      sl: 2.5                  # 2.5x ATR = SL largo
+      tp: 5.0                  # 5x ATR = Risco:Retorno 1:2
+    breakout:
+      sl: 2.0                  # 2x ATR
+      tp: 4.0                  # 4x ATR
+    mean_reversion:
+      sl: 1.5                  # 1.5x ATR
+      tp: 2.5                  # 2.5x ATR
+    range_trading:
+      sl: 1.0                  # 1x ATR
+      tp: 1.5                  # 1.5x ATR
+    news_trading:
+      sl: 2.5                  # 2.5x ATR (volatilidade)
+      tp: 5.0                  # 5x ATR
+  # Limites de segurança (em pips)
+  min_sl_pips: 10
+  max_sl_pips: 100
+  min_tp_pips: 15
+  max_tp_pips: 300
+  # Ajuste por sesseo
+  session_adjustment: true     # Aumenta SL em sessões voláteis
+
+# 🎯 Trailing Stop Inteligente
+trailing_stop:
+  enabled: true
+  method: atr                  # atr, chandelier, parabolic, structure
+  # Par ATR
+  atr_multiplier: 2.0
+  atr_period: 14
+  # Break-even automático
+  break_even:
+    enabled: true
+    trigger_pips: 15           # Ativar quando lucro >= 15 pips
+    lock_pips: 2               # Travar 2 pips de lucro
+  # Fechamento parcial
+  partial_close:
+    enabled: true
+    levels:
+      - trigger_pips: 30       # Aos 30 pips de lucro
+        close_percent: 0.33    # Fecha 33%
+      - trigger_pips: 50       # Aos 50 pips
+        close_percent: 0.50    # Fecha mais 50% (total 66%)
+
+# 📊 Detector de Divergências
+divergence:
+  enabled: true
+  indicators:
+    - rsi
+    - macd
+    - stochastic
+  lookback_periods: 50
+  min_pivot_distance: 5
+  # Peso no sinal
+  signal_weight:
+    regular_bullish: 1.0       # Forte reverseo
+    regular_bearish: 1.0       # Forte reverseo
+    hidden_bullish: 0.7        # Continuaçeo
+    hidden_bearish: 0.7        # Continuaçeo
+  # Penalidade se divergência contra o trade
+  against_penalty: 0.3
+
+# 🔗 Gerenciador de Correlaçeo
+correlation:
+  enabled: true
+  # Limite de exposiçeo por moeda
+  max_exposure_per_currency: 3.0    # Max 3 lotes por moeda
+  # Threshold de correlaçeo alta
+  high_correlation_threshold: 0.70   # Correlaçeo >= 0.70 = conflito
+  # Matriz de correlaçeo base (atualizar periodicamente)
+  pairs:
+    EURUSD_GBPUSD: 0.85        # Alta correlaçeo
+    EURUSD_USDJPY: -0.30       # Baixa correlaçeo inversa
+    XAUUSD_EURUSD: 0.45        # Correlaçeo moderada
+    XAUUSD_USDJPY: -0.25       # Baixa correlaçeo inversa
+    GBPUSD_USDJPY: -0.35       # Correlaçeo inversa
+
+# 🏥 Monitor de Saúde
+health_monitor:
+  enabled: true
+  check_interval_seconds: 30
+  thresholds:
+    cpu_warning: 70
+    cpu_critical: 90
+    memory_warning: 75
+    memory_critical: 90
+    latency_warning_ms: 500
+    latency_critical_ms: 2000
+  # Alertas via Telegram
+  telegram_alerts: true
+  min_alert_severity: warning  # info, warning, error, critical
+
+# 📈 Coletor de Performance
+performance:
+  enabled: true
+  data_dir: data
+  # Métricas calculadas
+  metrics:
+    - win_rate
+    - profit_factor
+    - sharpe_ratio
+    - max_drawdown
+    - average_win
+    - average_loss
+    - expectancy
+  # Relatórios automáticos
+  auto_report:
+    daily: true
+    weekly: true
+    telegram: true
+
+# 🌍 Contexto Macroeconômico (DXY/VIX)
+macro_context:
+  enabled: true
+  update_interval_minutes: 15       # Atualizar dados a cada 15 min
+  cache_duration_minutes: 5         # Cache de dados
+  
+  # VIX (Volatility Index)
+  vix:
+    enabled: true
+    risk_threshold: 25              # VIX > 25 = reduzir risco
+    extreme_threshold: 30           # VIX > 30 = modo conservador
+    
+  # DXY (Dollar Index)
+  dxy:
+    enabled: true
+    sensitivity: 1.0                # 1.0 = normal, 0.5 = menos sensível
+    
+  # Filtros por símbolo
+  symbol_filters:
+    XAUUSD:
+      use_dxy: true                 # Gold vs Dollar (correlaçeo -0.80)
+      use_vix: true                 # VIX impacta volatilidade
+      min_alignment: 0.3            # Alinhamento mínimo com macro
+    EURUSD:
+      use_dxy: true                 # EUR é ~57% do DXY
+      use_vix: true
+      min_alignment: 0.3
+    GBPUSD:
+      use_dxy: true
+      use_vix: true
+      min_alignment: 0.3
+    USDJPY:
+      use_dxy: true                 # JPY correlaçeo positiva
+      use_vix: true
+      min_alignment: 0.3
+      
+  # Ajustes automáticos
+  auto_adjust:
+    confidence: true                # Ajustar confiança do sinal
+    lot_size: true                  # Ajustar tamanho de lote
+    filter_trades: false            # Filtrar trades desalinhados (false = apenas aviso)
+    
+  # Alertas
+  alerts:
+    telegram: true
+    on_vix_extreme: true
+    on_dxy_reversal: true
+    on_sentiment_change: true
+
+# 📊 Kelly Position Sizing
+kelly_sizing:
+  enabled: true
+  fraction: 0.5                     # Half-Kelly (50% do Kelly puro)
+  min_trades: 30                    # Mínimo de trades para calcular
+  max_lot_percent: 5.0              # Máximo 5% do capital por trade
+  min_lot_percent: 0.5              # Mínimo 0.5% do capital por trade
+  strategy_specific: true           # Calcular Kelly por estratégia
+
+# 📈 Métricas Avançadas (Sharpe, Sortino, Calmar)
+advanced_metrics:
+  enabled: true
+  risk_free_rate: 0.05              # Taxa livre de risco anual (5%)
+  min_trades: 30                    # Mínimo de trades para calcular
+  # Graus de performance
+  grades:
+    elite:
+      min_sharpe: 2.0
+      min_sortino: 2.5
+      max_drawdown: 5.0
+    professional:
+      min_sharpe: 1.5
+      min_sortino: 2.0
+      max_drawdown: 10.0
+    competent:
+      min_sharpe: 1.0
+      min_sortino: 1.5
+      max_drawdown: 15.0
+    developing:
+      min_sharpe: 0.5
+      min_sortino: 1.0
+      max_drawdown: 20.0
+
+# 🔍 Detector de Degradaçeo de Estratégia
+degradation_detector:
+  enabled: true
+  # Thresholds de alerta
+  thresholds:
+    win_rate_drop: 15               # Queda de WR > 15% = alerta
+    losing_streak: 5                # Série de perdas > 5 = alerta
+    recovery_time_days: 7           # Tempo para recuperar > 7 dias = alerta
+    performance_decline: 20         # Declínio > 20% vs média = alerta
+  # Ações automáticas
+  auto_actions:
+    warning:
+      increase_confidence: 5        # Aumentar min_confidence em 5%
+      reduce_size: 0                # Neo reduzir tamanho
+    critical:
+      increase_confidence: 10       # Aumentar min_confidence em 10%
+      reduce_size: 30               # Reduzir tamanho em 30%
+    severe:
+      pause_strategy: true          # Pausar estratégia
+      alert_admin: true             # Alertar administrador
+  # Alertas
+  alerts:
+    telegram: true
+    min_severity: warning           # warning, critical, severe
+
+# ═══════════════════════════════════════════════════════════════════
+# 🏆 MÓDULOS ELITE v2.0 - Machine Learning Avançado
+# ═══════════════════════════════════════════════════════════════════
+
+# 🧠 Módulos Elite - Rede Neural + RL + Ensemble
+elite:
+  enabled: true                     # Habilitar módulos Elite
+  
+  # 🧠 LSTM Price Predictor (Neural Network)
+  lstm:
+    enabled: true
+    data_dir: data/ml/lstm
+    # Arquitetura
+    sequence_length: 60             # Janela de 60 candles
+    hidden_size: 100                # Neurônios na camada oculta
+    num_layers: 2                   # Camadas LSTM
+    dropout: 0.2                    # Regularizaçeo
+    # Treinamento
+    epochs: 50
+    batch_size: 32
+    learning_rate: 0.001
+    early_stopping_patience: 10
+    min_training_samples: 500
+    # Previseo
+    prediction_horizon: 5           # Prever 5 candles à frente
+    direction_threshold: 0.001      # Mudança > 0.1% = direçeo
+    # Retreino
+    retrain_interval_days: 7
+    save_model: true
+    
+  # 🎮 Reinforcement Learning Agent (DQN)
+  rl_agent:
+    enabled: true
+    data_dir: data/ml/rl
+    # Arquitetura DQN
+    state_size: 20                  # Features do estado
+    action_size: 3                  # HOLD, BUY, SELL
+    hidden_layers: [128, 64, 32]    # Camadas da rede
+    # Treinamento
+    gamma: 0.95                     # Fator de desconto
+    epsilon_start: 1.0              # Exploraçeo inicial
+    epsilon_end: 0.01               # Exploraçeo final
+    epsilon_decay: 0.995            # Decaimento de epsilon
+    learning_rate: 0.001
+    batch_size: 64
+    # Experience Replay
+    memory_size: 100000             # Buffer de experiências
+    min_memory_size: 1000           # Mínimo para começar treino
+    # Target Network
+    target_update_frequency: 100    # Atualizar rede alvo a cada N steps
+    # Rewards
+    rewards:
+      win: 1.0
+      loss: -1.0
+      hold: -0.001                  # Pequena penalidade por inaçeo
+      position_penalty: -0.01       # Penalidade por posiçeo prolongada
+    # Limites
+    max_position_time: 48           # Horas máximas em posiçeo
+    
+  # ⚖️ Ensemble Model Manager
+  ensemble:
+    enabled: true
+    # Pesos dos modelos (somam 1.0)
+    weights:
+      xgboost: 0.30                 # 30% XGBoost (classificaçeo)
+      lstm: 0.25                    # 25% LSTM (previseo de preço)
+      rl_agent: 0.25                # 25% RL (deciseo ótima)
+      macro: 0.20                   # 20% Contexto Macro
+    # Consenso
+    min_agreement: 0.6              # 60% de acordo para executar
+    strong_agreement: 0.8           # 80% para boost
+    weak_agreement: 0.4             # <40% = skip
+    # Ajuste adaptativo
+    adaptive_weights: true          # Ajustar pesos por performance
+    weight_update_interval: 50      # Trades para reavaliar pesos
+    # Decisões
+    decision_types:
+      strong_execute:
+        agreement: 0.85
+        confidence_boost: 1.2
+        lot_multiplier: 1.2
+      execute:
+        agreement: 0.65
+        confidence_boost: 1.0
+        lot_multiplier: 1.0
+      cautious:
+        agreement: 0.50
+        confidence_boost: 0.9
+        lot_multiplier: 0.8
+      reduce:
+        agreement: 0.40
+        confidence_boost: 0.8
+        lot_multiplier: 0.6
+      skip:
+        agreement: 0.0              # <40% agreement
+        execute: false
+

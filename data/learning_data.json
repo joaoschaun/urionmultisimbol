@@ -1,9 +1,9 @@
 {
   "range_trading": {
-    "total_trades": 18,
+    "total_trades": 23,
     "wins": 10,
-    "losses": 8,
-    "min_confidence": 0.5,
+    "losses": 13,
+    "min_confidence": 0.6,
     "best_conditions": [
       {
         "conditions": "{'current_price': 4140.38, 'adx': 17.031729357949096, 'bb_upper': 4140.3450626834365, 'bb_middle': 4130.135, 'distance_from_resistance': -0.034937316563627974, 'rsi': 59.41237592912387, 'stoch_k': 94.69111969112215, 'conditions_met': 7, 'total_conditions': 8, 'strategy_type': 'RANGE_TRADING', 'm15_confirms_range': True}",
@@ -56,12 +56,12 @@
         "profit": 4.45
       }
     ],
-    "last_adjustment": null
+    "last_adjustment": "2025-11-27T23:31:36.009522"
   },
   "trend_following": {
-    "total_trades": 48,
+    "total_trades": 56,
     "wins": 11,
-    "losses": 37,
+    "losses": 45,
     "min_confidence": 0.7,
     "best_conditions": [
       {
@@ -118,8 +118,8 @@
     "last_adjustment": "2025-11-27T06:38:21.341170"
   },
   "breakout": {
-    "total_trades": 3,
-    "wins": 1,
+    "total_trades": 4,
+    "wins": 2,
     "losses": 2,
     "min_confidence": 0.5,
     "best_conditions": [
@@ -132,9 +132,9 @@
     "last_adjustment": null
   },
   "scalping": {
-    "total_trades": 2,
-    "wins": 2,
-    "losses": 0,
+    "total_trades": 19,
+    "wins": 13,
+    "losses": 6,
     "min_confidence": 0.5,
     "best_conditions": [
       {
@@ -146,6 +146,56 @@
         "conditions": "{'entry_price': 4188.14, 'target_pips': 8, 'stop_pips': 4, 'rsi': 59.24338426951219, 'macd_hist': -1.040939615106911, 'momentum_score': '3/5', 'spread_pips': 8.4}",
         "confidence": 0.6,
         "profit": 0.35
+      },
+      {
+        "conditions": "{'entry_price': 4189.91, 'target_pips': 8, 'stop_pips': 4, 'rsi': 64.97128032844671, 'macd_hist': -0.8697720510383107, 'momentum_score': '3/5', 'spread_pips': 8.4}",
+        "confidence": 0.6,
+        "profit": 0.3
+      },
+      {
+        "conditions": "{'entry_price': 4188.26, 'target_pips': 8, 'stop_pips': 4, 'rsi': 60.483854115817735, 'macd_hist': 0.5213884974257912, 'momentum_score': '3/5', 'spread_pips': 8.4}",
+        "confidence": 0.65,
+        "profit": 0.8
+      },
+      {
+        "conditions": "{'entry_price': 4188.3, 'target_pips': 8, 'stop_pips': 4, 'rsi': 60.5824982525706, 'macd_hist': 0.523941203978315, 'momentum_score': '3/5', 'spread_pips': 8.4}",
+        "confidence": 0.65,
+        "profit": 0.6
+      },
+      {
+        "conditions": "{'entry_price': 4186.36, 'target_pips': 8, 'stop_pips': 4, 'rsi': 52.76953822660934, 'macd_hist': 0.03997298105273994, 'momentum_score': '4/5', 'spread_pips': 8.4}",
+        "confidence": 0.85,
+        "profit": 0.5
+      },
+      {
+        "conditions": "{'entry_price': 4168.31, 'target_pips': 8, 'stop_pips': 4, 'rsi': 38.66451840094136, 'macd_hist': -1.4596207422470981, 'momentum_score': '3/5', 'spread_pips': 8.3}",
+        "confidence": 0.65,
+        "profit": 0.2
+      },
+      {
+        "conditions": "{'entry_price': 4172.74, 'target_pips': 8, 'stop_pips': 4, 'rsi': 50.128696283553104, 'macd_hist': 0.27379212970077216, 'momentum_score': '3/5', 'spread_pips': 8.3}",
+        "confidence": 0.6,
+        "profit": 0.4
+      },
+      {
+        "conditions": "{'entry_price': 4172.74, 'target_pips': 8, 'stop_pips': 4, 'rsi': 50.128696283553104, 'macd_hist': 0.27379212970077216, 'momentum_score': '3/5', 'spread_pips': 8.3}",
+        "confidence": 0.6,
+        "profit": 0.8
+      },
+      {
+        "conditions": "{'entry_price': 4163.36, 'target_pips': 8, 'stop_pips': 4, 'rsi': 41.95163124407244, 'macd_hist': 0.40196374953965286, 'momentum_score': '3/5', 'spread_pips': 8.3}",
+        "confidence": 0.6,
+        "profit": 4.6
+      },
+      {
+        "conditions": "{'entry_price': 4172.06, 'target_pips': 8, 'stop_pips': 4, 'rsi': 56.949714461386286, 'macd_hist': 0.879817100671455, 'momentum_score': '3/5', 'spread_pips': 8.3}",
+        "confidence": 0.6,
+        "profit": 13.0
+      },
+      {
+        "conditions": "{'entry_price': 4174.21, 'target_pips': 8, 'stop_pips': 4, 'rsi': 59.85954490597256, 'macd_hist': 1.0170250778788907, 'momentum_score': '4/5', 'spread_pips': 8.3}",
+        "confidence": 0.8,
+        "profit": 2.65
       }
     ],
     "last_adjustment": null

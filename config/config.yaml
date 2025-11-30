@@ -6,13 +6,7 @@ mt5:
   timeout: 60000
   max_reconnect_attempts: 5
 trading:
-  # ════════════════════════════════════════════════════════════════
-  # 🌍 MULTI-SÍMBOLO: Configure múltiplos símbolos independentes
-  # ════════════════════════════════════════════════════════════════
-  
-  # 🚪 PORTEIRO: Filtro inteligente de condições de mercado
-  market_filter_strict: false  # false=aviso (permite operar), true=bloqueio (impede ordem)
-  
+  market_filter_strict: false
   symbols:
     XAUUSD:
       enabled: true
@@ -27,12 +21,11 @@ trading:
       default_lot_size: 0.01
       min_lot_size: 0.01
       max_lot_size: 1.0
-      max_open_positions: 12  # 6 estratégias × 2 posições = 12 max
+      max_open_positions: 12
       spread_threshold: 5
       slippage: 3
-      
     EURUSD:
-      enabled: true  # ✅ ATIVO: Opera enquanto XAUUSD fechado (Thanksgiving)
+      enabled: true
       timeframes:
       - M1
       - M5
@@ -41,15 +34,14 @@ trading:
       - H1
       - H4
       - D1
-      default_lot_size: 0.1   # Forex usa lotes maiores (0.1 = 10k unidades)
+      default_lot_size: 0.1
       min_lot_size: 0.01
-      max_lot_size: 2.0       # Até 2 lotes padrão
-      max_open_positions: 8   # Menos agressivo que XAUUSD
-      spread_threshold: 3     # EURUSD tem spread menor (0.5-2 pips)
+      max_lot_size: 2.0
+      max_open_positions: 8
+      spread_threshold: 3
       slippage: 2
-    
     GBPUSD:
-      enabled: true  # ✅ ATIVO: Cable (volatilidade média-alta)
+      enabled: true
       timeframes:
       - M1
       - M5
@@ -58,15 +50,14 @@ trading:
       - H1
       - H4
       - D1
-      default_lot_size: 0.1   # 0.1 = 10k unidades (padrão forex)
+      default_lot_size: 0.1
       min_lot_size: 0.01
       max_lot_size: 2.0
       max_open_positions: 8
-      spread_threshold: 4     # GBPUSD spread 1-3 pips (mais volátil que EUR)
-      slippage: 3             # Mais slippage por volatilidade
-    
+      spread_threshold: 4
+      slippage: 3
     USDJPY:
-      enabled: true  # ✅ ATIVO: Yen (baixa volatilidade, alta liquidez)
+      enabled: true
       timeframes:
       - M1
       - M5
@@ -75,34 +66,25 @@ trading:
       - H1
       - H4
       - D1
-      default_lot_size: 0.1   # 0.1 = 10k unidades
+      default_lot_size: 0.1
       min_lot_size: 0.01
       max_lot_size: 2.0
       max_open_positions: 8
-      spread_threshold: 3     # USDJPY spread 0.5-2 pips (muito líquido)
+      spread_threshold: 3
       slippage: 2
-
-# 🌍 Market Condition Analysis - Seleção Inteligente de Estratégias
 market_analysis:
-  enabled: true  # ✅ ATIVO - Filtra estratégias por condição de mercado
-  min_priority_threshold: 0.3  # 30% mínimo para operar (0.0-1.0)
-  # Condições detectadas: TRENDING_UP, TRENDING_DOWN, RANGING, VOLATILE, QUIET, NEWS_IMPACT
-  # - TRENDING: Recomenda trend_following, breakout
-  # - RANGING: Recomenda range_trading, scalping, mean_reversion
-  # - VOLATILE: Recomenda breakout, news_trading, scalping
-  # - QUIET: Recomenda scalping, range_trading
-  # - NEWS_IMPACT: Recomenda news_trading, breakout
-
+  enabled: true
+  min_priority_threshold: 0.3
 risk:
   max_risk_per_trade: 0.02
-  max_drawdown: 0.08  # ⬇️ REDUZIDO: 15%→8% (day trading seguro)
+  max_drawdown: 0.08
   max_daily_loss: 0.05
   stop_loss_pips: 50
   take_profit_pips: 100
   trailing_stop_enabled: true
-  trailing_stop_distance: 25  # 🎯 OTIMIZADO: Stop dinâmico protege lucros progressivamente
-  break_even_enabled: false  # ❌ DESATIVADO: Break-even pode travar lucros prematuramente
-  break_even_trigger: 40  # Mantido para referência (desativado)
+  trailing_stop_distance: 25
+  break_even_enabled: false
+  break_even_trigger: 40
 schedule:
   timezone: America/New_York
   trading_days:
@@ -128,99 +110,97 @@ schedule:
   avoid_news_minutes_before: 0
   avoid_news_minutes_after: 0
 strategies:
-  # 🚀 TODAS ESTRATÉGIAS ATIVAS - CONTA DEMO
   enabled:
-    - trend_following
-    - range_trading
-    - mean_reversion
-    - breakout
-    - news_trading
-    - scalping
-  
+  - trend_following
+  - range_trading
+  - mean_reversion
+  - breakout
+  - news_trading
+  - scalping
   trend_following:
-    enabled: true  # ✅ REATIVADA com SL/TP corrigidos
+    enabled: true
     timeframe: H1
-    cycle_seconds: 600  # 🔧 MUDADO: 900→600 (10min ao invés de 15min)
+    cycle_seconds: 600
     max_positions: 2
-    min_confidence: 0.75  # 🔧 CORRIGIDO: 0.60→0.75 (exigir 6/8 condições, não 5/8)
+    min_confidence: 0.75
     ema_fast: 12
     ema_slow: 26
-    adx_threshold: 30  # 🔧 AUMENTADO: 25→30 (tendências mais fortes)
+    adx_threshold: 30
     min_trend_strength: 0.6
-    trailing_stop_distance: 25  # 🎯 Stop dinâmico acompanha tendência
-    break_even_trigger: 50  # Ignorado (desativado globalmente)
-    partial_close_trigger: 60  # Fecha 50% aos 60 pips
+    trailing_stop_distance: 25
+    break_even_trigger: 50
+    partial_close_trigger: 60
     max_spread_pips: 2.0
     volume_confirmation: true
   mean_reversion:
-    enabled: true  # ✅ ATIVADA PARA TESTES
+    enabled: true
     timeframe: M15
     cycle_seconds: 600
     max_positions: 2
-    min_confidence: 0.60  # 🧪 TESTE: 0.75→0.60 (mais permissivo)
+    min_confidence: 0.6
     bollinger_period: 20
     bollinger_std: 2
     rsi_period: 14
     rsi_overbought: 70
     rsi_oversold: 30
-    trailing_stop_distance: 15  # 🎯 Stop mais apertado para reversões
-    break_even_trigger: 18  # Ignorado (desativado globalmente)
-    partial_close_trigger: 30  # Fecha 50% aos 30 pips
+    trailing_stop_distance: 15
+    break_even_trigger: 18
+    partial_close_trigger: 30
     max_spread_pips: 2.0
     volume_confirmation: true
   breakout:
-    enabled: true  # ✅ ATIVADA PARA TESTES
+    enabled: true
     timeframe: M30
     cycle_seconds: 1800
     max_positions: 2
-    min_confidence: 0.65  # 🧪 TESTE: 0.80→0.65 (mais permissivo)
+    min_confidence: 0.65
     support_resistance_lookback: 50
     breakout_confirmation_candles: 2
     volume_threshold: 1.5
-    trailing_stop_distance: 30  # 🎯 Stop mais largo para capturar breakouts
-    break_even_trigger: 35  # Ignorado (desativado globalmente)
-    partial_close_trigger: 50  # Fecha 50% aos 50 pips
+    trailing_stop_distance: 30
+    break_even_trigger: 35
+    partial_close_trigger: 50
     max_spread_pips: 2.0
     volume_confirmation: true
   news_trading:
     enabled: true
     cycle_seconds: 300
     max_positions: 2
-    min_confidence: 0.65  # 🧪 TESTE: 0.80→0.65 (mais permissivo)
+    min_confidence: 0.65
     high_impact_only: true
     min_sentiment_confidence: 0.7
     trade_on_prediction: true
-    trailing_stop_distance: 20  # 🎯 Stop moderado para volatilidade de notícias
-    break_even_trigger: 20  # Ignorado (desativado globalmente)
-    partial_close_trigger: 35  # Fecha 50% aos 35 pips
+    trailing_stop_distance: 20
+    break_even_trigger: 20
+    partial_close_trigger: 35
     max_spread_pips: 2.0
     volume_confirmation: true
   scalping:
-    enabled: true  # ✅ ATIVADA PARA TESTES
+    enabled: true
     timeframe: M5
-    cycle_seconds: 120  # 🔧 MUDADO: 60→120s (menos agressivo)
-    max_positions: 2  # 🔧 AUMENTADO: 1→2 (2 posições simultâneas por mercado)
-    min_confidence: 0.60  # 🧪 TESTE: 0.70→0.60 (mais permissivo)
-    max_spread_pips: 12  # 🔧 AJUSTADO: 3→12 (XAUUSD tem spread maior que forex)
-    min_momentum: 0.00015  # 🔧 MUDADO: 0.0002→0.00015 (menos restritivo)
-    rsi_min: 35  # 🔧 MUDADO: 40→35 (faixa mais ampla)
-    rsi_max: 65  # 🔧 MUDADO: 60→65 (faixa mais ampla)
+    cycle_seconds: 120
+    max_positions: 2
+    min_confidence: 0.6
+    max_spread_pips: 12
+    min_momentum: 0.00015
+    rsi_min: 35
+    rsi_max: 65
     target_pips: 8
     stop_pips: 4
     min_volume_ratio: 1.2
-    trailing_stop_distance: 6  # 🎯 Stop bem apertado para scalping rápido
-    break_even_trigger: 8  # Ignorado (desativado globalmente)
-    partial_close_trigger: 12  # Fecha 50% aos 12 pips
+    trailing_stop_distance: 6
+    break_even_trigger: 8
+    partial_close_trigger: 12
     volume_confirmation: true
     max_trades_per_hour: 2
-    exempt_from_macro: true  # 🔥 NOVO: Scalping não usa filtro macro (rápido demais)
+    exempt_from_macro: true
   range_trading:
-    enabled: true  # ✅ REATIVADA com SL/TP corrigidos (MONITORAR CLOSELY!)
+    enabled: true
     timeframe: M5
-    cycle_seconds: 300  # 🔧 MUDADO: 180→300 (5min ao invés de 3min)
-    max_positions: 2  # 🔧 AUMENTADO: 1→2 (2 posições simultâneas por mercado)
-    min_confidence: 0.65  # 🧪 TESTE: 0.75→0.65 (mais permissivo)
-    adx_max: 20  # 🔧 REDUZIDO: 25→20 (apenas ranges muito claros)
+    cycle_seconds: 300
+    max_positions: 2
+    min_confidence: 0.65
+    adx_max: 20
     rsi_buy_min: 35
     rsi_buy_max: 45
     rsi_sell_min: 55
@@ -228,9 +208,9 @@ strategies:
     stoch_low: 30
     stoch_high: 70
     bb_touch_threshold: 0.003
-    trailing_stop_distance: 18  # 🎯 Stop dinâmico para movimentos laterais
-    break_even_trigger: 35  # Ignorado (desativado globalmente)
-    partial_close_trigger: 40  # Fecha 50% aos 40 pips
+    trailing_stop_distance: 18
+    break_even_trigger: 35
+    partial_close_trigger: 40
     max_spread_pips: 2.0
     volume_confirmation: true
 technical_analysis:
@@ -327,6 +307,13 @@ news:
     low:
     - Consumer Confidence
     - Housing Data
+  alphavantage_api_key: ''
+  fred_api_key: ''
+  newsapi_api_key: ''
+  quandl_api_key: ''
+  api_timeout: 10
+  api_retry_count: 3
+  cache_duration_minutes: 5
 order_generator:
   enabled: true
   cycle_interval_seconds: 300
@@ -339,11 +326,11 @@ order_generator:
     end_minute: 59
 order_manager:
   enabled: true
-  cycle_interval_seconds: 5  # 🚀 REDUZIDO: 60→5s (captura movimentos rápidos)
+  cycle_interval_seconds: 5
   partial_close:
     enabled: true
-    target_pips: 50  # ⬆️ AUMENTADO: 20→50 pips (fecha 50% só após lucro consistente)
-    close_percentage: 0.5  # Fecha metade da posição = garante lucro
+    target_pips: 50
+    close_percentage: 0.5
 notifications:
   telegram:
     enabled: true
@@ -353,11 +340,10 @@ notifications:
     send_daily_summary: true
     send_errors: true
     send_warnings: true
-  # 🆕 Notificações de Notícias em Português
   news:
     enabled: true
-    min_importance: 3  # Importância mínima (1-5): 3=média, 4=alta, 5=crítica
-    interval_minutes: 15  # Verificar notícias a cada 15 minutos
+    min_importance: 3
+    interval_minutes: 15
   email:
     enabled: false
     smtp_server: smtp.gmail.com
@@ -365,15 +351,15 @@ notifications:
     from_email: ''
     to_email: ''
 logging:
-  level: INFO  # INFO para monitorar operações e aprendizagem
+  level: INFO
   format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
   handlers:
   - console
   - file
   - rotating_file
   file_path: logs/urion.log
-  max_file_size: 10485760  # 10MB por arquivo
-  backup_count: 10  # Máximo 100MB (10 arquivos × 10MB)
+  max_file_size: 10485760
+  backup_count: 10
 database:
   url: ${DATABASE_URL}
   pool_size: 10
@@ -383,22 +369,20 @@ redis:
   url: ${REDIS_URL}
   decode_responses: true
   max_connections: 50
-# 📊 Sistema de Relatórios Automáticos
 reporting:
   daily_report:
     enabled: true
-    time: "23:59"  # Horário de envio
-    telegram: true  # Enviar via Telegram
+    time: '23:59'
+    telegram: true
   weekly_report:
     enabled: true
-    day: "sunday"  # Dia da semana
-    time: "23:59"
+    day: sunday
+    time: '23:59'
     telegram: true
   monthly_report:
     enabled: true
-    time: "23:59"  # Último dia do mês
+    time: '23:59'
     telegram: true
-
 monitoring:
   prometheus_enabled: false
   prometheus_port: 9090
@@ -413,3 +397,81 @@ monitoring:
   - sharpe_ratio
   - max_drawdown
   - average_trade_duration
+api:
+  enabled: true
+  host: 0.0.0.0
+  port: 8080
+  cors_origins:
+  - http://localhost:3000
+  auth:
+    enabled: false
+    secret_key: change-me-in-production
+partial_tp:
+  enabled: true
+  profile: moderate
+  levels:
+  - percentage: 0.5
+    target_rr: 1.0
+    move_sl_to_breakeven: true
+  - percentage: 0.3
+    target_rr: 2.0
+    trail: true
+  - percentage: 0.2
+    target_rr: 3.0
+    trail: true
+trade_journal:
+  enabled: true
+  db_path: data/trade_journal.db
+  auto_screenshot: false
+  export_format: csv
+market_regime:
+  enabled: true
+  update_interval: 300
+  adx_period: 14
+  bb_period: 20
+  atr_period: 14
+hot_reload:
+  enabled: true
+  watch_files:
+  - config/config.yaml
+  debounce_seconds: 5
+dashboard:
+  enabled: true
+  output_dir: reports
+  auto_refresh: 60
+multi_source_data:
+  enabled: true
+  sources:
+    alphavantage: true
+    fred: true
+    fear_greed: true
+    vix: true
+    newsapi: true
+  refresh_interval: 300
+  use_in_signals: true
+telegram:
+  enabled: true
+  notify_entry: true
+  notify_exit: true
+  notify_update: true
+  notify_partial_tp: true
+  notify_sl_moved: true
+  notify_breakeven: true
+  notify_signals: true
+  signal_min_strength: 60
+  notify_news: true
+  notify_high_impact_only: false
+  translate_news: true
+  notify_analysis: true
+  analysis_interval: 3600
+  daily_report: true
+  daily_report_time: '23:55'
+  weekly_report: true
+  weekly_report_day: friday
+  notify_errors: true
+  notify_drawdown: true
+  max_drawdown_alert: 5.0
+  notify_milestones: true
+  profit_milestone: 100
+  position_update_interval: 300
+  send_charts: true

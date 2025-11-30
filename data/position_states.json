@@ -232,6 +232,347 @@
       "stage_history": [
         "ABERTA"
       ]
+    },
+    "209183638": {
+      "stage": 1,
+      "max_profit": 1.6600000000000001,
+      "max_rr": 5.223410950283089,
+      "risk_1r": 0.3178000000000066,
+      "entry_time": "2025-11-28 02:53:50.280182+00:00",
+      "stage_history": [
+        "ABERTA",
+        "BREAKEVEN @ +1.0R"
+      ]
+    },
+    "209189913": {
+      "stage": 0,
+      "max_profit": -0.13,
+      "max_rr": 0.0,
+      "risk_1r": 0.013234200000000002,
+      "entry_time": "2025-11-28 02:56:23.503408+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209189904": {
+      "stage": 0,
+      "max_profit": -14.9,
+      "max_rr": 0.7740666193917773,
+      "risk_1r": 418.82700000000006,
+      "entry_time": "2025-11-28 02:58:25.985927+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209189908": {
+      "stage": 4,
+      "max_profit": -1.6,
+      "max_rr": 4.316633716362632,
+      "risk_1r": 0.115831,
+      "entry_time": "2025-11-28 02:58:25.985927+00:00",
+      "stage_history": [
+        "ABERTA",
+        "BREAKEVEN @ +0.5R",
+        "PARCIAL_50% @ +0.8R",
+        "ENCERRADO @ +1.2R"
+      ]
+    },
+    "209189906": {
+      "stage": 0,
+      "max_profit": -1.0,
+      "max_rr": 0.01695162102860526,
+      "risk_1r": 83.76780000000001,
+      "entry_time": "2025-11-28 03:11:24.959149+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209191827": {
+      "stage": 0,
+      "max_profit": -10.14,
+      "max_rr": 0.0,
+      "risk_1r": 83.83200000000001,
+      "entry_time": "2025-11-28 03:21:26.193887+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209213106": {
+      "stage": 0,
+      "max_profit": -0.07,
+      "max_rr": 201.88773661415286,
+      "risk_1r": 0.0115906,
+      "entry_time": "2025-11-28 04:56:35.916364+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209213144": {
+      "stage": 0,
+      "max_profit": -0.24,
+      "max_rr": 0.0,
+      "risk_1r": 1.56201,
+      "entry_time": "2025-11-28 04:56:51.112280+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209213146": {
+      "stage": 0,
+      "max_profit": 0.12,
+      "max_rr": 280.98162289547025,
+      "risk_1r": 0.0132393,
+      "entry_time": "2025-11-28 04:56:51.136012+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209235257": {
+      "stage": 0,
+      "max_profit": -1.5,
+      "max_rr": 25.036691703358365,
+      "risk_1r": 0.11583000000000002,
+      "entry_time": "2025-11-28 06:50:40.234838+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209235258": {
+      "stage": 0,
+      "max_profit": -1.9,
+      "max_rr": 4.538680908038761,
+      "risk_1r": 0.13219699999999998,
+      "entry_time": "2025-11-28 06:50:40.234838+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209233343": {
+      "stage": 1,
+      "max_profit": 2.4699999999999998,
+      "max_rr": 13.756045137023348,
+      "risk_1r": 0.18609999999999674,
+      "entry_time": "2025-11-28 06:51:43.219256+00:00",
+      "stage_history": [
+        "ABERTA",
+        "BREAKEVEN @ +1.0R"
+      ]
+    },
+    "209235739": {
+      "stage": 0,
+      "max_profit": -0.9,
+      "max_rr": 0.0,
+      "risk_1r": 0.11582900000000002,
+      "entry_time": "2025-11-28 06:54:36.223886+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209235740": {
+      "stage": 0,
+      "max_profit": -2.3,
+      "max_rr": 0.0,
+      "risk_1r": 0.132191,
+      "entry_time": "2025-11-28 06:54:36.223886+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209234785": {
+      "stage": 0,
+      "max_profit": -0.58,
+      "max_rr": 0.0,
+      "risk_1r": 41.8791,
+      "entry_time": "2025-11-28 07:01:37.539659+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209243267": {
+      "stage": 0,
+      "max_profit": -1.6,
+      "max_rr": 3.0207829869502167,
+      "risk_1r": 0.11586400000000002,
+      "entry_time": "2025-11-28 07:22:41.226643+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209243268": {
+      "stage": 0,
+      "max_profit": -0.5,
+      "max_rr": 3.7825774482732535,
+      "risk_1r": 0.132185,
+      "entry_time": "2025-11-28 07:22:41.226643+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209263915": {
+      "stage": 1,
+      "max_profit": -3.0,
+      "max_rr": 1.514325519413653,
+      "risk_1r": 0.13207200000000002,
+      "entry_time": "2025-11-28 08:34:51.131968+00:00",
+      "stage_history": [
+        "ABERTA",
+        "BREAKEVEN @ +0.5R"
+      ]
+    },
+    "209275636": {
+      "stage": 0,
+      "max_profit": -3.3,
+      "max_rr": 6.913418080316634,
+      "risk_1r": 0.11571700000000001,
+      "entry_time": "2025-11-28 09:00:57.047728+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209275637": {
+      "stage": 0,
+      "max_profit": -2.3,
+      "max_rr": 6.059091287784114,
+      "risk_1r": 0.132033,
+      "entry_time": "2025-11-28 09:00:57.047728+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209278838": {
+      "stage": 4,
+      "max_profit": 3.6,
+      "max_rr": 27.24465702003996,
+      "risk_1r": 0.132136,
+      "entry_time": "2025-11-28 09:22:28.453322+00:00",
+      "stage_history": [
+        "ABERTA",
+        "BREAKEVEN @ +0.5R",
+        "PARCIAL_50% @ +0.8R",
+        "ENCERRADO @ +1.2R"
+      ]
+    },
+    "209278839": {
+      "stage": 0,
+      "max_profit": -1.6,
+      "max_rr": 1.7273543840254268,
+      "risk_1r": 0.115784,
+      "entry_time": "2025-11-28 09:22:28.517976+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209284247": {
+      "stage": 0,
+      "max_profit": -0.4,
+      "max_rr": 0.0,
+      "risk_1r": 0.115778,
+      "entry_time": "2025-11-28 09:36:25.019715+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209284251": {
+      "stage": 0,
+      "max_profit": 4.4,
+      "max_rr": 34.062781491041484,
+      "risk_1r": 0.132109,
+      "entry_time": "2025-11-28 09:36:25.207122+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209288700": {
+      "stage": 0,
+      "max_profit": -0.7,
+      "max_rr": 0.0,
+      "risk_1r": 0.115726,
+      "entry_time": "2025-11-28 09:56:32.105518+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209288713": {
+      "stage": 0,
+      "max_profit": -1.3,
+      "max_rr": 0.0,
+      "risk_1r": 0.132163,
+      "entry_time": "2025-11-28 09:56:37.173843+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209291742": {
+      "stage": 0,
+      "max_profit": -3.5,
+      "max_rr": 0.0,
+      "risk_1r": 0.11568100000000002,
+      "entry_time": "2025-11-28 10:22:27.251520+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209291756": {
+      "stage": 1,
+      "max_profit": 2.9,
+      "max_rr": 25.73963601126487,
+      "risk_1r": 0.13209200000000001,
+      "entry_time": "2025-11-28 10:22:27.252526+00:00",
+      "stage_history": [
+        "ABERTA",
+        "BREAKEVEN @ +0.8R"
+      ]
+    },
+    "209300288": {
+      "stage": 0,
+      "max_profit": -3.1,
+      "max_rr": 0.0,
+      "risk_1r": 0.11562000000000001,
+      "entry_time": "2025-11-28 11:11:12.458552+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209301940": {
+      "stage": 1,
+      "max_profit": -1.5,
+      "max_rr": 1.7300439431161552,
+      "risk_1r": 0.115604,
+      "entry_time": "2025-11-28 11:11:12.459554+00:00",
+      "stage_history": [
+        "ABERTA",
+        "BREAKEVEN @ +0.5R"
+      ]
+    },
+    "209308589": {
+      "stage": 0,
+      "max_profit": 0.3,
+      "max_rr": 0.09179787211094359,
+      "risk_1r": 417.221,
+      "entry_time": "2025-11-28 11:17:12.867118+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209309971": {
+      "stage": 0,
+      "max_profit": 0.0,
+      "max_rr": 0.8651866207540966,
+      "risk_1r": 0.11558200000000002,
+      "entry_time": "2025-11-28 11:23:14.931035+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
+    },
+    "209309989": {
+      "stage": 0,
+      "max_profit": 3.9,
+      "max_rr": 29.53068920085412,
+      "risk_1r": 0.132066,
+      "entry_time": "2025-11-28 11:23:15.480268+00:00",
+      "stage_history": [
+        "ABERTA"
+      ]
     }
   },
   "position_performance": {
@@ -350,7 +691,7 @@
       "entry_price": 4188.26
     },
     "209182799": {
-      "max_profit": -1.2,
+      "max_profit": -0.1,
       "max_drawdown": 0.0,
       "entry_time": "2025-11-28 02:31:39.155947+00:00",
       "entry_price": 1.32342
@@ -363,16 +704,214 @@
     },
     "209183625": {
       "max_profit": 21.9,
-      "max_drawdown": 11.899999999999999,
+      "max_drawdown": 42.9,
       "entry_time": "2025-11-28 02:33:43.477172+00:00",
       "entry_price": 4188.3
     },
     "209181077": {
-      "max_profit": -7.52,
+      "max_profit": -3.16,
       "max_drawdown": 0.0,
       "entry_time": "2025-11-28 02:36:40.901694+00:00",
       "entry_price": 4190.8
+    },
+    "209183638": {
+      "max_profit": 1.6600000000000001,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 02:53:50.280182+00:00",
+      "entry_price": 4188.39
+    },
+    "209189913": {
+      "max_profit": -0.13,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 02:56:23.503408+00:00",
+      "entry_price": 1.32342
+    },
+    "209189904": {
+      "max_profit": 324.2,
+      "max_drawdown": 185.79999999999998,
+      "entry_time": "2025-11-28 02:58:25.985927+00:00",
+      "entry_price": 4188.27
+    },
+    "209189908": {
+      "max_profit": 0.5,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 02:58:25.985927+00:00",
+      "entry_price": 1.15831
+    },
+    "209189906": {
+      "max_profit": 1.42,
+      "max_drawdown": 21.04,
+      "entry_time": "2025-11-28 03:11:24.959149+00:00",
+      "entry_price": 4188.39
+    },
+    "209191827": {
+      "max_profit": -5.0,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 03:21:26.193887+00:00",
+      "entry_price": 4191.6
+    },
+    "209213106": {
+      "max_profit": 2.34,
+      "max_drawdown": 1.0499999999999998,
+      "entry_time": "2025-11-28 04:56:35.916364+00:00",
+      "entry_price": 1.15906
+    },
+    "209213144": {
+      "max_profit": -0.09,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 04:56:51.112280+00:00",
+      "entry_price": 156.201
+    },
+    "209213146": {
+      "max_profit": 3.7199999999999998,
+      "max_drawdown": 0.8899999999999997,
+      "entry_time": "2025-11-28 04:56:51.136012+00:00",
+      "entry_price": 1.32393
+    },
+    "209235257": {
+      "max_profit": 2.9,
+      "max_drawdown": 2.0999999999999996,
+      "entry_time": "2025-11-28 06:50:40.234838+00:00",
+      "entry_price": 1.1583
+    },
+    "209235258": {
+      "max_profit": 0.6,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 06:50:40.234838+00:00",
+      "entry_price": 1.3219699999999999
+    },
+    "209233343": {
+      "max_profit": 2.56,
+      "max_drawdown": 16.04,
+      "entry_time": "2025-11-28 06:51:43.219256+00:00",
+      "entry_price": 4185.91
+    },
+    "209235739": {
+      "max_profit": -0.3,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 06:54:36.223886+00:00",
+      "entry_price": 1.15829
+    },
+    "209235740": {
+      "max_profit": -0.2,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 06:54:36.223886+00:00",
+      "entry_price": 1.32191
+    },
+    "209234785": {
+      "max_profit": -0.55,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 07:01:37.539659+00:00",
+      "entry_price": 4187.91
+    },
+    "209243267": {
+      "max_profit": 0.35,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 07:22:41.226643+00:00",
+      "entry_price": 1.1586400000000001
+    },
+    "209243268": {
+      "max_profit": 0.5,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 07:22:41.226643+00:00",
+      "entry_price": 1.32185
+    },
+    "209263915": {
+      "max_profit": 0.2,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 08:34:51.131968+00:00",
+      "entry_price": 1.3207200000000001
+    },
+    "209275636": {
+      "max_profit": 0.8,
+      "max_drawdown": 5.3999999999999995,
+      "entry_time": "2025-11-28 09:00:57.047728+00:00",
+      "entry_price": 1.15717
+    },
+    "209275637": {
+      "max_profit": 0.8,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 09:00:57.047848+00:00",
+      "entry_price": 1.32033
+    },
+    "209278838": {
+      "max_profit": 3.6,
+      "max_drawdown": 1.85,
+      "entry_time": "2025-11-28 09:22:28.453322+00:00",
+      "entry_price": 1.3213599999999999
+    },
+    "209278839": {
+      "max_profit": 0.2,
+      "max_drawdown": 4.1,
+      "entry_time": "2025-11-28 09:22:28.517976+00:00",
+      "entry_price": 1.15784
+    },
+    "209284247": {
+      "max_profit": -0.4,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 09:36:25.019715+00:00",
+      "entry_price": 1.15778
+    },
+    "209284251": {
+      "max_profit": 4.5,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 09:36:25.207122+00:00",
+      "entry_price": 1.3210899999999999
+    },
+    "209288700": {
+      "max_profit": -0.7,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 09:56:32.105518+00:00",
+      "entry_price": 1.15726
+    },
+    "209288713": {
+      "max_profit": -0.9,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 09:56:37.173843+00:00",
+      "entry_price": 1.32163
+    },
+    "209291742": {
+      "max_profit": -3.4,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 10:22:27.251520+00:00",
+      "entry_price": 1.1568100000000001
+    },
+    "209291756": {
+      "max_profit": 3.4,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 10:22:27.252526+00:00",
+      "entry_price": 1.32092
+    },
+    "209300288": {
+      "max_profit": -1.3,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 11:11:12.458552+00:00",
+      "entry_price": 1.1562000000000001
+    },
+    "209301940": {
+      "max_profit": 0.2,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 11:11:12.459554+00:00",
+      "entry_price": 1.15604
+    },
+    "209308589": {
+      "max_profit": 38.3,
+      "max_drawdown": 25.299999999999997,
+      "entry_time": "2025-11-28 11:17:12.867118+00:00",
+      "entry_price": 4172.21
+    },
+    "209309971": {
+      "max_profit": 0.1,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 11:23:14.931035+00:00",
+      "entry_price": 1.15582
+    },
+    "209309989": {
+      "max_profit": 3.9,
+      "max_drawdown": 0.0,
+      "entry_time": "2025-11-28 11:23:15.480268+00:00",
+      "entry_price": 1.32066
     }
   },
-  "last_update": "2025-11-28T02:37:12.668246+00:00"
+  "last_update": "2025-11-28T11:23:27.180837+00:00"
 }

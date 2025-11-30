@@ -639,6 +639,34 @@ class MT5Connector:
             
             stops_level = symbol_info.trade_stops_level * symbol_info.point
             current_price = symbol_info.ask if position.type == 0 else symbol_info.bid
+            point = symbol_info.point
+            
+            # 🔥 VALIDAÇÃO DE SANIDADE: Verificar SL/TP corretos
+            if sl is not None and sl > 0:
+                # BUY: SL deve estar ABAIXO do preço | SELL: SL deve estar ACIMA
+                if position.type == 0 and sl >= current_price:
+                    logger.error(
+                        f"❌ #{ticket} SL INVERTIDO! Posição BUY com SL {sl:.5f} >= Preço {current_price:.5f}"
+                    )
+                    return False
+                if position.type == 1 and sl <= current_price:
+                    logger.error(
+                        f"❌ #{ticket} SL INVERTIDO! Posição SELL com SL {sl:.5f} <= Preço {current_price:.5f}"
+                    )
+                    return False
+            
+            if tp is not None and tp > 0:
+                # BUY: TP deve estar ACIMA do preço | SELL: TP deve estar ABAIXO
+                if position.type == 0 and tp <= current_price:
+                    logger.error(
+                        f"❌ #{ticket} TP INVERTIDO! Posição BUY com TP {tp:.5f} <= Preço {current_price:.5f}"
+                    )
+                    return False
+                if position.type == 1 and tp >= current_price:
+                    logger.error(
+                        f"❌ #{ticket} TP INVERTIDO! Posição SELL com TP {tp:.5f} >= Preço {current_price:.5f}"
+                    )
+                    return False
             
             # Validar SL
             if sl is not None and sl > 0:
@@ -675,6 +703,17 @@ class MT5Connector:
                 "sl": sl if sl is not None else position.sl,
                 "tp": tp if tp is not None else position.tp,
             }
+            
+            # 🔍 DEBUG: Log detalhado da requisição
+            logger.debug(
+                f"🔍 MT5 Request #{ticket} | "
+                f"Symbol: {position.symbol} | "
+                f"Type: {'BUY' if position.type == 0 else 'SELL'} | "
+                f"Current: {current_price:.5f} | "
+                f"SL: {request['sl']:.5f} (dist: {abs(current_price - request['sl']) / point:.1f} pips) | "
+                f"TP: {request['tp']:.5f} (dist: {abs(current_price - request['tp']) / point:.1f} pips) | "
+                f"Stops_level: {stops_level:.1f} pips"
+            )
             
             result = mt5.order_send(request)
             
