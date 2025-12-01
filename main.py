@@ -2,7 +2,7 @@
 URION Trading Bot
 Bot de Trading Automatizado Multi-Símbolo
 
-Versao: 2.1 - Multi-Symbol Professional Edition
+Versao: 2.2 - Multi-Symbol Professional Edition + Advanced AI
 """
 
 import sys
@@ -49,6 +49,12 @@ get_var_calculator = safe_import('risk.var_calculator', 'get_var_calculator')
 
 # ML (opcional)
 get_ml_training_pipeline = safe_import('ml.training_pipeline', 'get_ml_training_pipeline')
+get_finbert_analyzer = safe_import('ml.finbert_analyzer', 'get_finbert_analyzer')
+get_transformer_predictor = safe_import('ml.transformer_predictor', 'get_transformer_predictor')
+
+# Análise avançada (opcional)
+get_correlation_analyzer = safe_import('analysis.correlation_analyzer', 'get_correlation_analyzer')
+get_harmonic_analyzer = safe_import('analysis.harmonic_patterns', 'get_harmonic_analyzer')
 
 # Infraestrutura (opcional)
 get_redis_client = safe_import('infrastructure.redis_client', 'get_redis_client')
@@ -94,6 +100,12 @@ class TradingBot:
         self.influxdb_client = None
         self.data_hub = None
         
+        # Novos módulos avançados v2.1
+        self.finbert_analyzer = None
+        self.transformer_predictor = None
+        self.correlation_analyzer = None
+        self.harmonic_analyzer = None
+        
         # Threads adicionais
         self.position_intel_thread = None
         self.tradingview_thread = None
@@ -104,8 +116,8 @@ class TradingBot:
         signal.signal(signal.SIGTERM, self._signal_handler)
         
         logger.info("=" * 80)
-        logger.info("URION TRADING BOT - PROFESSIONAL EDITION v2.0")
-        logger.info("Bot de Trading Automatizado para XAUUSD")
+        logger.info("URION TRADING BOT - PROFESSIONAL EDITION v2.2")
+        logger.info("Bot de Trading Automatizado Multi-Símbolo + Advanced AI")
         logger.info("=" * 80)
     
     def _signal_handler(self, signum, frame):
@@ -255,7 +267,7 @@ class TradingBot:
             # ========================================
             # 8. ML PIPELINE
             # ========================================
-            logger.info("[9/11] Inicializando ML Pipeline...")
+            logger.info("[9/14] Inicializando ML Pipeline...")
             if get_ml_training_pipeline:
                 try:
                     self.ml_pipeline = get_ml_training_pipeline(self.config)
@@ -266,9 +278,61 @@ class TradingBot:
                 logger.warning("  ⚠ ML Pipeline: módulo não disponível")
             
             # ========================================
-            # 9. TRADINGVIEW WEBHOOKS
+            # 9. FINBERT NLP ANALYZER
             # ========================================
-            logger.info("[10/11] Inicializando TradingView Integration...")
+            logger.info("[10/14] Inicializando FinBERT Analyzer...")
+            if get_finbert_analyzer:
+                try:
+                    self.finbert_analyzer = get_finbert_analyzer()
+                    logger.success("  ✓ FinBERT NLP Analyzer inicializado")
+                except Exception as e:
+                    logger.warning(f"  ⚠ FinBERT Analyzer: {e}")
+            else:
+                logger.warning("  ⚠ FinBERT Analyzer: módulo não disponível")
+            
+            # ========================================
+            # 10. TRANSFORMER PREDICTOR
+            # ========================================
+            logger.info("[11/14] Inicializando Transformer Predictor...")
+            if get_transformer_predictor:
+                try:
+                    self.transformer_predictor = get_transformer_predictor()
+                    logger.success("  ✓ Transformer Predictor inicializado")
+                except Exception as e:
+                    logger.warning(f"  ⚠ Transformer Predictor: {e}")
+            else:
+                logger.warning("  ⚠ Transformer Predictor: módulo não disponível")
+            
+            # ========================================
+            # 11. CORRELATION ANALYZER
+            # ========================================
+            logger.info("[12/14] Inicializando Correlation Analyzer...")
+            if get_correlation_analyzer:
+                try:
+                    self.correlation_analyzer = get_correlation_analyzer()
+                    logger.success("  ✓ Correlation Analyzer inicializado")
+                except Exception as e:
+                    logger.warning(f"  ⚠ Correlation Analyzer: {e}")
+            else:
+                logger.warning("  ⚠ Correlation Analyzer: módulo não disponível")
+            
+            # ========================================
+            # 12. HARMONIC PATTERNS ANALYZER
+            # ========================================
+            logger.info("[13/14] Inicializando Harmonic Patterns...")
+            if get_harmonic_analyzer:
+                try:
+                    self.harmonic_analyzer = get_harmonic_analyzer()
+                    logger.success("  ✓ Harmonic Patterns Analyzer inicializado")
+                except Exception as e:
+                    logger.warning(f"  ⚠ Harmonic Patterns: {e}")
+            else:
+                logger.warning("  ⚠ Harmonic Patterns: módulo não disponível")
+            
+            # ========================================
+            # 13. TRADINGVIEW WEBHOOKS
+            # ========================================
+            logger.info("[14/14] Inicializando TradingView Integration...")
             if get_tradingview_manager:
                 try:
                     self.tradingview = get_tradingview_manager(self.config)
@@ -281,9 +345,9 @@ class TradingBot:
                 logger.warning("  ⚠ TradingView: módulo não disponível")
             
             # ========================================
-            # 10. COMPONENTES PRINCIPAIS
+            # 14. COMPONENTES PRINCIPAIS
             # ========================================
-            logger.info("[11/11] Inicializando componentes principais...")
+            logger.info("Inicializando componentes principais...")
             
             self.order_generator = OrderGenerator()
             self.order_manager = OrderManager()
@@ -376,6 +440,10 @@ class TradingBot:
             ("Economic Calendar", self.economic_calendar is not None),
             ("TradingView Webhooks", self.tradingview is not None),
             ("ML Training Pipeline", self.ml_pipeline is not None),
+            ("FinBERT NLP Analyzer", self.finbert_analyzer is not None),
+            ("Transformer Predictor", self.transformer_predictor is not None),
+            ("Correlation Analyzer", self.correlation_analyzer is not None),
+            ("Harmonic Patterns", self.harmonic_analyzer is not None),
             ("Order Generator", self.order_generator is not None),
             ("Order Manager", self.order_manager is not None),
         ]
