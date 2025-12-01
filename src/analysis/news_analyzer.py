@@ -10,12 +10,25 @@ from datetime import datetime, timedelta
 import pytz
 from loguru import logger
 
-# NLP para análise de sentimento
-try:
-    from textblob import TextBlob
-except ImportError:
-    logger.warning("TextBlob não instalado. Análise de sentimento limitada.")
-    TextBlob = None
+# NLP para análise de sentimento - LAZY LOADING para evitar travamento
+TextBlob = None
+_textblob_loaded = False
+
+def _load_textblob():
+    """Carrega TextBlob sob demanda para evitar travamento na inicialização"""
+    global TextBlob, _textblob_loaded
+    if _textblob_loaded:
+        return TextBlob is not None
+    
+    _textblob_loaded = True
+    try:
+        from textblob import TextBlob as TB
+        TextBlob = TB
+        logger.debug("TextBlob carregado com sucesso")
+        return True
+    except ImportError:
+        logger.warning("TextBlob não disponível. Análise de sentimento simplificada.")
+        return False
 
 
 class NewsAnalyzer:
@@ -391,7 +404,7 @@ class NewsAnalyzer:
     
     def analyze_sentiment(self, text: str) -> Dict[str, float]:
         """
-        Analisa sentimento do texto usando TextBlob
+        Analisa sentimento do texto usando TextBlob (lazy loading)
         
         Args:
             text: Texto a analisar
@@ -399,7 +412,8 @@ class NewsAnalyzer:
         Returns:
             Dict com polarity (-1 a 1) e subjectivity (0 a 1)
         """
-        if TextBlob is None:
+        # Lazy loading do TextBlob
+        if not _load_textblob():
             return {'polarity': 0.0, 'subjectivity': 0.5, 'method': 'none'}
         
         try:

@@ -13,7 +13,11 @@ Correlações com XAUUSD:
 - US10Y ↑ → XAUUSD ↓ (juros altos desfavorecem ouro)
 """
 
-import yfinance as yf
+# yfinance desabilitado - causa travamento no import
+# Usaremos valores fixos por enquanto
+YF_AVAILABLE = False
+yf = None
+
 from typing import Dict, Optional
 from datetime import datetime, timedelta
 from loguru import logger

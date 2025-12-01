@@ -27,25 +27,59 @@ import json
 from pathlib import Path
 import hashlib
 
-try:
-    import optuna
-    OPTUNA_AVAILABLE = True
-except ImportError:
-    OPTUNA_AVAILABLE = False
+# Lazy loading globals
+optuna = None
+xgb = None
+TimeSeriesSplit = None
+StandardScaler = None
+accuracy_score = None
+precision_score = None
+recall_score = None
+f1_score = None
 
-try:
-    from sklearn.model_selection import TimeSeriesSplit
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-    SKLEARN_AVAILABLE = True
-except ImportError:
-    SKLEARN_AVAILABLE = False
+_optuna_loaded = False
+_sklearn_loaded = False
+_xgboost_loaded = False
 
-try:
-    import xgboost as xgb
-    XGBOOST_AVAILABLE = True
-except ImportError:
-    XGBOOST_AVAILABLE = False
+def _load_optuna():
+    global optuna, _optuna_loaded
+    if _optuna_loaded: return optuna is not None
+    _optuna_loaded = True
+    try:
+        import optuna as op
+        optuna = op
+        return True
+    except ImportError:
+        return False
+
+def _load_sklearn():
+    global TimeSeriesSplit, StandardScaler, accuracy_score, precision_score, recall_score, f1_score, _sklearn_loaded
+    if _sklearn_loaded: return TimeSeriesSplit is not None
+    _sklearn_loaded = True
+    try:
+        from sklearn.model_selection import TimeSeriesSplit as TSS
+        from sklearn.preprocessing import StandardScaler as SS
+        from sklearn.metrics import accuracy_score as acc, precision_score as prec, recall_score as rec, f1_score as f1
+        TimeSeriesSplit, StandardScaler, accuracy_score, precision_score, recall_score, f1_score = TSS, SS, acc, prec, rec, f1
+        return True
+    except ImportError:
+        return False
+
+def _load_xgboost():
+    global xgb, _xgboost_loaded
+    if _xgboost_loaded: return xgb is not None
+    _xgboost_loaded = True
+    try:
+        import xgboost as xg
+        xgb = xg
+        return True
+    except ImportError:
+        return False
+
+# Compatibility checkers
+def is_optuna_available(): return _load_optuna()
+def is_sklearn_available(): return _load_sklearn()
+def is_xgboost_available(): return _load_xgboost()
 
 
 class ModelType(Enum):
@@ -155,7 +189,7 @@ class MLTrainingPipeline:
     
     def prepare_features(self, df: pd.DataFrame, feature_columns: List[str]) -> Tuple[np.ndarray, np.ndarray]:
         """Prepara features para treinamento"""
-        if not SKLEARN_AVAILABLE:
+        if not is_sklearn_available():
             logger.error("sklearn nao disponivel")
             return np.array([]), np.array([])
         
@@ -178,7 +212,7 @@ class MLTrainingPipeline:
                      X_val: np.ndarray, y_val: np.ndarray,
                      hyperparams: Dict = None) -> Tuple[Any, ModelMetrics]:
         """Treina modelo XGBoost"""
-        if not XGBOOST_AVAILABLE:
+        if not is_xgboost_available():
             logger.error("XGBoost nao disponivel")
             return None, None
         
@@ -223,11 +257,11 @@ class MLTrainingPipeline:
     def optimize_hyperparameters(self, X: np.ndarray, y: np.ndarray,
                                 model_type: ModelType, n_trials: int = 50) -> Dict:
         """Otimiza hyperparametros usando Optuna"""
-        if not OPTUNA_AVAILABLE:
+        if not is_optuna_available():
             logger.warning("Optuna nao disponivel, usando parametros padrao")
             return {}
         
-        if not SKLEARN_AVAILABLE:
+        if not is_sklearn_available():
             return {}
         
         def objective(trial):
@@ -239,7 +273,7 @@ class MLTrainingPipeline:
                 X_train, X_val = X[train_idx], X[val_idx]
                 y_train, y_val = y[train_idx], y[val_idx]
                 
-                if model_type == ModelType.XGBOOST and XGBOOST_AVAILABLE:
+                if model_type == ModelType.XGBOOST and is_xgboost_available():
                     params = {
                         'max_depth': trial.suggest_int('max_depth', 3, 10),
                         'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
@@ -277,7 +311,7 @@ class MLTrainingPipeline:
         """
         Walk-forward validation - simula treinamento em tempo real
         """
-        if not SKLEARN_AVAILABLE:
+        if not is_sklearn_available():
             return []
         
         X, y = self.prepare_features(df, feature_columns)

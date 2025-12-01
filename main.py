@@ -1,22 +1,8 @@
 """
 URION Trading Bot
-Bot de Trading Automatizado para XAUUSD
+Bot de Trading Automatizado Multi-Símbolo
 
-Versao: 2.0 - Full Professional Edition
-Inclui todos os modulos avancados:
-- Order Flow Intelligence
-- Market Manipulation Detection
-- Position Intelligence Manager
-- Strategy Communicator (Event Bus)
-- Monte Carlo Risk Simulation
-- VaR Calculator
-- ML Training Pipeline
-- Execution Algorithms (TWAP/VWAP/Iceberg)
-- Walk-Forward Optimization
-- Economic Calendar Integration
-- TradingView Webhooks
-- Redis Cache
-- InfluxDB Metrics
+Versao: 2.1 - Multi-Symbol Professional Edition
 """
 
 import sys
@@ -35,24 +21,39 @@ from order_manager import OrderManager
 from core.logger import setup_logger
 from core.config_manager import ConfigManager
 
-# Novos modulos avancados
-from core.position_intelligence import PositionIntelligenceManager
-from core.strategy_communicator import get_strategy_communicator
-from core.execution_algorithms import get_execution_manager, get_smart_router
+# 🔥 Imports opcionais (módulos avançados podem falhar)
+def safe_import(module_path, class_name):
+    """Importa módulo de forma segura, retornando None se falhar"""
+    try:
+        module = __import__(module_path, fromlist=[class_name])
+        return getattr(module, class_name)
+    except Exception as e:
+        logger.warning(f"⚠️ Módulo opcional não disponível: {module_path}.{class_name} - {e}")
+        return None
 
-from analysis.order_flow_analyzer import get_order_flow_analyzer
-from analysis.manipulation_detector import ManipulationDetector
-from analysis.tradingview_integration import get_tradingview_manager
-from analysis.economic_calendar import get_economic_calendar
+# Módulos core (sempre necessários)
+PositionIntelligenceManager = safe_import('core.position_intelligence', 'PositionIntelligenceManager')
+get_strategy_communicator = safe_import('core.strategy_communicator', 'get_strategy_communicator')
+get_execution_manager = safe_import('core.execution_algorithms', 'get_execution_manager')
+get_smart_router = safe_import('core.execution_algorithms', 'get_smart_router')
 
-from risk.monte_carlo import get_monte_carlo_simulator
-from risk.var_calculator import get_var_calculator
+# Módulos de análise (opcionais)
+get_order_flow_analyzer = safe_import('analysis.order_flow_analyzer', 'get_order_flow_analyzer')
+ManipulationDetector = safe_import('analysis.manipulation_detector', 'ManipulationDetector')
+get_tradingview_manager = safe_import('analysis.tradingview_integration', 'get_tradingview_manager')
+get_economic_calendar = safe_import('analysis.economic_calendar', 'get_economic_calendar')
 
-from ml.training_pipeline import get_ml_training_pipeline
+# Módulos de risco (opcionais - requerem scipy)
+get_monte_carlo_simulator = safe_import('risk.monte_carlo', 'get_monte_carlo_simulator')
+get_var_calculator = safe_import('risk.var_calculator', 'get_var_calculator')
 
-from infrastructure.redis_client import get_redis_client
-from infrastructure.influxdb_client import get_influxdb_client
-from infrastructure.data_hub import get_data_hub
+# ML (opcional)
+get_ml_training_pipeline = safe_import('ml.training_pipeline', 'get_ml_training_pipeline')
+
+# Infraestrutura (opcional)
+get_redis_client = safe_import('infrastructure.redis_client', 'get_redis_client')
+get_influxdb_client = safe_import('infrastructure.influxdb_client', 'get_influxdb_client')
+get_data_hub = safe_import('infrastructure.data_hub', 'get_data_hub')
 
 # Configurar logger ANTES de tudo
 config_manager = ConfigManager()
@@ -128,128 +129,156 @@ class TradingBot:
             # 1. INFRAESTRUTURA (Redis, InfluxDB)
             # ========================================
             logger.info("[1/11] Inicializando Infraestrutura...")
-            try:
-                self.redis_client = get_redis_client(self.config)
-                if self.redis_client.connect():
-                    logger.success("  ✓ Redis conectado")
-                else:
-                    logger.warning("  ⚠ Redis indisponivel, continuando sem cache")
-            except Exception as e:
-                logger.warning(f"  ⚠ Redis: {e}")
+            if get_redis_client:
+                try:
+                    self.redis_client = get_redis_client(self.config)
+                    if self.redis_client.connect():
+                        logger.success("  ✓ Redis conectado")
+                    else:
+                        logger.warning("  ⚠ Redis indisponivel, continuando sem cache")
+                except Exception as e:
+                    logger.warning(f"  ⚠ Redis: {e}")
+            else:
+                logger.warning("  ⚠ Redis: módulo não disponível")
             
-            try:
-                self.influxdb_client = get_influxdb_client(self.config)
-                if self.influxdb_client.connect():
-                    logger.success("  ✓ InfluxDB conectado")
-                else:
-                    logger.warning("  ⚠ InfluxDB indisponivel, continuando sem metricas")
-            except Exception as e:
-                logger.warning(f"  ⚠ InfluxDB: {e}")
+            if get_influxdb_client:
+                try:
+                    self.influxdb_client = get_influxdb_client(self.config)
+                    if self.influxdb_client.connect():
+                        logger.success("  ✓ InfluxDB conectado")
+                    else:
+                        logger.warning("  ⚠ InfluxDB indisponivel, continuando sem metricas")
+                except Exception as e:
+                    logger.warning(f"  ⚠ InfluxDB: {e}")
+            else:
+                logger.warning("  ⚠ InfluxDB: módulo não disponível")
             
             # ========================================
             # 2. DATA HUB (Central de Dados)
             # ========================================
             logger.info("[2/11] Inicializando Data Hub...")
-            try:
-                self.data_hub = get_data_hub(self.config)
-                logger.success("  ✓ Data Hub inicializado")
-            except Exception as e:
-                logger.warning(f"  ⚠ Data Hub: {e}")
+            if get_data_hub:
+                try:
+                    self.data_hub = get_data_hub(self.config)
+                    logger.success("  ✓ Data Hub inicializado")
+                except Exception as e:
+                    logger.warning(f"  ⚠ Data Hub: {e}")
+            else:
+                logger.warning("  ⚠ Data Hub: módulo não disponível")
             
             # ========================================
             # 3. ORDER FLOW & MANIPULATION
             # ========================================
             logger.info("[3/11] Inicializando Order Flow Analyzer...")
-            try:
-                self.order_flow_analyzer = get_order_flow_analyzer(self.config)
-                logger.success("  ✓ Order Flow Analyzer inicializado")
-            except Exception as e:
-                logger.warning(f"  ⚠ Order Flow: {e}")
+            if get_order_flow_analyzer:
+                try:
+                    self.order_flow_analyzer = get_order_flow_analyzer(self.config)
+                    logger.success("  ✓ Order Flow Analyzer inicializado")
+                except Exception as e:
+                    logger.warning(f"  ⚠ Order Flow: {e}")
+            else:
+                logger.warning("  ⚠ Order Flow Analyzer: módulo não disponível")
             
             logger.info("[4/11] Inicializando Manipulation Detector...")
-            try:
-                self.manipulation_detector = ManipulationDetector(self.config)
-                logger.success("  ✓ Manipulation Detector inicializado")
-            except Exception as e:
-                logger.warning(f"  ⚠ Manipulation Detector: {e}")
+            if ManipulationDetector:
+                try:
+                    self.manipulation_detector = ManipulationDetector(self.config)
+                    logger.success("  ✓ Manipulation Detector inicializado")
+                except Exception as e:
+                    logger.warning(f"  ⚠ Manipulation Detector: {e}")
+            else:
+                logger.warning("  ⚠ Manipulation Detector: módulo não disponível")
             
             # ========================================
             # 4. STRATEGY COMMUNICATION
             # ========================================
             logger.info("[5/11] Inicializando Strategy Communicator...")
-            try:
-                self.strategy_communicator = get_strategy_communicator(self.config)
-                self.strategy_communicator.start()
-                logger.success("  ✓ Strategy Communicator ativo")
-            except Exception as e:
-                logger.warning(f"  ⚠ Strategy Communicator: {e}")
+            if get_strategy_communicator:
+                try:
+                    self.strategy_communicator = get_strategy_communicator(self.config)
+                    self.strategy_communicator.start()
+                    logger.success("  ✓ Strategy Communicator ativo")
+                except Exception as e:
+                    logger.warning(f"  ⚠ Strategy Communicator: {e}")
+            else:
+                logger.warning("  ⚠ Strategy Communicator: módulo não disponível")
             
             # ========================================
             # 5. RISK MANAGEMENT
             # ========================================
             logger.info("[6/11] Inicializando Risk Management...")
-            try:
-                self.monte_carlo = get_monte_carlo_simulator(self.config)
-                self.var_calculator = get_var_calculator(self.config)
-                logger.success("  ✓ Monte Carlo + VaR inicializados")
-            except Exception as e:
-                logger.warning(f"  ⚠ Risk Management: {e}")
+            if get_monte_carlo_simulator and get_var_calculator:
+                try:
+                    self.monte_carlo = get_monte_carlo_simulator(self.config)
+                    self.var_calculator = get_var_calculator(self.config)
+                    logger.success("  ✓ Monte Carlo + VaR inicializados")
+                except Exception as e:
+                    logger.warning(f"  ⚠ Risk Management: {e}")
+            else:
+                logger.warning("  ⚠ Risk Management: scipy não disponível (VaR/Monte Carlo desativados)")
             
             # ========================================
             # 6. EXECUTION ALGORITHMS
             # ========================================
             logger.info("[7/11] Inicializando Execution Algorithms...")
-            try:
-                self.execution_manager = get_execution_manager(self.config)
-                self.smart_router = get_smart_router(self.config)
-                self.execution_manager.start()
-                logger.success("  ✓ TWAP/VWAP/Iceberg ativos")
-            except Exception as e:
-                logger.warning(f"  ⚠ Execution Algorithms: {e}")
+            if get_execution_manager and get_smart_router:
+                try:
+                    self.execution_manager = get_execution_manager(self.config)
+                    self.smart_router = get_smart_router(self.config)
+                    self.execution_manager.start()
+                    logger.success("  ✓ TWAP/VWAP/Iceberg ativos")
+                except Exception as e:
+                    logger.warning(f"  ⚠ Execution Algorithms: {e}")
+            else:
+                logger.warning("  ⚠ Execution Algorithms: módulo não disponível")
             
             # ========================================
             # 7. ECONOMIC CALENDAR
             # ========================================
             logger.info("[8/11] Inicializando Economic Calendar...")
-            try:
-                self.economic_calendar = get_economic_calendar(self.config)
-                # Atualizar calendario em background
-                self.calendar_thread = threading.Thread(
-                    target=self._update_calendar_loop,
-                    name="EconomicCalendar",
-                    daemon=True
-                )
-                self.calendar_thread.start()
-                logger.success("  ✓ Economic Calendar ativo")
-            except Exception as e:
-                logger.warning(f"  ⚠ Economic Calendar: {e}")
+            if get_economic_calendar:
+                try:
+                    self.economic_calendar = get_economic_calendar(self.config)
+                    # Atualizar calendario em background
+                    self.calendar_thread = threading.Thread(
+                        target=self._update_calendar_loop,
+                        name="EconomicCalendar",
+                        daemon=True
+                    )
+                    self.calendar_thread.start()
+                    logger.success("  ✓ Economic Calendar ativo")
+                except Exception as e:
+                    logger.warning(f"  ⚠ Economic Calendar: {e}")
+            else:
+                logger.warning("  ⚠ Economic Calendar: módulo não disponível")
             
             # ========================================
             # 8. ML PIPELINE
             # ========================================
             logger.info("[9/11] Inicializando ML Pipeline...")
-            try:
-                self.ml_pipeline = get_ml_training_pipeline(self.config)
-                logger.success("  ✓ ML Training Pipeline inicializado")
-            except Exception as e:
-                logger.warning(f"  ⚠ ML Pipeline: {e}")
+            if get_ml_training_pipeline:
+                try:
+                    self.ml_pipeline = get_ml_training_pipeline(self.config)
+                    logger.success("  ✓ ML Training Pipeline inicializado")
+                except Exception as e:
+                    logger.warning(f"  ⚠ ML Pipeline: {e}")
+            else:
+                logger.warning("  ⚠ ML Pipeline: módulo não disponível")
             
             # ========================================
             # 9. TRADINGVIEW WEBHOOKS
             # ========================================
             logger.info("[10/11] Inicializando TradingView Integration...")
-            try:
-                self.tradingview = get_tradingview_manager(self.config)
-                # Iniciar servidor webhook em thread separada
-                self.tradingview_thread = threading.Thread(
-                    target=self._start_tradingview_server,
-                    name="TradingViewWebhook",
-                    daemon=True
-                )
-                self.tradingview_thread.start()
-                logger.success("  ✓ TradingView Webhooks ativos na porta 8765")
-            except Exception as e:
-                logger.warning(f"  ⚠ TradingView: {e}")
+            if get_tradingview_manager:
+                try:
+                    self.tradingview = get_tradingview_manager(self.config)
+                    # Iniciar servidor webhook
+                    self.tradingview.start()
+                    logger.success("  ✓ TradingView Webhooks ativos na porta 8765")
+                except Exception as e:
+                    logger.warning(f"  ⚠ TradingView: {e}")
+            else:
+                logger.warning("  ⚠ TradingView: módulo não disponível")
             
             # ========================================
             # 10. COMPONENTES PRINCIPAIS
@@ -260,17 +289,20 @@ class TradingBot:
             self.order_manager = OrderManager()
             
             # Position Intelligence (com acesso ao order manager)
-            try:
-                self.position_intelligence = PositionIntelligenceManager(self.config)
-                self.position_intel_thread = threading.Thread(
-                    target=self.position_intelligence.start,
-                    name="PositionIntelligence",
-                    daemon=True
-                )
-                self.position_intel_thread.start()
-                logger.success("  ✓ Position Intelligence ativo")
-            except Exception as e:
-                logger.warning(f"  ⚠ Position Intelligence: {e}")
+            if PositionIntelligenceManager:
+                try:
+                    self.position_intelligence = PositionIntelligenceManager(self.config)
+                    self.position_intel_thread = threading.Thread(
+                        target=self.position_intelligence.start,
+                        name="PositionIntelligence",
+                        daemon=True
+                    )
+                    self.position_intel_thread.start()
+                    logger.success("  ✓ Position Intelligence ativo")
+                except Exception as e:
+                    logger.warning(f"  ⚠ Position Intelligence: {e}")
+            else:
+                logger.warning("  ⚠ Position Intelligence: módulo não disponível")
             
             # Iniciar Order Manager em thread separada
             logger.info("Iniciando Order Manager...")
@@ -323,17 +355,6 @@ class TradingBot:
             # Atualizar a cada hora
             import time
             time.sleep(3600)
-    
-    def _start_tradingview_server(self):
-        """Inicia servidor TradingView"""
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            loop.run_until_complete(self.tradingview.start_webhook_server())
-        except Exception as e:
-            logger.warning(f"Erro ao iniciar TradingView server: {e}")
     
     def _print_active_modules(self):
         """Imprime modulos ativos"""

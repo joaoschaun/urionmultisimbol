@@ -23,7 +23,7 @@ except ImportError:
 
 class TechnicalAnalyzer:
     """
-    Analisador técnico multi-timeframe para XAUUSD
+    Analisador técnico multi-timeframe para qualquer símbolo
     """
     
     # Timeframes suportados
@@ -37,20 +37,22 @@ class TechnicalAnalyzer:
         'D1': mt5.TIMEFRAME_D1
     }
     
-    def __init__(self, mt5_connector, config: Dict):
+    def __init__(self, mt5_connector, config: Dict, symbol: str = None):
         """
         Inicializa o analisador técnico
         
         Args:
             mt5_connector: Instância do MT5Connector
             config: Configurações do sistema
+            symbol: Símbolo específico (ex: EURUSD, XAUUSD). Se None, usa config.
         """
         self.mt5 = mt5_connector
         self.config = config
-        self.symbol = config.get('mt5', {}).get('symbol', 'XAUUSD')
+        # 🔥 MULTI-SÍMBOLO: Usar símbolo passado ou fallback para config
+        self.symbol = symbol if symbol else config.get('mt5', {}).get('symbol', 'XAUUSD')
         self.ta_config = config.get('technical_analysis', {})
         
-        # Cache de dados
+        # Cache de dados - INCLUI SÍMBOLO na chave para evitar contaminação
         self._cache: Dict[str, Dict] = {}
         self._cache_timeout = timedelta(seconds=30)
         
@@ -68,8 +70,8 @@ class TechnicalAnalyzer:
             DataFrame com OHLCV ou None se erro
         """
         try:
-            # Verificar cache
-            cache_key = f"{timeframe}_{bars}"
+            # 🔥 MULTI-SÍMBOLO: Cache inclui símbolo para evitar contaminação
+            cache_key = f"{self.symbol}_{timeframe}_{bars}"
             if cache_key in self._cache:
                 cache_entry = self._cache[cache_key]
                 if datetime.now() - cache_entry['timestamp'] < self._cache_timeout:
