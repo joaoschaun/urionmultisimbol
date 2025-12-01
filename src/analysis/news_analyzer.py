@@ -76,6 +76,11 @@ class NewsAnalyzer:
         self._events_cache_timestamp: Optional[datetime] = None
         self._events_cache_timeout = timedelta(hours=1)
         
+        # Cache de market sentiment
+        self._market_sentiment_cache: Optional[Dict] = None
+        self._market_sentiment_timestamp: Optional[datetime] = None
+        self._market_sentiment_timeout = timedelta(minutes=15)
+        
         logger.info("NewsAnalyzer inicializado")
     
     def _is_cache_valid(self, timestamp: Optional[datetime], 
@@ -148,6 +153,285 @@ class NewsAnalyzer:
         except Exception as e:
             logger.error(f"Erro ao buscar ForexNewsAPI: {e}")
             return []
+    
+    def fetch_forexnews_sentiment(self, currency_pair: str = "XAU-USD", 
+                                   days: int = 7) -> Optional[Dict]:
+        """
+        🔥 NOVO: Busca sentimento agregado do ForexNewsAPI
+        Substitui análise de Twitter/Reddit!
+        
+        Endpoint: /api/v1/stat
+        
+        Args:
+            currency_pair: Par de moedas (ex: XAU-USD, EUR-USD)
+            days: Período em dias (7, 30, etc)
+            
+        Returns:
+            Dict com sentimento agregado ou None
+        """
+        try:
+            if not self.forexnews_key:
+                return None
+            
+            url = "https://forexnewsapi.com/api/v1/stat"
+            params = {
+                'token': self.forexnews_key,
+                'currencypair': currency_pair,
+                'date': f'last{days}days',
+                'page': 1
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code != 200:
+                logger.debug(f"ForexNewsAPI Sentiment: status {response.status_code}")
+                return None
+            
+            data = response.json()
+            
+            # Extrair estatísticas de sentimento
+            stats = data.get('data', {})
+            
+            sentiment_result = {
+                'source': 'ForexNewsAPI',
+                'currency_pair': currency_pair,
+                'period_days': days,
+                'total_news': stats.get('total_news', 0),
+                'positive_count': stats.get('positive', 0),
+                'negative_count': stats.get('negative', 0),
+                'neutral_count': stats.get('neutral', 0),
+                'sentiment_score': 0.0,
+                'sentiment_label': 'neutral',
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # Calcular score de sentimento (-1 a 1)
+            total = sentiment_result['positive_count'] + sentiment_result['negative_count'] + sentiment_result['neutral_count']
+            if total > 0:
+                sentiment_result['sentiment_score'] = (
+                    sentiment_result['positive_count'] - sentiment_result['negative_count']
+                ) / total
+                
+                # Determinar label
+                if sentiment_result['sentiment_score'] > 0.2:
+                    sentiment_result['sentiment_label'] = 'bullish'
+                elif sentiment_result['sentiment_score'] < -0.2:
+                    sentiment_result['sentiment_label'] = 'bearish'
+            
+            logger.info(
+                f"ForexNewsAPI Sentiment: {currency_pair} = {sentiment_result['sentiment_label']} "
+                f"(score: {sentiment_result['sentiment_score']:.2f}, news: {total})"
+            )
+            
+            return sentiment_result
+            
+        except requests.Timeout:
+            logger.debug("ForexNewsAPI Sentiment: Timeout")
+            return None
+        except Exception as e:
+            logger.debug(f"ForexNewsAPI Sentiment: {e}")
+            return None
+    
+    def fetch_forexnews_top_mentions(self, days: int = 7) -> List[Dict]:
+        """
+        🔥 NOVO: Busca pares mais mencionados com sentimento
+        Equivalente a "trending topics" de redes sociais!
+        
+        Endpoint: /api/v1/top-mention
+        
+        Args:
+            days: Período em dias
+            
+        Returns:
+            Lista de pares mais mencionados com sentimento
+        """
+        try:
+            if not self.forexnews_key:
+                return []
+            
+            url = "https://forexnewsapi.com/api/v1/top-mention"
+            params = {
+                'token': self.forexnews_key,
+                'date': f'last{days}days'
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code != 200:
+                logger.debug(f"ForexNewsAPI TopMention: status {response.status_code}")
+                return []
+            
+            data = response.json()
+            mentions = data.get('data', [])
+            
+            # Processar e enriquecer dados
+            results = []
+            for item in mentions[:20]:  # Top 20
+                pair = item.get('currencypair', '')
+                mention_count = item.get('mention_count', 0)
+                sentiment = item.get('sentiment', 'neutral')
+                
+                # Calcular score de interesse (mais menções = mais interesse)
+                interest_score = min(mention_count / 100, 1.0)  # Normalizar
+                
+                results.append({
+                    'currency_pair': pair,
+                    'mention_count': mention_count,
+                    'sentiment': sentiment,
+                    'interest_score': interest_score,
+                    'is_trending': mention_count > 50
+                })
+            
+            # Verificar se XAU-USD está nas menções
+            gold_mentions = [m for m in results if 'XAU' in m['currency_pair'] or 'GOLD' in m['currency_pair'].upper()]
+            
+            logger.info(f"ForexNewsAPI TopMentions: {len(results)} pares, {len(gold_mentions)} relacionados a Gold")
+            
+            return results
+            
+        except requests.Timeout:
+            logger.debug("ForexNewsAPI TopMention: Timeout")
+            return []
+        except Exception as e:
+            logger.debug(f"ForexNewsAPI TopMention: {e}")
+            return []
+    
+    def fetch_forexnews_trending(self) -> List[Dict]:
+        """
+        🔥 NOVO: Busca headlines em tendência
+        Equivalente a "trending tweets"!
+        
+        Endpoint: /api/v1/trending-headlines
+        
+        Returns:
+            Lista de headlines trending
+        """
+        try:
+            if not self.forexnews_key:
+                return []
+            
+            url = "https://forexnewsapi.com/api/v1/trending-headlines"
+            params = {
+                'token': self.forexnews_key,
+                'page': 1
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code != 200:
+                return []
+            
+            data = response.json()
+            headlines = data.get('data', [])
+            
+            # Filtrar relevantes para Gold
+            gold_trending = []
+            for item in headlines:
+                title = item.get('title', '')
+                if self._is_gold_relevant(title):
+                    gold_trending.append({
+                        'title': title,
+                        'description': item.get('description', ''),
+                        'url': item.get('url', ''),
+                        'source': 'ForexNewsAPI-Trending',
+                        'importance': 'high',  # Trending = importante
+                        'published_at': item.get('date', '')
+                    })
+            
+            logger.info(f"ForexNewsAPI Trending: {len(gold_trending)} headlines de Gold")
+            return gold_trending
+            
+        except Exception as e:
+            logger.debug(f"ForexNewsAPI Trending: {e}")
+            return []
+    
+    def get_market_sentiment(self) -> Dict:
+        """
+        🔥 NOVO: Retorna sentimento de mercado agregado
+        Combina ForexNewsAPI sentiment + top mentions + trending
+        
+        Substitui necessidade de Twitter/Reddit!
+        
+        Returns:
+            Dict com sentimento completo do mercado
+        """
+        # Verificar cache
+        if self._is_cache_valid(self._market_sentiment_timestamp, 
+                               self._market_sentiment_timeout):
+            return self._market_sentiment_cache
+        
+        result = {
+            'timestamp': datetime.now().isoformat(),
+            'gold_sentiment': None,
+            'usd_sentiment': None,
+            'top_mentions': [],
+            'trending_gold': [],
+            'overall_market_mood': 'neutral',
+            'confidence': 0.0,
+            'sources_available': 0
+        }
+        
+        # 1. Sentimento do Gold (XAU-USD)
+        gold_sentiment = self.fetch_forexnews_sentiment('XAU-USD', days=7)
+        if gold_sentiment:
+            result['gold_sentiment'] = gold_sentiment
+            result['sources_available'] += 1
+        
+        # 2. Sentimento do USD (via EUR-USD como proxy inverso)
+        usd_sentiment = self.fetch_forexnews_sentiment('EUR-USD', days=7)
+        if usd_sentiment:
+            # EUR-USD bullish = USD bearish
+            usd_sentiment['sentiment_score'] = -usd_sentiment['sentiment_score']
+            if usd_sentiment['sentiment_label'] == 'bullish':
+                usd_sentiment['sentiment_label'] = 'bearish'
+            elif usd_sentiment['sentiment_label'] == 'bearish':
+                usd_sentiment['sentiment_label'] = 'bullish'
+            result['usd_sentiment'] = usd_sentiment
+            result['sources_available'] += 1
+        
+        # 3. Top Mentions (o que o mercado está falando)
+        top_mentions = self.fetch_forexnews_top_mentions(days=7)
+        if top_mentions:
+            result['top_mentions'] = top_mentions[:10]
+            result['sources_available'] += 1
+        
+        # 4. Trending Headlines sobre Gold
+        trending = self.fetch_forexnews_trending()
+        if trending:
+            result['trending_gold'] = trending[:5]
+            result['sources_available'] += 1
+        
+        # Determinar humor geral do mercado
+        moods = []
+        
+        if gold_sentiment:
+            moods.append(gold_sentiment['sentiment_score'])
+        
+        if usd_sentiment:
+            # USD bearish é bullish para Gold (correlação inversa)
+            moods.append(-usd_sentiment['sentiment_score'])
+        
+        if moods:
+            avg_mood = sum(moods) / len(moods)
+            result['confidence'] = min(abs(avg_mood) * 2, 1.0)
+            
+            if avg_mood > 0.15:
+                result['overall_market_mood'] = 'risk_on'  # Bullish Gold
+            elif avg_mood < -0.15:
+                result['overall_market_mood'] = 'risk_off'  # Bearish Gold
+            else:
+                result['overall_market_mood'] = 'neutral'
+        
+        # Atualizar cache
+        self._market_sentiment_cache = result
+        self._market_sentiment_timestamp = datetime.now()
+        
+        logger.info(
+            f"Market Sentiment: {result['overall_market_mood']} "
+            f"(confidence: {result['confidence']:.2f}, sources: {result['sources_available']})"
+        )
+        
+        return result
     
     def fetch_finazon_news(self, limit: int = 50) -> List[Dict]:
         """
