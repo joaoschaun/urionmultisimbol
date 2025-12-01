@@ -14,7 +14,7 @@ Simula condições reais de mercado:
 import asyncio
 import random
 import time
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, List, Optional, Callable, Any, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
