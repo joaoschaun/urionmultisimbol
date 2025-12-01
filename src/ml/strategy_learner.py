@@ -5,6 +5,7 @@ Aprende com trades passados e otimiza estratégias automaticamente
 
 import json
 import sqlite3
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -29,6 +30,11 @@ class StrategyLearner:
         self.learning_data_path = Path("data/learning_data.json")
         self.learning_data_path.parent.mkdir(parents=True, exist_ok=True)
         
+        # 🔒 Locks para thread-safety
+        self._data_lock = threading.RLock()  # Lock para learning_data
+        self._file_lock = threading.Lock()   # Lock para arquivo JSON
+        self._db_lock = threading.Lock()     # Lock para database
+        
         # Carregar dados de aprendizagem salvos
         self.learning_data = self._load_learning_data()
         
@@ -40,30 +46,34 @@ class StrategyLearner:
         logger.info("StrategyLearner inicializado")
     
     def _load_learning_data(self) -> Dict:
-        """Carrega dados de aprendizagem salvos"""
-        if self.learning_data_path.exists():
-            try:
-                with open(self.learning_data_path, 'r') as f:
-                    data = json.load(f)
-                    logger.info(f"Dados de aprendizagem carregados: {len(data)} estratégias")
-                    return data
-            except Exception as e:
-                logger.error(f"Erro ao carregar learning_data: {e}")
-        
-        return {}
+        """Carrega dados de aprendizagem salvos (thread-safe)"""
+        with self._file_lock:
+            if self.learning_data_path.exists():
+                try:
+                    with open(self.learning_data_path, 'r') as f:
+                        data = json.load(f)
+                        logger.info(f"Dados de aprendizagem carregados: {len(data)} estratégias")
+                        return data
+                except Exception as e:
+                    logger.error(f"Erro ao carregar learning_data: {e}")
+            
+            return {}
     
     def _save_learning_data(self):
-        """Salva dados de aprendizagem"""
-        try:
-            with open(self.learning_data_path, 'w') as f:
-                json.dump(self.learning_data, f, indent=2)
-            logger.debug("Dados de aprendizagem salvos")
-        except Exception as e:
-            logger.error(f"Erro ao salvar learning_data: {e}")
+        """Salva dados de aprendizagem (thread-safe)"""
+        with self._file_lock:
+            try:
+                with self._data_lock:
+                    data_copy = dict(self.learning_data)
+                with open(self.learning_data_path, 'w') as f:
+                    json.dump(data_copy, f, indent=2)
+                logger.debug("Dados de aprendizagem salvos")
+            except Exception as e:
+                logger.error(f"Erro ao salvar learning_data: {e}")
     
     def analyze_strategy_performance(self, strategy_name: str, days: int = 7) -> Dict:
         """
-        Analisa performance detalhada de uma estratégia
+        Analisa performance detalhada de uma estratégia (thread-safe)
         
         Args:
             strategy_name: Nome da estratégia
@@ -73,28 +83,29 @@ class StrategyLearner:
             Dict com métricas de performance
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            start_date = datetime.now() - timedelta(days=days)
-            
-            # Buscar todos os trades da estratégia
-            cursor.execute("""
-                SELECT 
-                    profit,
-                    signal_confidence,
-                    market_conditions,
-                    open_time,
-                    close_time
-                FROM strategy_trades
-                WHERE strategy_name = ?
-                AND status = 'closed'
-                AND close_time >= ?
-                ORDER BY close_time DESC
-            """, (strategy_name, start_date))
-            
-            trades = cursor.fetchall()
-            conn.close()
+            with self._db_lock:
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                
+                start_date = datetime.now() - timedelta(days=days)
+                
+                # Buscar todos os trades da estratégia
+                cursor.execute("""
+                    SELECT 
+                        profit,
+                        signal_confidence,
+                        market_conditions,
+                        open_time,
+                        close_time
+                    FROM strategy_trades
+                    WHERE strategy_name = ?
+                    AND status = 'closed'
+                    AND close_time >= ?
+                    ORDER BY close_time DESC
+                """, (strategy_name, start_date))
+                
+                trades = cursor.fetchall()
+                conn.close()
             
             if not trades:
                 return {
@@ -256,54 +267,57 @@ class StrategyLearner:
     
     def learn_from_trade(self, strategy_name: str, trade_data: Dict):
         """
-        Aprende com um trade individual
+        Aprende com um trade individual (thread-safe)
         
         Args:
             strategy_name: Nome da estratégia
             trade_data: Dados do trade (profit, confidence, conditions, etc)
         """
         try:
-            # Inicializar dados da estratégia se não existir
-            if strategy_name not in self.learning_data:
-                self.learning_data[strategy_name] = {
-                    'total_trades': 0,
-                    'wins': 0,
-                    'losses': 0,
-                    'min_confidence': 0.5,
-                    'best_conditions': [],
-                    'last_adjustment': None
-                }
-            
-            strategy_data = self.learning_data[strategy_name]
-            
-            # Atualizar contadores
-            strategy_data['total_trades'] += 1
-            if trade_data.get('profit', 0) > 0:
-                strategy_data['wins'] += 1
-            else:
-                strategy_data['losses'] += 1
-            
-            # Salvar condições de mercado se trade foi bem-sucedido
-            if trade_data.get('profit', 0) > 0 and trade_data.get('market_conditions'):
-                strategy_data['best_conditions'].append({
-                    'conditions': trade_data['market_conditions'],
-                    'confidence': trade_data.get('signal_confidence', 0),
-                    'profit': trade_data.get('profit', 0)
-                })
+            with self._data_lock:
+                # Inicializar dados da estratégia se não existir
+                if strategy_name not in self.learning_data:
+                    self.learning_data[strategy_name] = {
+                        'total_trades': 0,
+                        'wins': 0,
+                        'losses': 0,
+                        'min_confidence': 0.5,
+                        'best_conditions': [],
+                        'last_adjustment': None
+                    }
                 
-                # Limitar histórico de melhores condições
-                if len(strategy_data['best_conditions']) > 50:
-                    # Manter apenas as 50 com melhor profit
-                    strategy_data['best_conditions'].sort(
-                        key=lambda x: x['profit'],
-                        reverse=True
-                    )
-                    strategy_data['best_conditions'] = strategy_data['best_conditions'][:50]
+                strategy_data = self.learning_data[strategy_name]
+                
+                # Atualizar contadores
+                strategy_data['total_trades'] += 1
+                if trade_data.get('profit', 0) > 0:
+                    strategy_data['wins'] += 1
+                else:
+                    strategy_data['losses'] += 1
+                
+                # Salvar condições de mercado se trade foi bem-sucedido
+                if trade_data.get('profit', 0) > 0 and trade_data.get('market_conditions'):
+                    strategy_data['best_conditions'].append({
+                        'conditions': trade_data['market_conditions'],
+                        'confidence': trade_data.get('signal_confidence', 0),
+                        'profit': trade_data.get('profit', 0)
+                    })
+                    
+                    # Limitar histórico de melhores condições
+                    if len(strategy_data['best_conditions']) > 50:
+                        # Manter apenas as 50 com melhor profit
+                        strategy_data['best_conditions'].sort(
+                            key=lambda x: x['profit'],
+                            reverse=True
+                        )
+                        strategy_data['best_conditions'] = strategy_data['best_conditions'][:50]
+                
+                should_adjust = strategy_data['total_trades'] % 20 == 0
             
             self._save_learning_data()
             
-            # Verificar se é hora de ajustar parâmetros
-            if strategy_data['total_trades'] % 20 == 0:  # A cada 20 trades
+            # Verificar se é hora de ajustar parâmetros (fora do lock)
+            if should_adjust:
                 self._auto_adjust_strategy(strategy_name)
             
         except Exception as e:
@@ -311,7 +325,7 @@ class StrategyLearner:
     
     def _auto_adjust_strategy(self, strategy_name: str):
         """
-        Ajusta automaticamente parâmetros da estratégia
+        Ajusta automaticamente parâmetros da estratégia (thread-safe)
         
         Args:
             strategy_name: Nome da estratégia
@@ -319,8 +333,10 @@ class StrategyLearner:
         suggested_confidence = self.suggest_confidence_adjustment(strategy_name)
         
         if suggested_confidence:
-            self.learning_data[strategy_name]['min_confidence'] = suggested_confidence
-            self.learning_data[strategy_name]['last_adjustment'] = datetime.now().isoformat()
+            with self._data_lock:
+                self.learning_data[strategy_name]['min_confidence'] = suggested_confidence
+                self.learning_data[strategy_name]['last_adjustment'] = datetime.now().isoformat()
+            
             self._save_learning_data()
             
             logger.success(
@@ -330,7 +346,7 @@ class StrategyLearner:
     
     def get_strategy_ranking(self, days: int = 7) -> List[Dict]:
         """
-        Rankeia estratégias por performance
+        Rankeia estratégias por performance (thread-safe)
         
         Args:
             days: Número de dias para análise
@@ -339,18 +355,19 @@ class StrategyLearner:
             Lista de estratégias ordenadas por score
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Buscar todas as estratégias com trades
-            cursor.execute("""
-                SELECT DISTINCT strategy_name
-                FROM strategy_trades
-                WHERE close_time >= ?
-            """, (datetime.now() - timedelta(days=days),))
-            
-            strategies = [row[0] for row in cursor.fetchall()]
-            conn.close()
+            with self._db_lock:
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                
+                # Buscar todas as estratégias com trades
+                cursor.execute("""
+                    SELECT DISTINCT strategy_name
+                    FROM strategy_trades
+                    WHERE close_time >= ?
+                """, (datetime.now() - timedelta(days=days),))
+                
+                strategies = [row[0] for row in cursor.fetchall()]
+                conn.close()
             
             ranking = []
             
@@ -386,7 +403,7 @@ class StrategyLearner:
     
     def get_learned_confidence(self, strategy_name: str) -> float:
         """
-        Retorna o min_confidence aprendido para uma estratégia
+        Retorna o min_confidence aprendido para uma estratégia (thread-safe)
         
         Args:
             strategy_name: Nome da estratégia
@@ -394,7 +411,8 @@ class StrategyLearner:
         Returns:
             Valor de min_confidence aprendido
         """
-        return self.learning_data.get(strategy_name, {}).get('min_confidence', 0.5)
+        with self._data_lock:
+            return self.learning_data.get(strategy_name, {}).get('min_confidence', 0.5)
     
     def print_learning_status(self):
         """Exibe status de aprendizagem de todas as estratégias"""
