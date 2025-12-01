@@ -20,8 +20,8 @@ class MeanReversionStrategy(BaseStrategy):
     - Padrões de reversão (Doji, Hammer, etc)
     """
     
-    def __init__(self, config: Dict):
-        super().__init__('MeanReversion', config)
+    def __init__(self, config: Dict, symbol: str = None):
+        super().__init__('MeanReversion', config, symbol=symbol)
         
         # Parâmetros
         self.rsi_overbought = config.get('rsi_overbought', 70)

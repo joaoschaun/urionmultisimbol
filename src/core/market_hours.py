@@ -1,7 +1,7 @@
 """
 Market Hours Manager
 Gerencia horários de abertura/fechamento do mercado
-Fecha posições automaticamente antes do fechamento
+MODO 24H: Opera 24/5 com apenas fechamento no fim de semana
 """
 from datetime import datetime, time, timedelta
 from typing import Dict, Optional, Tuple, Any
@@ -11,9 +11,9 @@ import pytz
 
 class ForexMarketHours:
     """
-    Gerenciador simples para pares Forex (EURUSD, GBPUSD, USDJPY, etc)
-    Opera 24h/5 - Domingo 22:00 UTC até Sexta 22:00 UTC
-    SEM FERIADOS (mercado global descentralizado)
+    Gerenciador para Forex e CFDs - Opera 24h/5 dias
+    Domingo 22:00 UTC até Sexta 22:00 UTC
+    SEM pausas diárias (exceto rollover de 1-2 min que ignoramos)
     """
     
     def __init__(self, config: Dict):
@@ -22,7 +22,7 @@ class ForexMarketHours:
         tz_str = schedule_config.get('timezone', 'UTC')
         self.timezone = pytz.timezone(tz_str)
         
-        logger.info("✅ ForexMarketHours: Opera 24/5, SEM feriados")
+        logger.info("✅ ForexMarketHours: Opera 24/5, SEM pausas diárias")
     
     def get_current_time(self) -> datetime:
         """Retorna hora atual UTC"""
@@ -31,7 +31,7 @@ class ForexMarketHours:
     def is_market_open(self) -> bool:
         """
         Forex abre Domingo 22:00 UTC, fecha Sexta 22:00 UTC
-        Não tem feriados (mercado descentralizado)
+        Opera 24h durante a semana
         """
         now = self.get_current_time()
         weekday = now.weekday()
@@ -49,11 +49,11 @@ class ForexMarketHours:
         if weekday == 4:
             return current_hour < 22
         
-        # Segunda a Quinta: Sempre aberto
+        # Segunda a Quinta: Sempre aberto 24h
         return True
     
     def has_daily_pause(self) -> bool:
-        """Forex não tem pausa diária"""
+        """Modo 24h não tem pausa diária"""
         return False
     
     def should_close_positions(self) -> bool:
@@ -64,7 +64,7 @@ class ForexMarketHours:
         return False
     
     def can_open_new_positions(self) -> Tuple[bool, str]:
-        """Forex pode abrir posições quando mercado está aberto"""
+        """Pode abrir posições quando mercado está aberto"""
         is_open = self.is_market_open()
         reason = "" if is_open else "Forex fechado (fim de semana)"
         return is_open, reason
@@ -84,17 +84,19 @@ class ForexMarketHours:
 
 
 class MarketHoursManager:
-    """Gerencia horários de trading e fecha posições automaticamente"""
+    """
+    Gerenciador de horários de trading
+    MODO 24H: Opera o dia todo, apenas fecha no fim de semana
+    Sem pausas diárias - adaptação de liquidez feita pelo AdaptiveTradingManager
+    """
     
     def __init__(self, config: Dict):
         """
         Inicializa gerenciador de horários
         
-        🔥 HORÁRIOS XAUUSD (COMEX Gold) - NY Timezone:
-        - Segunda a Sexta: 18:00 - 17:00 NY (pausa rollover 17:00-18:00)
-        - Sexta: Fecha 17:00 NY
-        - Domingo: Abre 18:00 NY
-        - Sábado: FECHADO
+        🔄 MODO 24H: Opera 24/5 para todos os símbolos
+        - Sem pausa de rollover (gerenciada pelo broker)
+        - Adaptação de liquidez via AdaptiveTradingManager
         
         Args:
             config: Configuração completa
@@ -102,36 +104,19 @@ class MarketHoursManager:
         self.config = config
         schedule_config = config.get('schedule', {})
         
-        # Timezone - NY para XAUUSD
-        tz_str = schedule_config.get('timezone', 'America/New_York')
+        # Timezone - UTC para consistência
+        tz_str = schedule_config.get('timezone', 'UTC')
         self.timezone = pytz.timezone(tz_str)
         
-        # Horários XAUUSD (NY)
-        self.daily_close_time = time(17, 0)   # Pausa diária 17:00 NY
-        self.daily_open_time = time(18, 0)    # Reabre 18:00 NY
-        
-        # Dias especiais
-        self.weekly_close_day = 4  # Sexta-feira (não reabre após 17:00)
-        self.weekly_open_day = 6   # Domingo (abre 18:00)
-        
-        # Janelas de segurança
+        # Janela de segurança para fechamento semanal
         self.close_before_minutes = 30  # Fechar posições 30 min antes
-        self.no_trade_after_open_minutes = 15  # Não operar 15 min após abertura
         
-        # 🆕 Importar MarketHolidays
-        try:
-            from .market_holidays import get_market_holidays
-            self.holidays = get_market_holidays()
-            logger.info("✅ MarketHolidays integrado (Thanksgiving, Christmas, etc)")
-        except Exception as e:
-            logger.warning(f"⚠️ MarketHolidays não disponível: {e}")
-            self.holidays = None
+        # 🆕 MODO 24H: Sem pausa diária
+        self.daily_pause_enabled = False
         
-        logger.info("MarketHoursManager inicializado")
-        logger.info(f"Timezone: {tz_str}")
-        logger.info(f"Pausa diária: {self.daily_close_time} - {self.daily_open_time} NY")
-        logger.info(f"Fecha posições: {self.close_before_minutes} min antes")
-        logger.info(f"Bloqueia trades: {self.no_trade_after_open_minutes} min após abertura")
+        logger.info("🔄 MarketHoursManager MODO 24H inicializado")
+        logger.info("📊 Opera 24/5 - Domingo 22:00 UTC até Sexta 22:00 UTC")
+        logger.info("💡 Adaptação de liquidez via AdaptiveTradingManager")
     
     def get_current_time(self) -> datetime:
         """Retorna hora atual no timezone configurado"""
@@ -141,88 +126,44 @@ class MarketHoursManager:
         """
         Verifica se mercado está aberto
         
-        🔥 Horários XAUUSD (NY):
-        - Domingo: 18:00 - 23:59
-        - Segunda a Quinta: 00:00 - 17:00 e 18:00 - 23:59
-        - Sexta: 00:00 - 17:00 (não reabre)
-        - Sábado: FECHADO
-        
-        ⚠️ XAUUSD opera 23h/dia, 5 dias/semana
-        Feriados dos EUA NÃO afetam trading (apenas COMEX físico)
+        🔄 MODO 24H: Opera 24/5
+        - Domingo 22:00 UTC - Sexta 22:00 UTC
+        - Sem pausas diárias
         
         Returns:
             True se mercado aberto
         """
-        now = self.get_current_time()
+        now = datetime.now(pytz.UTC)
         weekday = now.weekday()
-        current_time = now.time()
-        
-        # 🔥 XAUUSD: Sem verificação de feriados
-        # Ouro opera 23/5 exceto manutenção técnica diária
-        # Feriados dos EUA afetam apenas COMEX físico, não CFDs/Forex
+        current_hour = now.hour
         
         # Sábado: Fechado
         if weekday == 5:
             return False
         
-        # Domingo: Abre às 18:00 NY
+        # Domingo: Abre às 22:00 UTC
         if weekday == 6:
-            return current_time >= self.daily_open_time
+            return current_hour >= 22
         
-        # Sexta-feira: Fecha às 17:00 (não reabre)
+        # Sexta-feira: Fecha às 22:00 UTC
         if weekday == 4:
-            return current_time < self.daily_close_time
+            return current_hour < 22
         
-        # Segunda a Quinta: Aberto exceto na pausa 17:00-18:00
-        if weekday in [0, 1, 2, 3]:
-            # Se está na pausa diária (rollover)
-            if self.daily_close_time <= current_time < self.daily_open_time:
-                return False
-            return True
-        
-        return False
+        # Segunda a Quinta: Sempre aberto 24h
+        return True
     
     def should_close_positions(self) -> bool:
         """
-        Verifica se deve fechar posições (30 min antes do fechamento)
-        
-        Fecha posições:
-        - Segunda a Sexta às 16:30 (30 min antes de 17:00)
+        Verifica se deve fechar posições (30 min antes do fechamento semanal)
         
         Returns:
             True se deve fechar posições
         """
-        now = self.get_current_time()
-        weekday = now.weekday()
+        now = datetime.now(pytz.UTC)
         
-        # Segunda a Sexta: Fechar 30 min antes da pausa/fechamento (16:30)
-        if weekday in [0, 1, 2, 3, 4]:  # Segunda a Sexta
-            close_time = datetime.combine(
-                now.date(),
-                self.daily_close_time,
-                tzinfo=self.timezone
-            )
-            close_warning_time = close_time - timedelta(
-                minutes=self.close_before_minutes
-            )
-            
-            if now >= close_warning_time and now.time() < self.daily_close_time:
-                return True
-        
-        return False
-        
-        # Segunda a Sexta: Fechar 30 min antes da pausa/fechamento (16:00)
-        if weekday in [0, 1, 2, 3, 4]:  # Segunda a Sexta
-            close_time = datetime.combine(
-                now.date(),
-                self.daily_close_time,
-                tzinfo=self.timezone
-            )
-            close_warning_time = close_time - timedelta(
-                minutes=self.close_before_minutes
-            )
-            
-            if now >= close_warning_time and now.time() < self.daily_close_time:
+        # Apenas sexta-feira às 21:30 UTC (30 min antes de 22:00)
+        if now.weekday() == 4:  # Sexta
+            if now.hour == 21 and now.minute >= 30:
                 return True
         
         return False
@@ -231,116 +172,59 @@ class MarketHoursManager:
         """
         Verifica se pode abrir novas posições
         
-        Bloqueios:
-        - Mercado fechado (sábado, pausa diária)
-        - 30 min antes de fechar (16:00)
-        - 15 min após abrir (domingo 18:20-18:35, dias úteis 18:20-18:35)
+        🔄 MODO 24H: Apenas bloqueia fim de semana
         
         Returns:
             Tuple (can_trade, reason)
         """
-        now = self.get_current_time()
-        weekday = now.weekday()
-        current_time = now.time()
+        now = datetime.now(pytz.UTC)
         
         # Mercado fechado
         if not self.is_market_open():
-            return False, "Mercado fechado (pausa ou fim de semana)"
+            return False, "Mercado fechado (fim de semana)"
         
-        # Segunda a Sexta: Não operar 30 min antes da pausa/fechamento
-        if weekday in [0, 1, 2, 3, 4]:
-            close_time = datetime.combine(
-                now.date(),
-                self.daily_close_time,
-                tzinfo=self.timezone
-            )
-            close_warning_time = close_time - timedelta(
-                minutes=self.close_before_minutes
-            )
-            
-            if now >= close_warning_time and now.time() < self.daily_close_time:
-                return False, f"Pausa diária em menos de {self.close_before_minutes} min"
+        # Sexta após 21:30 - não abrir novas posições
+        if now.weekday() == 4 and now.hour >= 21 and now.minute >= 30:
+            return False, "Fechamento semanal em menos de 30 min"
         
-        # Após reabertura: Não operar 15 min
-        # Domingo 18:20-18:35 ou Segunda-Quinta 18:20-18:35
-        if weekday == 6 or weekday in [0, 1, 2, 3]:
-            open_time = datetime.combine(
-                now.date(),
-                self.daily_open_time,
-                tzinfo=self.timezone
-            )
-            no_trade_until = open_time + timedelta(
-                minutes=self.no_trade_after_open_minutes
-            )
-            
-            # Se acabou de abrir (ainda na janela de 15 min)
-            if self.daily_open_time <= current_time < no_trade_until.time():
-                return False, f"Aguardando {self.no_trade_after_open_minutes} min após abertura"
-        
-        return True, "OK"
+        return True, "OK - Mercado aberto 24h"
     
     def get_next_market_event(self) -> Dict:
         """
-        Retorna próximo evento do mercado (abertura ou fechamento/pausa)
+        Retorna próximo evento do mercado
         
         Returns:
             Dict com informações do próximo evento
         """
-        now = self.get_current_time()
+        now = datetime.now(pytz.UTC)
         weekday = now.weekday()
-        current_time = now.time()
+        current_hour = now.hour
         
-        # Se estamos antes da pausa diária (segunda a sexta)
-        if weekday in [0, 1, 2, 3, 4] and current_time < self.daily_close_time:
-            close_datetime = datetime.combine(
-                now.date(),
-                self.daily_close_time,
-                tzinfo=self.timezone
-            )
+        # Se sexta antes das 22:00 - próximo evento é fechamento
+        if weekday == 4 and current_hour < 22:
+            close_datetime = now.replace(hour=22, minute=0, second=0)
             time_until = close_datetime - now
-            
-            event_name = 'close' if weekday == 4 else 'pause'
-            
             return {
-                'event': event_name,
+                'event': 'close',
                 'datetime': close_datetime,
                 'time_until_seconds': time_until.total_seconds(),
                 'time_until_str': str(time_until).split('.')[0]
             }
         
-        # Se estamos na pausa diária (segunda a quinta)
-        if weekday in [0, 1, 2, 3] and self.daily_close_time <= current_time < self.daily_open_time:
-            open_datetime = datetime.combine(
-                now.date(),
-                self.daily_open_time,
-                tzinfo=self.timezone
-            )
-            time_until = open_datetime - now
-            
-            return {
-                'event': 'open',
-                'datetime': open_datetime,
-                'time_until_seconds': time_until.total_seconds(),
-                'time_until_str': str(time_until).split('.')[0]
-            }
-        
-        # Se sexta após 16:30, sábado, ou domingo antes 18:20: próxima abertura domingo
-        if (weekday == 4 and current_time >= self.daily_close_time) or \
-           weekday == 5 or \
-           (weekday == 6 and current_time < self.daily_open_time):
-            
+        # Se fim de semana ou sexta após 22:00 - próximo evento é abertura
+        if weekday >= 5 or (weekday == 4 and current_hour >= 22):
+            # Calcular próximo domingo 22:00
             days_until_sunday = (6 - weekday) % 7
-            if weekday == 6 and current_time < self.daily_open_time:
-                days_until_sunday = 0
+            if days_until_sunday == 0 and current_hour >= 22:
+                days_until_sunday = 7
             
             next_open_date = now.date() + timedelta(days=days_until_sunday)
             next_open_datetime = datetime.combine(
                 next_open_date,
-                self.daily_open_time,
-                tzinfo=self.timezone
+                time(22, 0),
+                tzinfo=pytz.UTC
             )
             time_until = next_open_datetime - now
-            
             return {
                 'event': 'open',
                 'datetime': next_open_datetime,
@@ -348,24 +232,21 @@ class MarketHoursManager:
                 'time_until_str': str(time_until).split('.')[0]
             }
         
-        # Se domingo ou segunda-quinta após 18:20: próxima pausa
-        next_close_date = now.date()
-        if current_time >= self.daily_open_time:
-            next_close_date += timedelta(days=1)
+        # Durante a semana - próximo evento é fechamento sexta
+        days_until_friday = (4 - weekday) % 7
+        if days_until_friday == 0:
+            days_until_friday = 7
         
+        next_close_date = now.date() + timedelta(days=days_until_friday)
         next_close_datetime = datetime.combine(
             next_close_date,
-            self.daily_close_time,
-            tzinfo=self.timezone
+            time(22, 0),
+            tzinfo=pytz.UTC
         )
         time_until = next_close_datetime - now
         
-        # Determinar tipo de evento
-        next_weekday = next_close_date.weekday()
-        event_name = 'close' if next_weekday == 4 else 'pause'
-        
         return {
-            'event': event_name,
+            'event': 'close',
             'datetime': next_close_datetime,
             'time_until_seconds': time_until.total_seconds(),
             'time_until_str': str(time_until).split('.')[0]
@@ -388,8 +269,9 @@ class MarketHoursManager:
             'should_close_positions': should_close,
             'can_open_positions': can_trade,
             'reason': reason,
-            'current_time': self.get_current_time(),
-            'next_event': next_event
+            'current_time': datetime.now(pytz.UTC),
+            'next_event': next_event,
+            'mode': '24H'  # Indica modo 24h
         }
     
     def log_market_status(self):
@@ -397,26 +279,38 @@ class MarketHoursManager:
         status = self.get_market_status()
         
         logger.info("=" * 60)
-        logger.info("MARKET STATUS")
+        logger.info("🔄 MARKET STATUS - MODO 24H")
         logger.info("=" * 60)
-        logger.info(f"Hora atual: {status['current_time'].strftime('%Y-%m-%d %H:%M:%S %Z')}")
-        logger.info(f"Mercado: {'🟢 ABERTO' if status['is_open'] else '🔴 FECHADO'}")
-        logger.info(f"Pode abrir posições: {'✅ SIM' if status['can_open_positions'] else '❌ NÃO'}")
+        logger.info(
+            f"Hora atual: "
+            f"{status['current_time'].strftime('%Y-%m-%d %H:%M:%S %Z')}"
+        )
+        logger.info(
+            f"Mercado: {'🟢 ABERTO' if status['is_open'] else '🔴 FECHADO'}"
+        )
+        logger.info(
+            f"Pode abrir posições: "
+            f"{'✅ SIM' if status['can_open_positions'] else '❌ NÃO'}"
+        )
         
         if not status['can_open_positions']:
             logger.warning(f"Motivo: {status['reason']}")
         
         if status['should_close_positions']:
-            logger.warning("⚠️  FECHAR POSIÇÕES ABERTAS (próximo da pausa/fechamento)")
+            logger.warning(
+                "⚠️  FECHAR POSIÇÕES ABERTAS (fechamento semanal próximo)"
+            )
         
         next_event = status['next_event']
         event_names = {
-            'open': 'ABERTURA',
-            'pause': 'PAUSA DIÁRIA',
-            'close': 'FECHAMENTO SEMANAL'
+            'open': 'ABERTURA (Domingo 22:00 UTC)',
+            'close': 'FECHAMENTO (Sexta 22:00 UTC)'
         }
-        event_name = event_names.get(next_event['event'], next_event['event'].upper())
+        event_name = event_names.get(next_event['event'], next_event['event'])
         logger.info(f"Próximo evento: {event_name}")
-        logger.info(f"Data/Hora: {next_event['datetime'].strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(
+            f"Data/Hora: "
+            f"{next_event['datetime'].strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         logger.info(f"Tempo restante: {next_event['time_until_str']}")
         logger.info("=" * 60)

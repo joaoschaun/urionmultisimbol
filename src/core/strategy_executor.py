@@ -1,6 +1,7 @@
 """
 Strategy Executor
 Executa uma estratégia em thread independente com ciclo próprio
+MODO 24H: Opera o dia todo com adaptação automática de liquidez
 """
 
 import time
@@ -14,6 +15,7 @@ from core.config_manager import ConfigManager
 from core.risk_manager import RiskManager
 from core.market_hours import MarketHoursManager, ForexMarketHours
 from core.watchdog import ThreadWatchdog
+from core.adaptive_trading import AdaptiveTradingManager, get_adaptive_manager
 from analysis.technical_analyzer import TechnicalAnalyzer
 from analysis.news_analyzer import NewsAnalyzer
 from analysis.macro_context_analyzer import MacroContextAnalyzer  # 🔥 FASE 1
@@ -124,6 +126,10 @@ class StrategyExecutor:
         self.enabled = self.strategy_config.get('enabled', True)
         self.cycle_seconds = self.strategy_config.get('cycle_seconds', 300)
         self.max_positions = self.strategy_config.get('max_positions', 2)
+        
+        # 🔄 MODO 24H: Adaptive Trading Manager
+        self.adaptive_manager = get_adaptive_manager(config)
+        self._log_session_on_start = True  # Log sessão apenas na inicialização
         
         # Usar min_confidence aprendido ou padrão do config
         learned_confidence = self.learner.get_learned_confidence(strategy_name)
@@ -486,13 +492,34 @@ class StrategyExecutor:
                 self.watchdog.heartbeat(f"Executor-{self.strategy_name}")
     
     def _can_trade(self) -> bool:
-        """Verifica se pode operar"""
+        """
+        Verifica se pode operar
+        🔄 MODO 24H: Usa AdaptiveTradingManager para ajustar por sessão
+        """
         try:
             # Verificar MT5
             if not self.mt5.is_connected():
                 return False
             
-            # Verificar horário do mercado
+            # 🔄 MODO 24H: Verificar sessão adaptativa PRIMEIRO
+            if self.adaptive_manager:
+                can_trade, reason = self.adaptive_manager.should_trade(
+                    self.symbol, 
+                    self.strategy_name
+                )
+                if not can_trade:
+                    logger.debug(
+                        f"[{self.strategy_name}@{self.symbol}] "
+                        f"🔄 Sessão: {reason}"
+                    )
+                    return False
+                
+                # Log sessão atual (apenas 1x por ciclo)
+                if self._log_session_on_start:
+                    self.adaptive_manager.log_session_status()
+                    self._log_session_on_start = False
+            
+            # Verificar horário do mercado (backup - forex 24/5)
             can_open, reason = self.market_hours.can_open_new_positions()
             if not can_open:
                 logger.debug(f"[{self.strategy_name}] Mercado: {reason}")
@@ -503,18 +530,20 @@ class StrategyExecutor:
                 if self.news_analyzer.is_news_blocking_window(0)[0]:
                     return False
             except Exception as e:
-                logger.warning(f"[{self.strategy_name}] Erro ao verificar janela de notícias: {e}")
+                logger.warning(
+                    f"[{self.strategy_name}] Erro janela notícias: {e}"
+                )
                 # Continuar mesmo com erro na verificação de notícias
             
-            # 🚪 PORTEIRO: Verificar se condições de mercado permitem esta estratégia
+            # 🚪 PORTEIRO: Verificar condições de mercado
             if self.market_analyzer:
                 try:
-                    # Analisar condições atuais do mercado
                     market_analysis = self.market_analyzer.analyze()
                     
                     if market_analysis:
-                        # Verificar se estratégia pode operar (strict_mode via config)
-                        strict_mode = self.config.get('trading', {}).get('market_filter_strict', False)
+                        strict_mode = self.config.get(
+                            'trading', {}
+                        ).get('market_filter_strict', False)
                         
                         if not self.market_analyzer.is_strategy_allowed(
                             self.strategy_name, 
@@ -522,20 +551,14 @@ class StrategyExecutor:
                             strict_mode=strict_mode
                         ):
                             logger.info(
-                                f"[{self.strategy_name}] 🚫 BLOQUEADO pelo porteiro | "
-                                f"Condição: {market_analysis.condition.value} | "
-                                f"Confiança: {market_analysis.confidence*100:.0f}% | "
-                                f"Recomendadas: {', '.join(market_analysis.recommended_strategies)}"
-                            )
-                            return False
-                        else:
-                            logger.debug(
-                                f"[{self.strategy_name}] ✅ Liberado pelo porteiro | "
+                                f"[{self.strategy_name}] 🚫 BLOQUEADO | "
                                 f"Condição: {market_analysis.condition.value}"
                             )
+                            return False
                 except Exception as e:
-                    logger.warning(f"[{self.strategy_name}] Erro ao verificar porteiro: {e}")
-                    # Continuar mesmo com erro (fail-safe)
+                    logger.warning(
+                        f"[{self.strategy_name}] Erro porteiro: {e}"
+                    )
             
             return True
             
@@ -564,7 +587,10 @@ class StrategyExecutor:
             return self.max_positions  # Assumir máximo em caso de erro
     
     def _calculate_order_params(self, signal: Dict) -> Optional[Dict]:
-        """Calcula parâmetros da ordem"""
+        """
+        Calcula parâmetros da ordem
+        🔄 MODO 24H: Aplica ajustes adaptativos por sessão
+        """
         try:
             action = signal.get('action')
             entry_price = signal.get('price')
@@ -573,32 +599,66 @@ class StrategyExecutor:
             sl = signal.get('sl')
             tp = signal.get('tp')
             
-            # 🔥 FASE 1: SL/TP são OPCIONAIS - vão no comentário para gerenciamento mental
             # Se não tiver SL/TP, usar valores padrão baseados em ATR
             if not sl or not tp:
                 logger.debug(
                     f"[{self.strategy_name}] "
-                    f"Sinal sem SL/TP - usando valores padrão baseados em ATR"
+                    f"Sinal sem SL/TP - usando ATR"
                 )
-                # Calcular SL/TP padrão (2x ATR para SL, 3x ATR para TP)
-                atr = signal.get('details', {}).get('atr', entry_price * 0.02)  # 2% padrão
-                sl = entry_price - (2 * atr) if action == 'BUY' else entry_price + (2 * atr)
-                tp = entry_price + (3 * atr) if action == 'BUY' else entry_price - (3 * atr)
-                logger.debug(
-                    f"[{self.strategy_name}] "
-                    f"SL/TP calculado: SL={sl:.5f}, TP={tp:.5f} (ATR={atr:.5f})"
+                atr = signal.get('details', {}).get(
+                    'atr', entry_price * 0.02
                 )
+                sl = entry_price - (2 * atr) if action == 'BUY' \
+                    else entry_price + (2 * atr)
+                tp = entry_price + (3 * atr) if action == 'BUY' \
+                    else entry_price - (3 * atr)
             
-            # Calcular volume com Kelly Criterion (precisa de symbol, entry_price, stop_loss)
+            # Calcular volume base com Kelly Criterion
             volume = self.risk_manager.calculate_position_size(
                 symbol=self.symbol,
                 entry_price=entry_price,
                 stop_loss=sl,
                 strategy_name=self.strategy_name,
-                use_kelly=True  # 🔥 FASE 1: Kelly Criterion ativado
+                use_kelly=True
             )
             if volume <= 0:
                 return None
+            
+            # 🔄 MODO 24H: Aplicar ajustes adaptativos por sessão
+            if self.adaptive_manager:
+                session_params = self.adaptive_manager.get_session_params(
+                    self.symbol
+                )
+                
+                # Ajustar volume pela sessão
+                adjusted_volume = round(
+                    volume * session_params.lot_multiplier, 2
+                )
+                
+                # Ajustar SL/TP pela sessão
+                sl_distance = abs(entry_price - sl)
+                tp_distance = abs(entry_price - tp)
+                
+                adjusted_sl_distance = sl_distance * session_params.sl_multiplier
+                adjusted_tp_distance = tp_distance * session_params.tp_multiplier
+                
+                if action == 'BUY':
+                    sl = entry_price - adjusted_sl_distance
+                    tp = entry_price + adjusted_tp_distance
+                else:
+                    sl = entry_price + adjusted_sl_distance
+                    tp = entry_price - adjusted_tp_distance
+                
+                # Garantir volume mínimo
+                volume = max(0.01, adjusted_volume)
+                
+                logger.info(
+                    f"[{self.strategy_name}@{self.symbol}] "
+                    f"🔄 Sessão {session_params.mode.value}: "
+                    f"vol={adjusted_volume:.2f}, "
+                    f"SL×{session_params.sl_multiplier}, "
+                    f"TP×{session_params.tp_multiplier}"
+                )
             
             return {
                 'action': action,
@@ -606,7 +666,7 @@ class StrategyExecutor:
                 'sl': sl,
                 'tp': tp,
                 'magic': self.magic_number,
-                'comment': f"URION_{self.strategy_name}|SL:{sl:.5f}|TP:{tp:.5f}",  # 🔥 METADATA com SL/TP mental
+                'comment': f"S|{sl:.1f}|{tp:.1f}",
                 'signal': signal
             }
             
@@ -708,16 +768,17 @@ class StrategyExecutor:
             # Vamos gerenciar manualmente até passar o tempo mínimo
             logger.info(
                 f"[{self.strategy_name}] "
-                f"🛡️  Proteção ativa: SL/TP serão gerenciados manualmente"
+                f"🛡️  Proteção ativa: SL/TP enviados como backup + gerenciamento manual"
             )
             
-            # Executar ordem SEM SL/TP (gerenciamento manual)
+            # 🔧 CORREÇÃO: Enviar SL/TP como BACKUP de segurança
+            # OrderManager vai gerenciar, mas SL/TP real protege caso OrderManager falhe
             result = self.mt5.place_order(
                 symbol=self.symbol,
                 order_type=action,
                 volume=volume,
-                sl=None,  # 🔥 SEM SL inicial
-                tp=None,  # 🔥 SEM TP inicial
+                sl=sl,  # ✅ SL como backup de segurança
+                tp=tp,  # ✅ TP como backup de segurança
                 comment=comment,
                 magic=magic
             )
@@ -748,13 +809,26 @@ class StrategyExecutor:
                 
                 # Salvar no banco de dados para tracking
                 try:
+                    # 🔧 CORREÇÃO: Obter preço real do símbolo via MT5
+                    import MetaTrader5 as mt5_module
+                    actual_open_price = signal.get('price', 0)
+                    try:
+                        tick_info = mt5_module.symbol_info_tick(self.symbol)
+                        if tick_info:
+                            # BUY usa ask, SELL usa bid
+                            actual_open_price = (
+                                tick_info.ask if action == 'BUY' else tick_info.bid
+                            )
+                    except Exception:
+                        pass  # Usa o preço do signal como fallback
+                    
                     trade_data = {
                         'strategy_name': self.strategy_name,
                         'ticket': ticket,
                         'symbol': self.symbol,
                         'type': action,
                         'volume': volume,
-                        'open_price': signal.get('price', 0),
+                        'open_price': actual_open_price,  # ✅ Preço correto
                         'sl': sl,
                         'tp': tp,
                         'open_time': datetime.now(),

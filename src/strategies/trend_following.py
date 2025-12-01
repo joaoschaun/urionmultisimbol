@@ -31,8 +31,8 @@ class TrendFollowingStrategy(BaseStrategy):
     - Sem divergência contra
     """
     
-    def __init__(self, config: Dict):
-        super().__init__('TrendFollowing', config)
+    def __init__(self, config: Dict, symbol: str = None):
+        super().__init__('TrendFollowing', config, symbol=symbol)
         
         # Parâmetros configuráveis
         self.adx_threshold = config.get('adx_threshold', 30)

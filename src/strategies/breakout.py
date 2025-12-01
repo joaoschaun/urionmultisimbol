@@ -31,8 +31,8 @@ class BreakoutStrategy(BaseStrategy):
     - Confirmação de timeframe maior
     """
     
-    def __init__(self, config: Dict):
-        super().__init__('Breakout', config)
+    def __init__(self, config: Dict, symbol: str = None):
+        super().__init__('Breakout', config, symbol=symbol)
         
         # Parâmetros
         self.adx_min = config.get('adx_min', 20)

@@ -19,8 +19,8 @@ class NewsTradingStrategy(BaseStrategy):
     - Confirmação técnica opcional
     """
     
-    def __init__(self, config: Dict):
-        super().__init__('NewsTrading', config)
+    def __init__(self, config: Dict, symbol: str = None):
+        super().__init__('NewsTrading', config, symbol=symbol)
         
         # Parâmetros
         self.sentiment_threshold = config.get('sentiment_threshold', 0.3)

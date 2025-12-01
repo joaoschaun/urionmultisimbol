@@ -1,10 +1,11 @@
 """
-Order Generator (Multi-Thread)
+Order Generator (Multi-Thread Multi-Symbol)
 Gerencia múltiplas estratégias em threads independentes
+🔥 CORRIGIDO: Cada símbolo tem suas próprias instâncias de analyzers e strategies
 """
 
 import time
-from typing import Dict, List
+from typing import Dict, List, Optional
 from loguru import logger
 
 from core.mt5_connector import MT5Connector
@@ -15,13 +16,22 @@ from core.watchdog import ThreadWatchdog
 from analysis.technical_analyzer import TechnicalAnalyzer
 from analysis.news_analyzer import NewsAnalyzer
 from strategies.strategy_manager import StrategyManager
-from notifications.telegram_bot import TelegramNotifier
+
+# Import opcional do Telegram (pode falhar em ambientes sem SSL configurado)
+try:
+    from notifications.telegram_bot import TelegramNotifier
+    TELEGRAM_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"⚠️ Telegram não disponível: {e}")
+    TelegramNotifier = None
+    TELEGRAM_AVAILABLE = False
 
 
 class OrderGenerator:
     """
-    Gerador de ordens multi-thread
-    Cada estratégia executa em thread independente
+    Gerador de ordens multi-thread multi-symbol
+    Cada símbolo tem instâncias SEPARADAS de analyzers e estratégias
+    para evitar contaminação de dados entre símbolos
     """
     
     def __init__(self, config=None, telegram=None):
@@ -34,16 +44,28 @@ class OrderGenerator:
         else:
             self.config = config
         
-        # Componentes compartilhados
+        # Componentes compartilhados (seguros para multi-thread)
         self.mt5 = MT5Connector(self.config)
         self.risk_manager = RiskManager(self.config, self.mt5)
-        self.technical_analyzer = TechnicalAnalyzer(self.mt5, self.config)
-        self.news_analyzer = NewsAnalyzer(self.config)
-        self.strategy_manager = StrategyManager(self.config)
-        self.telegram = telegram if telegram else TelegramNotifier(self.config)
+        
+        # Telegram opcional
+        if telegram:
+            self.telegram = telegram
+        elif TELEGRAM_AVAILABLE and TelegramNotifier:
+            try:
+                self.telegram = TelegramNotifier(self.config)
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao iniciar Telegram: {e}")
+                self.telegram = None
+        else:
+            self.telegram = None
         
         # Watchdog para monitoramento de threads
         self.watchdog = ThreadWatchdog(timeout_seconds=600)  # 10 min
+        
+        # 🔥 INSTÂNCIAS POR SÍMBOLO (evita contaminação de cache/dados)
+        self.analyzers_by_symbol: Dict[str, Dict] = {}
+        self.strategies_by_symbol: Dict[str, StrategyManager] = {}
         
         # Criar executors para cada estratégia
         self.executors: List[StrategyExecutor] = []
@@ -54,8 +76,31 @@ class OrderGenerator:
         
         logger.info(
             f"OrderGenerator inicializado com "
-            f"{len(self.executors)} estratégias independentes"
+            f"{len(self.executors)} executores independentes"
         )
+    
+    def _get_or_create_analyzers(self, symbol: str) -> Dict:
+        """
+        Obtém ou cria analyzers para um símbolo específico
+        Cada símbolo tem suas próprias instâncias para evitar contaminação
+        """
+        if symbol not in self.analyzers_by_symbol:
+            logger.info(f"🔧 Criando analyzers dedicados para {symbol}")
+            self.analyzers_by_symbol[symbol] = {
+                'technical': TechnicalAnalyzer(self.mt5, self.config, symbol=symbol),
+                'news': NewsAnalyzer(self.config)
+            }
+        return self.analyzers_by_symbol[symbol]
+    
+    def _get_or_create_strategies(self, symbol: str) -> StrategyManager:
+        """
+        Obtém ou cria StrategyManager para um símbolo específico
+        Cada símbolo tem suas próprias instâncias de estratégias
+        """
+        if symbol not in self.strategies_by_symbol:
+            logger.info(f"🔧 Criando estratégias dedicadas para {symbol}")
+            self.strategies_by_symbol[symbol] = StrategyManager(self.config, symbol=symbol)
+        return self.strategies_by_symbol[symbol]
     
     def _create_strategy_executors(self):
         """Cria executors para cada estratégia ativa E cada símbolo ativo"""
@@ -79,7 +124,11 @@ class OrderGenerator:
         for symbol in active_symbols:
             symbol_config = symbols_config.get(symbol, {})
             
-            for name, strategy in self.strategy_manager.strategies.items():
+            # 🔥 INSTÂNCIAS DEDICADAS POR SÍMBOLO
+            analyzers = self._get_or_create_analyzers(symbol)
+            strategy_manager = self._get_or_create_strategies(symbol)
+            
+            for name, strategy in strategy_manager.strategies.items():
                 if strategy.is_enabled():
                     executor = StrategyExecutor(
                         strategy_name=name,
@@ -87,15 +136,15 @@ class OrderGenerator:
                         config=self.config,
                         mt5=self.mt5,
                         risk_manager=self.risk_manager,
-                        technical_analyzer=self.technical_analyzer,
-                        news_analyzer=self.news_analyzer,
+                        technical_analyzer=analyzers['technical'],  # Analyzer do símbolo
+                        news_analyzer=analyzers['news'],  # News do símbolo
                         telegram=self.telegram,
                         watchdog=self.watchdog,
-                        symbol=symbol,  # Passar símbolo específico
-                        symbol_config=symbol_config  # Configuração do símbolo
+                        symbol=symbol,
+                        symbol_config=symbol_config
                     )
                     self.executors.append(executor)
-                    logger.info(f"Executor criado: {name} @ {symbol}")
+                    logger.info(f"✅ Executor criado: {name} @ {symbol} (magic: {executor.magic_number})")
     
     def start(self):
         """Inicia todos os executors"""

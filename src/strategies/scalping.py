@@ -32,8 +32,8 @@ class ScalpingStrategy(BaseStrategy):
     - Filtro de sessão (London/NY apenas)
     """
     
-    def __init__(self, config: Dict):
-        super().__init__('Scalping', config)
+    def __init__(self, config: Dict, symbol: str = None):
+        super().__init__('Scalping', config, symbol=symbol)
         
         # Parâmetros OTIMIZADOS
         self.max_spread_pips = config.get('max_spread_pips', 2.5)  # Mais restritivo

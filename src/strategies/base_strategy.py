@@ -1,6 +1,7 @@
 """
 Classe base para estratégias de trading
 Define interface comum para todas as estratégias
+🔥 CORRIGIDO: Suporte multi-símbolo dinâmico
 """
 
 from abc import ABC, abstractmethod
@@ -13,7 +14,7 @@ class BaseStrategy(ABC):
     Classe abstrata base para todas as estratégias
     """
     
-    def __init__(self, name: str, config: Dict, risk_manager=None):
+    def __init__(self, name: str, config: Dict, risk_manager=None, symbol: str = None):
         """
         Inicializa a estratégia
         
@@ -21,14 +22,17 @@ class BaseStrategy(ABC):
             name: Nome da estratégia
             config: Configurações da estratégia
             risk_manager: RiskManager para cálculos ATR (opcional)
+            symbol: Símbolo para operar (ex: EURUSD, XAUUSD)
         """
         self.name = name
         self.config = config
         self.enabled = config.get('enabled', True)
         self.min_confidence = config.get('min_confidence', 0.6)
-        self.risk_manager = risk_manager  # 🔥 FASE 1: Armazenar RiskManager
+        self.risk_manager = risk_manager
+        # 🔥 MULTI-SÍMBOLO: Guardar símbolo na estratégia
+        self.symbol = symbol if symbol else 'XAUUSD'
         
-        logger.info(f"Estratégia {self.name} inicializada")
+        logger.info(f"Estratégia {self.name} inicializada para {self.symbol}")
     
     @abstractmethod
     def analyze(self, technical_analysis: Dict, 
@@ -133,15 +137,24 @@ class BaseStrategy(ABC):
         sl = None
         tp = None
         
+        # 🔥 MULTI-SÍMBOLO: Calcular distâncias apropriadas para cada símbolo
+        sl_distance_map = {
+            'XAUUSD': 50,    # Ouro: $50
+            'EURUSD': 0.0030,  # EUR: 30 pips
+            'GBPUSD': 0.0035,  # GBP: 35 pips
+            'USDJPY': 0.50,    # JPY: 50 pips
+        }
+        default_sl_distance = sl_distance_map.get(self.symbol, 50)
+        
         if action in ['BUY', 'SELL'] and current_price > 0:
-            # 🔥 FASE 1: Usar ATR para stops dinâmicos se disponível
+            # Usar ATR para stops dinâmicos se disponível
             if self.risk_manager:
                 try:
                     sl = self.risk_manager.calculate_stop_loss(
-                        symbol='XAUUSD',  # TODO: pegar do config
-                        order_type=action,  # BUY ou SELL
+                        symbol=self.symbol,  # 🔥 Usar símbolo da estratégia
+                        order_type=action,
                         entry_price=current_price,
-                        strategy_name=self.name  # ATR é calculado automaticamente
+                        strategy_name=self.name
                     )
                     # TP baseado em múltiplo do risco (1:3)
                     if sl:
@@ -155,28 +168,32 @@ class BaseStrategy(ABC):
                     sl = None
                     tp = None
             
-            # Fallback: Valores fixos se ATR não disponível
+            # Fallback: Valores fixos baseados no símbolo
             if sl is None:
+                sl_distance = default_sl_distance
+                tp_distance = sl_distance * 3  # R:R 1:3
                 if action == 'BUY':
-                    sl_distance = 50  # $50 de stop loss
-                    tp_distance = 150  # $150 de take profit - R:R 1:3
                     sl = current_price - sl_distance
                     tp = current_price + tp_distance
                 elif action == 'SELL':
-                    sl_distance = 50  # $50 de stop loss
-                    tp_distance = 150  # $150 de take profit - R:R 1:3
                     sl = current_price + sl_distance
                     tp = current_price - tp_distance
         
+        # 🔥 Determinar casas decimais baseado no símbolo
+        digits = 2 if self.symbol in ['XAUUSD', 'XAGUSD'] else 5
+        if 'JPY' in self.symbol:
+            digits = 3
+        
         signal = {
             'strategy': self.name,
+            'symbol': self.symbol,  # 🔥 Incluir símbolo no sinal
             'action': action,
             'confidence': round(confidence, 3),
             'reason': reason,
             'details': details,
             'price': current_price,
-            'sl': round(sl, 2) if sl else None,
-            'tp': round(tp, 2) if tp else None
+            'sl': round(sl, digits) if sl else None,
+            'tp': round(tp, digits) if tp else None
         }
         
         return signal

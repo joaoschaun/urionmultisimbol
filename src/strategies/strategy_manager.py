@@ -1,6 +1,7 @@
 """
 Gerenciador de Estratégias
 Coordena múltiplas estratégias e combina sinais
+🔥 CORRIGIDO: Suporte multi-símbolo - cada instância opera um símbolo específico
 """
 
 from typing import Dict, List, Optional
@@ -16,60 +17,67 @@ from .range_trading import RangeTradingStrategy
 
 class StrategyManager:
     """
-    Gerencia múltiplas estratégias de trading
-    Combina sinais e retorna melhor oportunidade
+    Gerencia múltiplas estratégias de trading para um símbolo específico
+    🔥 Cada símbolo deve ter sua própria instância de StrategyManager
     """
     
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, symbol: str = None):
         """
         Inicializa gerenciador com estratégias configuradas
         
         Args:
             config: Configurações do sistema
+            symbol: Símbolo para operar (ex: EURUSD, XAUUSD)
         """
         self.config = config
         self.strategies_config = config.get('strategies', {})
+        # 🔥 MULTI-SÍMBOLO: Guardar símbolo no manager
+        self.symbol = symbol if symbol else 'XAUUSD'
         
-        # Inicializar estratégias
+        # Inicializar estratégias COM O SÍMBOLO
         self.strategies = {}
         
         # Trend Following
         if self.strategies_config.get('trend_following', {}).get('enabled', True):
             self.strategies['trend_following'] = TrendFollowingStrategy(
-                self.strategies_config.get('trend_following', {})
+                self.strategies_config.get('trend_following', {}),
+                symbol=self.symbol
             )
         
         # Mean Reversion
         if self.strategies_config.get('mean_reversion', {}).get('enabled', True):
             self.strategies['mean_reversion'] = MeanReversionStrategy(
-                self.strategies_config.get('mean_reversion', {})
+                self.strategies_config.get('mean_reversion', {}),
+                symbol=self.symbol
             )
         
         # Breakout
         if self.strategies_config.get('breakout', {}).get('enabled', True):
             self.strategies['breakout'] = BreakoutStrategy(
-                self.strategies_config.get('breakout', {})
+                self.strategies_config.get('breakout', {}),
+                symbol=self.symbol
             )
         
         # News Trading
         if self.strategies_config.get('news_trading', {}).get('enabled', True):
             self.strategies['news_trading'] = NewsTradingStrategy(
-                self.strategies_config.get('news_trading', {})
+                self.strategies_config.get('news_trading', {}),
+                symbol=self.symbol
             )
         
         # 5. Scalping
         scalping_config = self.strategies_config.get('scalping', {})
         if scalping_config.get('enabled', True):
-            self.strategies['scalping'] = ScalpingStrategy(scalping_config)
-            logger.debug("Estratégia Scalping carregada")
+            self.strategies['scalping'] = ScalpingStrategy(scalping_config, symbol=self.symbol)
+            logger.debug(f"Estratégia Scalping carregada para {self.symbol}")
         
         # 6. Range Trading
         range_config = self.strategies_config.get('range_trading', {})
         if range_config.get('enabled', True):
-            self.strategies['range_trading'] = RangeTradingStrategy(range_config)
-            logger.debug("Estratégia RangeTrading carregada")
+            self.strategies['range_trading'] = RangeTradingStrategy(range_config, symbol=self.symbol)
+            logger.debug(f"Estratégia RangeTrading carregada para {self.symbol}")
         
-        logger.info(f"StrategyManager inicializado com {len(self.strategies)} estratégias")
+        logger.info(f"StrategyManager inicializado: {len(self.strategies)} estratégias para {self.symbol}")
     
     def analyze_all(self, technical_analysis: Dict,
                    news_analysis: Optional[Dict] = None) -> List[Dict]:

@@ -230,27 +230,42 @@ class OrderManager:
         base_magic = 100000
         strategies = self.config.get('strategies', {})
         
+        # Símbolos suportados (do config ou padrão)
+        symbols = self.config.get('trading', {}).get('symbols', 
+            ['XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY'])
+        
         for strategy_name, strategy_config in strategies.items():
             if strategy_name == 'enabled':
                 continue
             
-            # Calcular magic number (mesmo algoritmo do StrategyExecutor)
+            # 🔧 CORREÇÃO: Calcular magic para CADA SÍMBOLO
+            # (mesmo algoritmo do StrategyExecutor)
             name_hash = sum(ord(c) for c in strategy_name[:5])
-            magic_number = base_magic + name_hash
             
-            # Extrair configurações de OrderManager da estratégia
-            strategy_map[magic_number] = {
-                'name': strategy_name,
-                'trailing_stop_distance': strategy_config.get('trailing_stop_distance', 15),
-                'break_even_trigger': strategy_config.get('break_even_trigger', 20),
-                'partial_close_trigger': strategy_config.get('partial_close_trigger', 30)
-            }
-            
-            logger.debug(
-                f"Strategy '{strategy_name}' (magic: {magic_number}): "
-                f"Trailing={strategy_config.get('trailing_stop_distance', 15)}pips, "
-                f"BE={strategy_config.get('break_even_trigger', 20)}pips"
-            )
+            for symbol in symbols:
+                symbol_hash = sum(ord(c) for c in symbol[:4])
+                magic_number = base_magic + name_hash + symbol_hash
+                
+                # Extrair configurações de OrderManager da estratégia
+                strategy_map[magic_number] = {
+                    'name': strategy_name,
+                    'symbol': symbol,
+                    'trailing_stop_distance': strategy_config.get(
+                        'trailing_stop_distance', 15),
+                    'break_even_trigger': strategy_config.get(
+                        'break_even_trigger', 20),
+                    'partial_close_trigger': strategy_config.get(
+                        'partial_close_trigger', 30)
+                }
+                
+                logger.debug(
+                    f"Strategy '{strategy_name}@{symbol}' (magic: {magic_number})"
+                )
+        
+        logger.info(
+            f"OrderManager: {len(strategy_map)} magic numbers mapeados "
+            f"({len(strategies)} estrategias x {len(symbols)} simbolos)"
+        )
         
         return strategy_map
     
@@ -858,6 +873,10 @@ class OrderManager:
             # Arredondar para 0.01 (mínimo MT5)
             volume_to_close = round(volume_to_close, 2)
             
+            # Garantir volume mínimo de 0.01 se o cálculo der menos, mas não zero
+            if volume_to_close < 0.01 and volume_to_close > 0:
+                volume_to_close = 0.01
+            
             if volume_to_close >= 0.01:
                 logger.info(
                     f"[{strategy_config.get('strategy_name')}] "
@@ -986,6 +1005,17 @@ class OrderManager:
                     f"⚠️ Modificação adiada (spread alto) | Ticket: {ticket}"
                 )
                 return False
+            
+            # 🚨 VALIDAÇÃO 3: Sanidade do TP (Evitar bug do TP Invertido/Gold Price)
+            if new_tp:
+                current_price = position['price_current']
+                # Se TP for muito discrepante (> 50% de diferença), ignorar
+                if abs(new_tp - current_price) > (current_price * 0.5):
+                    logger.error(
+                        f"❌ TP INVÁLIDO DETECTADO para #{ticket} ({symbol})! "
+                        f"TP {new_tp} muito longe do preço {current_price}. Ignorando TP."
+                    )
+                    new_tp = None # Remove o TP inválido da requisição
             
             # Prosseguir com modificação
             result = self.mt5.modify_position(ticket, new_sl, new_tp)
@@ -1824,6 +1854,15 @@ class OrderManager:
                 state['stage_history'].append('ENCERRADO @ +1.5R')
                 logger.success(f"[news_trading] #{ticket} → ENCERRADO | +1.5R alcançado")
     
+    def _get_symbol_point(self, symbol: str) -> float:
+        """Retorna o valor do ponto para o símbolo"""
+        if 'JPY' in symbol:
+            return 0.01
+        elif 'XAU' in symbol:
+            return 0.01
+        else:
+            return 0.0001
+
     def _apply_trailing_stop(self, ticket: int, position: Dict, distance_pips: int):
         """
         Aplica trailing stop com distância específica
@@ -1836,16 +1875,36 @@ class OrderManager:
         current_price = position['price_current']
         position_type = position['type']
         current_sl = position['sl']
+        symbol = position.get('symbol', 'XAUUSD')
         
-        # Calcular novo SL
-        pip_value = 0.01  # Para XAUUSD
+        # Calcular novo SL com point correto
+        point = self._get_symbol_point(symbol)
         
         if position_type == 'BUY':
-            new_sl = current_price - (distance_pips * pip_value)
+            new_sl = current_price - (distance_pips * point * 10) # pips * point * 10 (se point for 0.00001) ou ajustar conforme mt5
+            # Simplificando: assumindo distance_pips já em pips padrão (10 points)
+            # Se distance_pips = 20 (200 points)
+            # XAUUSD (digits=2): point=0.01. 20 pips = 2.00 price diff
+            # EURUSD (digits=5): point=0.00001. 20 pips = 0.00200 price diff
+            
+            # Melhor usar mt5.symbol_info(symbol).point se possível, mas aqui vamos aproximar
+            if 'JPY' in symbol or 'XAU' in symbol:
+                price_diff = distance_pips * 0.01 # 1 pip = 0.01
+            else:
+                price_diff = distance_pips * 0.0001 # 1 pip = 0.0001
+                
+            new_sl = current_price - price_diff
+            
             if new_sl > current_sl:  # Só move se melhorar
                 self.modify_position(ticket, new_sl)
         else:  # SELL
-            new_sl = current_price + (distance_pips * pip_value)
+            if 'JPY' in symbol or 'XAU' in symbol:
+                price_diff = distance_pips * 0.01
+            else:
+                price_diff = distance_pips * 0.0001
+                
+            new_sl = current_price + price_diff
+            
             if new_sl < current_sl:  # Só move se melhorar
                 self.modify_position(ticket, new_sl)
     

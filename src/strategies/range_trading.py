@@ -24,8 +24,8 @@ class RangeTradingStrategy(BaseStrategy):
     OBJETIVO: Lucrar com oscilações dentro de um range definido
     """
     
-    def __init__(self, config: Dict):
-        super().__init__('RangeTrading', config)
+    def __init__(self, config: Dict, symbol: str = None):
+        super().__init__('RangeTrading', config, symbol=symbol)
         
         # Parâmetros para mercado lateral
         self.adx_max = config.get('adx_max', 25)  # ADX BAIXO = sem tendência
