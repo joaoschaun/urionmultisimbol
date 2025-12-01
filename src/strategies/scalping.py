@@ -94,7 +94,9 @@ class ScalpingStrategy(BaseStrategy):
             # ========================================
             # 2. VERIFICAR ATR (VOLATILIDADE)
             # ========================================
-            atr = m5.get('atr', 0)
+            atr_raw = m5.get('atr', 0)
+            # ATR pode vir como float diretamente ou como dict
+            atr = atr_raw if isinstance(atr_raw, (int, float)) else (atr_raw.get('atr', 0) if isinstance(atr_raw, dict) else 0)
             atr_pips = atr / 0.1 if atr else 0  # XAUUSD: 1 pip = 0.1
             
             logger.debug(f"[SCALPING] ATR: {atr_pips:.1f} pips (min: {self.min_atr_pips}, max: {self.max_atr_pips})")
@@ -114,7 +116,8 @@ class ScalpingStrategy(BaseStrategy):
             ema_data = m5.get('ema', {})
             bb_data = m5.get('bollinger', {})  # ✅ NOVO: Bollinger Bands
             
-            if not macd_data or not stochastic_data:
+            # Verificar se indicadores são dicts válidos
+            if not isinstance(macd_data, dict) or not isinstance(stochastic_data, dict):
                 return self.create_signal('HOLD', 0.0, 'no_indicators')
             
             # ========================================
@@ -123,19 +126,19 @@ class ScalpingStrategy(BaseStrategy):
             if rsi < self.rsi_min or rsi > self.rsi_max:
                 return self.create_signal('HOLD', 0.0, f'rsi_extreme_{rsi:.1f}')
             
-            # Extrair valores dos indicadores
-            macd_line = macd_data.get('macd', 0)
-            macd_signal = macd_data.get('signal', 0)
-            macd_hist = macd_data.get('histogram', 0)
-            stoch_k = stochastic_data.get('k', 50)
-            stoch_d = stochastic_data.get('d', 50)
+            # Extrair valores dos indicadores (com tratamento de tipo)
+            macd_line = macd_data.get('macd', 0) if isinstance(macd_data, dict) else 0
+            macd_signal = macd_data.get('signal', 0) if isinstance(macd_data, dict) else 0
+            macd_hist = macd_data.get('histogram', 0) if isinstance(macd_data, dict) else 0
+            stoch_k = stochastic_data.get('k', 50) if isinstance(stochastic_data, dict) else 50
+            stoch_d = stochastic_data.get('d', 50) if isinstance(stochastic_data, dict) else 50
             
             # ========================================
             # 5. BOLLINGER BANDS ANALYSIS
             # ========================================
-            bb_upper = bb_data.get('upper', price + 1)
-            bb_lower = bb_data.get('lower', price - 1)
-            bb_middle = bb_data.get('middle', price)
+            bb_upper = bb_data.get('upper', price + 1) if isinstance(bb_data, dict) else price + 1
+            bb_lower = bb_data.get('lower', price - 1) if isinstance(bb_data, dict) else price - 1
+            bb_middle = bb_data.get('middle', price) if isinstance(bb_data, dict) else price
             
             # Calcular posição do preço nas bandas (0-1)
             bb_range = bb_upper - bb_lower

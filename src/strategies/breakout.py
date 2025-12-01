@@ -104,31 +104,36 @@ class BreakoutStrategy(BaseStrategy):
             keltner = tf_data.get('keltner', {})
             macd_data = tf_data.get('macd', {})
             adx_data = tf_data.get('adx', {})
-            atr_data = tf_data.get('atr', {})
+            atr_raw = tf_data.get('atr', 0)  # Pode ser float ou dict
             volume_data = tf_data.get('volume', {})
             rsi = tf_data.get('rsi', 50)
             
-            bb_upper = bollinger.get('upper', 0)
-            bb_lower = bollinger.get('lower', 0)
-            bb_middle = bollinger.get('middle', 0)
+            # Tratar bollinger (pode ser float ou dict)
+            bb_upper = bollinger.get('upper', 0) if isinstance(bollinger, dict) else 0
+            bb_lower = bollinger.get('lower', 0) if isinstance(bollinger, dict) else 0
+            bb_middle = bollinger.get('middle', 0) if isinstance(bollinger, dict) else 0
             
-            # Keltner Channel (se disponível)
-            kc_upper = keltner.get('upper', bb_upper)
-            kc_lower = keltner.get('lower', bb_lower)
-            kc_middle = keltner.get('middle', bb_middle)
+            # Keltner Channel (se disponível) - tratar como dict ou usar fallback
+            kc_upper = keltner.get('upper', bb_upper) if isinstance(keltner, dict) else bb_upper
+            kc_lower = keltner.get('lower', bb_lower) if isinstance(keltner, dict) else bb_lower
+            kc_middle = keltner.get('middle', bb_middle) if isinstance(keltner, dict) else bb_middle
             
-            macd_line = macd_data.get('macd', 0)
-            macd_signal = macd_data.get('signal', 0)
-            macd_histogram = macd_data.get('histogram', 0)
+            # Tratar MACD (pode ser float ou dict)
+            macd_line = macd_data.get('macd', 0) if isinstance(macd_data, dict) else 0
+            macd_signal = macd_data.get('signal', 0) if isinstance(macd_data, dict) else 0
+            macd_histogram = macd_data.get('histogram', 0) if isinstance(macd_data, dict) else 0
             
-            adx = adx_data.get('adx', 0)
-            di_plus = adx_data.get('di_plus', 0)
-            di_minus = adx_data.get('di_minus', 0)
+            # Tratar ADX (pode ser float ou dict)
+            adx = adx_data.get('adx', 0) if isinstance(adx_data, dict) else (adx_data if isinstance(adx_data, (int, float)) else 0)
+            di_plus = adx_data.get('di_plus', 0) if isinstance(adx_data, dict) else 0
+            di_minus = adx_data.get('di_minus', 0) if isinstance(adx_data, dict) else 0
             
-            atr = atr_data.get('atr', 0)
+            # Tratar ATR (pode ser float ou dict)
+            atr = atr_raw if isinstance(atr_raw, (int, float)) else (atr_raw.get('atr', 0) if isinstance(atr_raw, dict) else 0)
             atr_pips = atr / 0.1 if symbol == 'XAUUSD' else atr / 0.0001
             
-            volume_ratio = volume_data.get('ratio', 1.0)
+            # Tratar volume (pode ser float ou dict)
+            volume_ratio = volume_data.get('ratio', 1.0) if isinstance(volume_data, dict) else 1.0
             
             if not all([current_price, bb_upper, bb_lower, bb_middle, atr]):
                 return self.create_signal('HOLD', 0.0, 'insufficient_data')
@@ -385,5 +390,6 @@ class BreakoutStrategy(BaseStrategy):
             return signal
             
         except Exception as e:
-            logger.error(f"Erro na estratégia Breakout: {e}")
+            import traceback
+            logger.error(f"Erro na estratégia Breakout: {e}\n{traceback.format_exc()}")
             return self.create_signal('HOLD', 0.0, 'error')

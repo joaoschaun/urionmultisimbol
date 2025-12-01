@@ -58,22 +58,44 @@ class OrderGenerator:
         )
     
     def _create_strategy_executors(self):
-        """Cria executors para cada estratégia ativa"""
-        for name, strategy in self.strategy_manager.strategies.items():
-            if strategy.is_enabled():
-                executor = StrategyExecutor(
-                    strategy_name=name,
-                    strategy_instance=strategy,
-                    config=self.config,
-                    mt5=self.mt5,
-                    risk_manager=self.risk_manager,
-                    technical_analyzer=self.technical_analyzer,
-                    news_analyzer=self.news_analyzer,
-                    telegram=self.telegram,
-                    watchdog=self.watchdog  # Adicionar watchdog
-                )
-                self.executors.append(executor)
-                logger.info(f"Executor criado para: {name}")
+        """Cria executors para cada estratégia ativa E cada símbolo ativo"""
+        
+        # Obter símbolos ativos da configuração
+        symbols_config = self.config.get('trading', {}).get('symbols', {})
+        active_symbols = []
+        
+        for symbol, symbol_config in symbols_config.items():
+            if isinstance(symbol_config, dict) and symbol_config.get('enabled', False):
+                active_symbols.append(symbol)
+        
+        # Fallback: se não há símbolos configurados, usar XAUUSD
+        if not active_symbols:
+            active_symbols = ['XAUUSD']
+            logger.warning("Nenhum símbolo ativo encontrado, usando XAUUSD como fallback")
+        
+        logger.info(f"🌍 Símbolos ativos: {active_symbols}")
+        
+        # Criar executor para cada combinação de estratégia + símbolo
+        for symbol in active_symbols:
+            symbol_config = symbols_config.get(symbol, {})
+            
+            for name, strategy in self.strategy_manager.strategies.items():
+                if strategy.is_enabled():
+                    executor = StrategyExecutor(
+                        strategy_name=name,
+                        strategy_instance=strategy,
+                        config=self.config,
+                        mt5=self.mt5,
+                        risk_manager=self.risk_manager,
+                        technical_analyzer=self.technical_analyzer,
+                        news_analyzer=self.news_analyzer,
+                        telegram=self.telegram,
+                        watchdog=self.watchdog,
+                        symbol=symbol,  # Passar símbolo específico
+                        symbol_config=symbol_config  # Configuração do símbolo
+                    )
+                    self.executors.append(executor)
+                    logger.info(f"Executor criado: {name} @ {symbol}")
     
     def start(self):
         """Inicia todos os executors"""
@@ -132,19 +154,28 @@ class OrderGenerator:
     def status(self):
         """Exibe status de todas as estratégias"""
         logger.info("=" * 80)
-        logger.info("STATUS DO ORDER GENERATOR (MULTI-THREAD)")
+        logger.info("STATUS DO ORDER GENERATOR (MULTI-THREAD MULTI-SYMBOL)")
         logger.info("=" * 80)
         
         logger.info(f"Running: {self.running}")
         logger.info(f"Executors ativos: {len(self.executors)}")
         
+        # Agrupar por símbolo
+        by_symbol = {}
         for executor in self.executors:
-            status = "🟢 Rodando" if executor.running else "🔴 Parado"
-            logger.info(
-                f"  [{executor.strategy_name}] {status} - "
-                f"Ciclo: {executor.cycle_seconds}s - "
-                f"Max Pos: {executor.max_positions} - "
-                f"Magic: {executor.magic_number}"
-            )
+            symbol = executor.symbol
+            if symbol not in by_symbol:
+                by_symbol[symbol] = []
+            by_symbol[symbol].append(executor)
+        
+        for symbol, executors in by_symbol.items():
+            logger.info(f"\n  🌍 {symbol}:")
+            for executor in executors:
+                status = "🟢" if executor.running else "🔴"
+                logger.info(
+                    f"    {status} {executor.strategy_name} - "
+                    f"Ciclo: {executor.cycle_seconds}s - "
+                    f"Magic: {executor.magic_number}"
+                )
         
         logger.info("=" * 80)

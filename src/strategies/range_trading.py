@@ -97,9 +97,10 @@ class RangeTradingStrategy(BaseStrategy):
             if 'H1' in technical_analysis:
                 h1_data = technical_analysis['H1']
                 h1_ema = h1_data.get('ema', {})
-                h1_ema_12 = h1_ema.get('ema_12', 0)
-                h1_ema_26 = h1_ema.get('ema_26', 0)
-                h1_adx = h1_data.get('adx', {}).get('adx', 0)
+                h1_ema_12 = h1_ema.get('ema_12', 0) if isinstance(h1_ema, dict) else 0
+                h1_ema_26 = h1_ema.get('ema_26', 0) if isinstance(h1_ema, dict) else 0
+                h1_adx_data = h1_data.get('adx', {})
+                h1_adx = h1_adx_data.get('adx', 0) if isinstance(h1_adx_data, dict) else (h1_adx_data if isinstance(h1_adx_data, (int, float)) else 0)
                 h1_current = h1_data.get('current_price', current_price)
                 
                 # Determinar tendência H1

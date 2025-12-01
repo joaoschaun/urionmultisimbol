@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #0ea5e9;
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: linear-gradient(135deg, #0a0e14 0%, #151c27 100%);
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a222f;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* Cards */
+.card {
+  @apply bg-dark-200 rounded-xl border border-dark-100 p-4 shadow-lg;
+}
+
+.card-header {
+  @apply flex items-center justify-between mb-4 pb-3 border-b border-dark-100;
+}
+
+/* Buttons */
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+}
+
+.btn-primary {
+  @apply bg-primary-500 hover:bg-primary-600 text-white;
+}
+
+.btn-success {
+  @apply bg-success hover:bg-green-600 text-white;
+}
+
+.btn-danger {
+  @apply bg-danger hover:bg-red-600 text-white;
+}
+
+/* Status indicators */
+.status-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+.status-online {
+  @apply bg-success animate-pulse;
+}
+
+.status-offline {
+  @apply bg-danger;
+}
+
+/* Tables */
+.table-container {
+  @apply overflow-x-auto;
+}
+
+.table {
+  @apply w-full text-sm;
+}
+
+.table th {
+  @apply text-left text-gray-400 font-medium py-3 px-4 border-b border-dark-100;
+}
+
+.table td {
+  @apply py-3 px-4 border-b border-dark-100;
+}
+
+.table tr:hover {
+  @apply bg-dark-300;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Profit/Loss colors */
+.profit {
+  @apply text-success;
+}
+
+.loss {
+  @apply text-danger;
+}
+
+/* Charts */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: #1e293b;
+}
+
+.recharts-text {
+  fill: #9ca3af;
+}

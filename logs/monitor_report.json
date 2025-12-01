@@ -1,0 +1,281 @@
+{
+  "last_update": "2025-12-01T08:34:27.485682",
+  "current": {
+    "timestamp": "2025-12-01T08:34:27.474155",
+    "runtime_hours": 3.03,
+    "runtime_formatted": "3:01:34",
+    "remaining_hours": 20.97,
+    "health": {
+      "overall": "degraded",
+      "uptime_percent": 99.38,
+      "checks_total": 160,
+      "checks_success": 159,
+      "checks_failed": 1
+    },
+    "modules": {
+      "backend_api": {
+        "status": "online",
+        "last_check": "2025-12-01T08:34:21.276124",
+        "errors": 0
+      },
+      "frontend": {
+        "status": "online",
+        "last_check": "2025-12-01T08:34:21.326570",
+        "errors": 1
+      },
+      "mt5_connection": {
+        "status": "online",
+        "last_check": "2025-12-01T08:34:23.366270",
+        "errors": 0
+      },
+      "websocket": {
+        "status": "unknown",
+        "last_check": null,
+        "errors": 0
+      },
+      "database": {
+        "status": "unknown",
+        "last_check": null,
+        "errors": 0
+      }
+    },
+    "performance": {
+      "avg_response_ms": 2111.19,
+      "min_response_ms": 2009.86,
+      "max_response_ms": 2784.51
+    },
+    "trading": {
+      "trades_detected": 0,
+      "positions_opened": 2,
+      "positions_closed": 0
+    },
+    "errors": {
+      "total": 1,
+      "backend": 0,
+      "frontend": 1,
+      "mt5": 0,
+      "recent": [
+        {
+          "timestamp": "2025-12-01T05:32:59.470257",
+          "type": "ERROR",
+          "message": "Frontend falhou: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001FBCDFB0A30>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente'))",
+          "data": {}
+        }
+      ]
+    }
+  },
+  "hourly_reports": [
+    {
+      "timestamp": "2025-12-01T06:33:29.810480",
+      "runtime_hours": 1.01,
+      "runtime_formatted": "1:00:37",
+      "remaining_hours": 22.99,
+      "health": {
+        "overall": "degraded",
+        "uptime_percent": 98.15,
+        "checks_total": 54,
+        "checks_success": 53,
+        "checks_failed": 1
+      },
+      "modules": {
+        "backend_api": {
+          "status": "online",
+          "last_check": "2025-12-01T08:34:21.276124",
+          "errors": 0
+        },
+        "frontend": {
+          "status": "online",
+          "last_check": "2025-12-01T08:34:21.326570",
+          "errors": 1
+        },
+        "mt5_connection": {
+          "status": "online",
+          "last_check": "2025-12-01T08:34:23.366270",
+          "errors": 0
+        },
+        "websocket": {
+          "status": "unknown",
+          "last_check": null,
+          "errors": 0
+        },
+        "database": {
+          "status": "unknown",
+          "last_check": null,
+          "errors": 0
+        }
+      },
+      "performance": {
+        "avg_response_ms": 2085.3,
+        "min_response_ms": 2011.86,
+        "max_response_ms": 2474.9
+      },
+      "trading": {
+        "trades_detected": 0,
+        "positions_opened": 2,
+        "positions_closed": 0
+      },
+      "errors": {
+        "total": 1,
+        "backend": 0,
+        "frontend": 1,
+        "mt5": 0,
+        "recent": [
+          {
+            "timestamp": "2025-12-01T05:32:59.470257",
+            "type": "ERROR",
+            "message": "Frontend falhou: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001FBCDFB0A30>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente'))",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2025-12-01T07:33:54.386595",
+      "runtime_hours": 2.02,
+      "runtime_formatted": "2:01:01",
+      "remaining_hours": 21.98,
+      "health": {
+        "overall": "degraded",
+        "uptime_percent": 99.07,
+        "checks_total": 107,
+        "checks_success": 106,
+        "checks_failed": 1
+      },
+      "modules": {
+        "backend_api": {
+          "status": "online",
+          "last_check": "2025-12-01T08:34:21.276124",
+          "errors": 0
+        },
+        "frontend": {
+          "status": "online",
+          "last_check": "2025-12-01T08:34:21.326570",
+          "errors": 1
+        },
+        "mt5_connection": {
+          "status": "online",
+          "last_check": "2025-12-01T08:34:23.366270",
+          "errors": 0
+        },
+        "websocket": {
+          "status": "unknown",
+          "last_check": null,
+          "errors": 0
+        },
+        "database": {
+          "status": "unknown",
+          "last_check": null,
+          "errors": 0
+        }
+      },
+      "performance": {
+        "avg_response_ms": 2092.93,
+        "min_response_ms": 2009.86,
+        "max_response_ms": 2536.64
+      },
+      "trading": {
+        "trades_detected": 0,
+        "positions_opened": 2,
+        "positions_closed": 0
+      },
+      "errors": {
+        "total": 1,
+        "backend": 0,
+        "frontend": 1,
+        "mt5": 0,
+        "recent": [
+          {
+            "timestamp": "2025-12-01T05:32:59.470257",
+            "type": "ERROR",
+            "message": "Frontend falhou: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001FBCDFB0A30>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente'))",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2025-12-01T08:34:27.474155",
+      "runtime_hours": 3.03,
+      "runtime_formatted": "3:01:34",
+      "remaining_hours": 20.97,
+      "health": {
+        "overall": "degraded",
+        "uptime_percent": 99.38,
+        "checks_total": 160,
+        "checks_success": 159,
+        "checks_failed": 1
+      },
+      "modules": {
+        "backend_api": {
+          "status": "online",
+          "last_check": "2025-12-01T08:34:21.276124",
+          "errors": 0
+        },
+        "frontend": {
+          "status": "online",
+          "last_check": "2025-12-01T08:34:21.326570",
+          "errors": 1
+        },
+        "mt5_connection": {
+          "status": "online",
+          "last_check": "2025-12-01T08:34:23.366270",
+          "errors": 0
+        },
+        "websocket": {
+          "status": "unknown",
+          "last_check": null,
+          "errors": 0
+        },
+        "database": {
+          "status": "unknown",
+          "last_check": null,
+          "errors": 0
+        }
+      },
+      "performance": {
+        "avg_response_ms": 2111.19,
+        "min_response_ms": 2009.86,
+        "max_response_ms": 2784.51
+      },
+      "trading": {
+        "trades_detected": 0,
+        "positions_opened": 2,
+        "positions_closed": 0
+      },
+      "errors": {
+        "total": 1,
+        "backend": 0,
+        "frontend": 1,
+        "mt5": 0,
+        "recent": [
+          {
+            "timestamp": "2025-12-01T05:32:59.470257",
+            "type": "ERROR",
+            "message": "Frontend falhou: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001FBCDFB0A30>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente'))",
+            "data": {}
+          }
+        ]
+      }
+    }
+  ],
+  "all_events": [
+    {
+      "timestamp": "2025-12-01T05:32:59.470257",
+      "type": "ERROR",
+      "message": "Frontend falhou: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001FBCDFB0A30>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente'))",
+      "data": {}
+    },
+    {
+      "timestamp": "2025-12-01T05:33:06.182232",
+      "type": "TRADE",
+      "message": "Nova posição aberta: XAUUSD SELL 0.03 lots @ 4252.86",
+      "data": {}
+    },
+    {
+      "timestamp": "2025-12-01T05:33:06.183217",
+      "type": "TRADE",
+      "message": "Nova posição aberta: XAUUSD SELL 0.03 lots @ 4259.24",
+      "data": {}
+    }
+  ]
+}

@@ -138,66 +138,68 @@ class NewsAnalyzer:
     
     def fetch_finazon_news(self, limit: int = 50) -> List[Dict]:
         """
-        Busca notícias do Finazon
+        Busca dados de mercado do Finazon para criar insights
+        
+        Finazon é uma API de DADOS DE MERCADO (não notícias).
+        Usamos o ticker_snapshot para obter dados de performance do Gold.
         
         Args:
-            limit: Número máximo de notícias
+            limit: Número máximo de itens
             
         Returns:
-            Lista de notícias
+            Lista de insights baseados em dados de mercado
         """
         try:
             if not self.finazon_key:
-                logger.warning("Finazon API key não configurada")
-                return []
+                return []  # Silenciosamente ignora se não configurada
             
-            # Finazon usa outro endpoint - vamos buscar dados de forex
-            # URL correta: https://api.finazon.io/latest/finazon/forex/tickers
-            url = "https://api.finazon.io/latest/finazon/forex/tickers"
+            # Usar ticker_snapshot para obter dados de performance do XAU/USD
+            url = "https://api.finazon.io/latest/finazon/forex/ticker_snapshot"
             params = {
                 'apikey': self.finazon_key,
-                'page_size': min(limit, 100),
-                'ticker': 'XAU'  # Gold
+                'ticker': 'XAU/USD'
             }
             
             response = requests.get(url, params=params, timeout=10)
             
-            # Verificar status code
             if response.status_code != 200:
-                logger.warning(f"Finazon retornou status {response.status_code}")
+                # Silenciosamente ignora erros - outras fontes de notícias funcionam
+                logger.debug(f"Finazon: status {response.status_code}")
                 return []
             
             data = response.json()
             
-            # Finazon retorna dados de tickers, não notícias
-            # Vamos criar "notícias" baseadas nos dados
-            news_list = data.get('data', [])
+            # Criar insights baseados nos dados de performance
+            insights = []
             
-            filtered_news = []
-            for item in news_list[:limit]:
-                # Criar uma entrada de "notícia" baseada nos dados do ticker
-                ticker = item.get('ticker', '')
-                if 'XAU' in ticker or 'GOLD' in ticker:
-                    filtered_news.append({
-                        'source': 'Finazon',
-                        'title': f"Gold Ticker: {ticker}",
-                        'description': f"Price data for {ticker}",
-                        'url': f"https://finazon.io/ticker/{ticker}",
-                        'published_at': datetime.now().isoformat(),
-                        'relevance': 0.8
-                    })
+            # Variação diária
+            ch = data.get('ch', {})
+            daily_change = ch.get('dap', 0)  # Daily percentage change
+            weekly_change = ch.get('wep', 0)  # Weekly percentage change
             
-            logger.info(f"Finazon: {len(filtered_news)} itens")
-            return filtered_news
+            if daily_change != 0:
+                direction = "alta" if daily_change > 0 else "queda"
+                insights.append({
+                    'source': 'Finazon',
+                    'title': f"XAU/USD em {direction} de {abs(daily_change):.2f}% hoje",
+                    'description': f"Variação semanal: {weekly_change:+.2f}%",
+                    'url': 'https://finazon.io/dataset/forex',
+                    'published_at': datetime.now().isoformat(),
+                    'relevance': 0.7,
+                    'sentiment': 'bullish' if daily_change > 0.3 else ('bearish' if daily_change < -0.3 else 'neutral')
+                })
+            
+            logger.debug(f"Finazon: {len(insights)} insights de mercado")
+            return insights
             
         except requests.Timeout:
-            logger.warning("Finazon: Timeout")
+            logger.debug("Finazon: Timeout")
             return []
         except requests.ConnectionError:
-            logger.warning("Finazon: Erro de conexão")
+            logger.debug("Finazon: Erro de conexão")
             return []
         except Exception as e:
-            logger.error(f"Erro ao buscar Finazon: {e}")
+            logger.debug(f"Finazon: {e}")
             return []
     
     def fetch_finnhub_news(self, limit: int = 50) -> List[Dict]:

@@ -1400,23 +1400,10 @@ class OrderManager:
                 mental_tp = monitored.get('mental_tp')
                 
                 if mental_sl and mental_tp:
-                    logger.info(
-                        f"⏰ #{ticket} [{strategy_name}] Tempo mínimo atingido! "
-                        f"Ativando SL/TP real (idade: {age_minutes:.1f}min)"
-                    )
-                    
                     # 🔍 DEBUG: Log valores antes de enviar ao MT5
                     current_price = position.get('price_current', 0)
                     position_type = position.get('type')
                     spread_pips = position.get('spread', 0)
-                    
-                    logger.debug(
-                        f"🔍 #{ticket} Valores para modificação | "
-                        f"Tipo: {'BUY' if position_type == 0 else 'SELL'} | "
-                        f"Preço: {current_price:.5f} | "
-                        f"mental_sl: {mental_sl:.5f} | mental_tp: {mental_tp:.5f} | "
-                        f"Spread: {spread_pips} pips"
-                    )
                     
                     # 🎯 ADAPTAÇÃO DE SPREAD: Ajustar SL/TP se spread estiver alto
                     adapted = self.spread_manager.get_adapted_parameters(
@@ -1433,24 +1420,28 @@ class OrderManager:
                     final_sl = adapted['adapted_sl']
                     final_tp = adapted['adapted_tp']
                     
-                    if adapted['spread_level'] != 'normal':
-                        logger.info(
-                            f"🎯 #{ticket} Adaptação de spread ({adapted['spread_level'].upper()}) | "
-                            f"SL: {mental_sl:.5f} → {final_sl:.5f} (×{adapted['sl_multiplier']}) | "
-                            f"TP: {mental_tp:.5f} → {final_tp:.5f} (×{adapted['tp_multiplier']}) | "
-                            f"{adapted['recommendation']}"
-                        )
-                    
                     # Modificar posição para adicionar SL/TP
-                    if self.modify_position(ticket, final_sl, final_tp):
+                    modify_result = self.modify_position(ticket, final_sl, final_tp)
+                    
+                    if modify_result:
                         monitored['real_sl_set'] = True
                         monitored['sl'] = final_sl
                         monitored['tp'] = final_tp
-                        logger.success(
-                            f"✅ #{ticket} SL/TP real ativado | SL: {final_sl} | TP: {final_tp}"
-                        )
-                    else:
-                        logger.error(f"❌ Falha ao ativar SL/TP real em #{ticket}")
+                        
+                        # Log de sucesso com adaptação de spread (se houver)
+                        if adapted['spread_level'] != 'normal':
+                            logger.success(
+                                f"✅ #{ticket} [{strategy_name}] SL/TP real ativado (idade: {age_minutes:.1f}min) | "
+                                f"SL: {final_sl:.2f} | TP: {final_tp:.2f} | "
+                                f"Spread: {adapted['spread_level'].upper()}"
+                            )
+                        else:
+                            logger.success(
+                                f"✅ #{ticket} [{strategy_name}] SL/TP real ativado (idade: {age_minutes:.1f}min) | "
+                                f"SL: {final_sl:.2f} | TP: {final_tp:.2f}"
+                            )
+                    # Não logar erro se modify_position retornou False por intervalo/spread
+                    # modify_position já loga internamente os motivos
             
             return True  # Permitir gerenciamento normal
         

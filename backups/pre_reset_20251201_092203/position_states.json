@@ -19,37 +19,21 @@
       "stage_history": [
         "ABERTA"
       ]
-    },
-    "209854500": {
-      "stage": 0,
-      "max_profit": 5.58,
-      "max_rr": 0.0888220825362121,
-      "risk_1r": 127.33319999999998,
-      "entry_time": "2025-12-01 14:28:45.590419+00:00",
-      "stage_history": [
-        "ABERTA"
-      ]
     }
   },
   "position_performance": {
     "209742564": {
       "max_profit": 41.16,
-      "max_drawdown": 30.54,
+      "max_drawdown": 28.32,
       "entry_time": "2025-12-01 10:08:46.690874+00:00",
       "entry_price": 4252.86
     },
     "209745165": {
       "max_profit": 60.3,
-      "max_drawdown": 30.539999999999996,
+      "max_drawdown": 28.32,
       "entry_time": "2025-12-01 10:13:47.099412+00:00",
       "entry_price": 4259.24
-    },
-    "209854500": {
-      "max_profit": 11.31,
-      "max_drawdown": 0.0,
-      "entry_time": "2025-12-01 14:28:45.590419+00:00",
-      "entry_price": 4244.44
     }
   },
-  "last_update": "2025-12-01T14:29:14.910476+00:00"
+  "last_update": "2025-12-01T14:06:08.933033+00:00"
 }

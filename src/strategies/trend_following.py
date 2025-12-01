@@ -111,27 +111,28 @@ class TrendFollowingStrategy(BaseStrategy):
             macd_data = tf_data.get('macd', {})
             adx_data = tf_data.get('adx', {})
             ema = tf_data.get('ema', {})
-            atr_data = tf_data.get('atr', {})
+            atr_raw = tf_data.get('atr', 0)  # Pode ser float ou dict
             volume_data = tf_data.get('volume', {})
             
             # Valores necessários
-            adx = adx_data.get('adx', 0)
-            di_plus = adx_data.get('di_plus', 0)
-            di_minus = adx_data.get('di_minus', 0)
+            adx = adx_data.get('adx', 0) if isinstance(adx_data, dict) else 0
+            di_plus = adx_data.get('di_plus', 0) if isinstance(adx_data, dict) else 0
+            di_minus = adx_data.get('di_minus', 0) if isinstance(adx_data, dict) else 0
             
-            macd_line = macd_data.get('macd', 0)
-            macd_signal = macd_data.get('signal', 0)
-            macd_histogram = macd_data.get('histogram', 0)
+            macd_line = macd_data.get('macd', 0) if isinstance(macd_data, dict) else 0
+            macd_signal = macd_data.get('signal', 0) if isinstance(macd_data, dict) else 0
+            macd_histogram = macd_data.get('histogram', 0) if isinstance(macd_data, dict) else 0
             
-            ema_9 = ema.get('ema_9', 0)
-            ema_21 = ema.get('ema_21', 0)
-            ema_50 = ema.get('ema_50', 0)
-            ema_200 = ema.get('ema_200', ema_50)  # Fallback
+            ema_9 = ema.get('ema_9', 0) if isinstance(ema, dict) else 0
+            ema_21 = ema.get('ema_21', 0) if isinstance(ema, dict) else 0
+            ema_50 = ema.get('ema_50', 0) if isinstance(ema, dict) else 0
+            ema_200 = ema.get('ema_200', ema_50) if isinstance(ema, dict) else ema_50
             
-            atr = atr_data.get('atr', 0)
+            # ATR pode vir como float diretamente ou como dict
+            atr = atr_raw if isinstance(atr_raw, (int, float)) else atr_raw.get('atr', 0)
             atr_pips = atr / 0.1 if symbol == 'XAUUSD' else atr / 0.0001
             
-            volume_ratio = volume_data.get('ratio', 1.0)
+            volume_ratio = volume_data.get('ratio', 1.0) if isinstance(volume_data, dict) else 1.0
             
             # Verificar se há dados suficientes
             if not all([adx, ema_9, ema_21, ema_50, current_price]):
@@ -359,5 +360,6 @@ class TrendFollowingStrategy(BaseStrategy):
             return signal
             
         except Exception as e:
-            logger.error(f"Erro na estratégia TrendFollowing: {e}")
+            import traceback
+            logger.error(f"Erro na estratégia TrendFollowing: {e}\n{traceback.format_exc()}")
             return self.create_signal('HOLD', 0.0, 'error')

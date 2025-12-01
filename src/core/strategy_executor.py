@@ -37,7 +37,9 @@ class StrategyExecutor:
                  learner: Optional[StrategyLearner] = None,
                  watchdog: Optional[ThreadWatchdog] = None,
                  market_hours=None,  # 🆕 Aceita market_hours customizado
-                 market_analyzer=None):  # 🚪 PORTEIRO (opcional)
+                 market_analyzer=None,  # 🚪 PORTEIRO (opcional)
+                 symbol: str = None,  # 🌍 Símbolo específico
+                 symbol_config: Dict = None):  # 🌍 Configuração do símbolo
         """
         Inicializa executor de estratégia
         
@@ -54,6 +56,8 @@ class StrategyExecutor:
             watchdog: Sistema de monitoramento de threads (opcional)
             market_hours: Gerenciador de horários (opcional, cria automático se None)
             market_analyzer: Porteiro de condições de mercado (opcional)
+            symbol: Símbolo para operar (ex: EURUSD, XAUUSD)
+            symbol_config: Configuração específica do símbolo
         """
         self.strategy_name = strategy_name
         self.strategy = strategy_instance
@@ -103,8 +107,14 @@ class StrategyExecutor:
         # Database para tracking
         self.stats_db = StrategyStatsDB()
         
-        # Símbolo de trading
-        self.symbol = config.get('trading', {}).get('symbol', 'XAUUSD')
+        # 🌍 Símbolo de trading (passado como parâmetro ou fallback)
+        if symbol:
+            self.symbol = symbol
+            self.symbol_config = symbol_config or {}
+        else:
+            # Fallback para compatibilidade com código antigo
+            self.symbol = config.get('trading', {}).get('symbol', 'XAUUSD')
+            self.symbol_config = config.get('trading', {}).get('symbols', {}).get(self.symbol, {})
         
         # Configuração da estratégia
         self.strategy_config = config.get('strategies', {}).get(
@@ -130,11 +140,12 @@ class StrategyExecutor:
             self.min_confidence = config_confidence
             logger.debug(f"[{strategy_name}] Usando confiança do config: {config_confidence:.2f}")
         
-        # Magic number único para identificar ordens desta estratégia
-        # Base: 100000 + hash dos primeiros 5 chars do nome
+        # Magic number único para identificar ordens desta estratégia + símbolo
+        # Base: 100000 + hash do nome + hash do símbolo
         base_magic = 100000
         name_hash = sum(ord(c) for c in strategy_name[:5])
-        self.magic_number = base_magic + name_hash
+        symbol_hash = sum(ord(c) for c in self.symbol[:4]) if self.symbol else 0
+        self.magic_number = base_magic + name_hash + symbol_hash
         
         # Estado
         self.running = False
@@ -142,7 +153,7 @@ class StrategyExecutor:
         self.last_execution = None
         
         logger.info(
-            f"StrategyExecutor [{strategy_name}] inicializado: "
+            f"StrategyExecutor [{strategy_name}@{self.symbol}] inicializado: "
             f"ciclo={self.cycle_seconds}s, max_pos={self.max_positions}, "
             f"magic={self.magic_number}, min_conf={self.min_confidence:.2f}"
         )
