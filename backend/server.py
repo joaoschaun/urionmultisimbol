@@ -27,6 +27,7 @@ import json
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
+from loguru import logger
 
 # FastAPI
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
@@ -443,17 +444,230 @@ async def get_metrics(days: int = Query(default=30, ge=1, le=365)):
 
 @app.get("/api/strategies", response_model=List[StrategyResponse], tags=["Strategies"])
 async def get_strategies():
-    """Retorna estratégias ativas"""
-    # Dados exemplo (integrar com banco real)
-    strategies = [
-        {"name": "Trend Following", "enabled": True, "trades": 245, "win_rate": 52.3, "profit": 1234.56, "status": "active"},
-        {"name": "Mean Reversion", "enabled": True, "trades": 189, "win_rate": 48.7, "profit": 876.32, "status": "active"},
-        {"name": "Breakout", "enabled": True, "trades": 156, "win_rate": 45.2, "profit": 654.21, "status": "active"},
-        {"name": "Scalping", "enabled": True, "trades": 423, "win_rate": 51.8, "profit": 1567.89, "status": "active"},
-        {"name": "News Trading", "enabled": True, "trades": 87, "win_rate": 55.2, "profit": 432.10, "status": "paused"},
-        {"name": "Range Trading", "enabled": True, "trades": 134, "win_rate": 49.3, "profit": 345.67, "status": "active"},
-    ]
-    return [StrategyResponse(**s) for s in strategies]
+    """Retorna estratégias ativas com dados reais do banco"""
+    try:
+        # Importar banco de dados
+        from database.strategy_stats import StrategyStatsDB
+        
+        stats_db = StrategyStatsDB()
+        
+        # Lista de estratégias configuradas
+        strategy_names = [
+            "trend_following",
+            "mean_reversion", 
+            "breakout",
+            "scalping",
+            "news_trading",
+            "range_trading"
+        ]
+        
+        strategies = []
+        
+        for name in strategy_names:
+            try:
+                # Buscar stats do banco
+                stats = stats_db.get_strategy_stats(name)
+                
+                if stats:
+                    win_rate = (stats.get('wins', 0) / stats.get('total_trades', 1)) * 100 if stats.get('total_trades', 0) > 0 else 0
+                    
+                    strategies.append({
+                        "name": name.replace("_", " ").title(),
+                        "enabled": True,
+                        "trades": stats.get('total_trades', 0),
+                        "win_rate": round(win_rate, 1),
+                        "profit": round(stats.get('total_profit', 0), 2),
+                        "status": "active"
+                    })
+                else:
+                    # Estratégia sem trades ainda
+                    strategies.append({
+                        "name": name.replace("_", " ").title(),
+                        "enabled": True,
+                        "trades": 0,
+                        "win_rate": 0,
+                        "profit": 0,
+                        "status": "waiting"
+                    })
+            except Exception as e:
+                logger.warning(f"Erro ao buscar stats de {name}: {e}")
+                strategies.append({
+                    "name": name.replace("_", " ").title(),
+                    "enabled": True,
+                    "trades": 0,
+                    "win_rate": 0,
+                    "profit": 0,
+                    "status": "error"
+                })
+        
+        return [StrategyResponse(**s) for s in strategies]
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar estratégias: {e}")
+        # Fallback para dados estáticos
+        strategies = [
+            {"name": "Trend Following", "enabled": True, "trades": 0, "win_rate": 0, "profit": 0, "status": "active"},
+            {"name": "Mean Reversion", "enabled": True, "trades": 0, "win_rate": 0, "profit": 0, "status": "active"},
+            {"name": "Breakout", "enabled": True, "trades": 0, "win_rate": 0, "profit": 0, "status": "active"},
+            {"name": "Scalping", "enabled": True, "trades": 0, "win_rate": 0, "profit": 0, "status": "active"},
+            {"name": "News Trading", "enabled": True, "trades": 0, "win_rate": 0, "profit": 0, "status": "active"},
+            {"name": "Range Trading", "enabled": True, "trades": 0, "win_rate": 0, "profit": 0, "status": "active"},
+        ]
+        return [StrategyResponse(**s) for s in strategies]
+
+
+@app.get("/api/trades/history", tags=["Trading"])
+async def get_trades_history(
+    days: int = Query(default=7, ge=1, le=90),
+    strategy: Optional[str] = None
+):
+    """Retorna histórico detalhado de trades do banco de dados"""
+    try:
+        from database.strategy_stats import StrategyStatsDB
+        
+        stats_db = StrategyStatsDB()
+        trades = stats_db.get_all_trades(days=days, strategy_name=strategy)
+        
+        return {
+            "total": len(trades),
+            "days": days,
+            "strategy_filter": strategy,
+            "trades": trades
+        }
+    except Exception as e:
+        logger.error(f"Erro ao buscar histórico de trades: {e}")
+        return {"total": 0, "trades": [], "error": str(e)}
+
+
+@app.get("/api/performance/daily", tags=["Metrics"])
+async def get_daily_performance(days: int = Query(default=7, ge=1, le=30)):
+    """Retorna performance diária agregada"""
+    try:
+        from database.strategy_stats import StrategyStatsDB
+        
+        stats_db = StrategyStatsDB()
+        trades = stats_db.get_all_trades(days=days)
+        
+        # Agrupar por dia
+        daily_data = {}
+        for trade in trades:
+            if trade.get('close_time'):
+                try:
+                    date_str = trade['close_time'][:10]  # YYYY-MM-DD
+                    if date_str not in daily_data:
+                        daily_data[date_str] = {
+                            'date': date_str,
+                            'trades': 0,
+                            'wins': 0,
+                            'losses': 0,
+                            'profit': 0
+                        }
+                    
+                    daily_data[date_str]['trades'] += 1
+                    profit = trade.get('profit', 0) or 0
+                    daily_data[date_str]['profit'] += profit
+                    
+                    if profit > 0:
+                        daily_data[date_str]['wins'] += 1
+                    elif profit < 0:
+                        daily_data[date_str]['losses'] += 1
+                except:
+                    pass
+        
+        # Converter para lista ordenada
+        daily_list = sorted(daily_data.values(), key=lambda x: x['date'])
+        
+        # Calcular métricas agregadas
+        total_trades = sum(d['trades'] for d in daily_list)
+        total_wins = sum(d['wins'] for d in daily_list)
+        total_profit = sum(d['profit'] for d in daily_list)
+        
+        return {
+            "days": days,
+            "daily_data": daily_list,
+            "summary": {
+                "total_trades": total_trades,
+                "total_wins": total_wins,
+                "win_rate": round((total_wins / total_trades * 100) if total_trades > 0 else 0, 1),
+                "total_profit": round(total_profit, 2)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Erro ao calcular performance diária: {e}")
+        return {"days": days, "daily_data": [], "summary": {}, "error": str(e)}
+
+
+@app.get("/api/strategies/ranking", tags=["Strategies"])
+async def get_strategies_ranking(days: int = Query(default=7, ge=1, le=30)):
+    """Retorna ranking das estratégias por performance"""
+    try:
+        from database.strategy_stats import StrategyStatsDB
+        
+        stats_db = StrategyStatsDB()
+        ranking = stats_db.get_all_strategies_ranking(days=days)
+        
+        return {
+            "days": days,
+            "ranking": ranking
+        }
+    except Exception as e:
+        logger.error(f"Erro ao buscar ranking: {e}")
+        return {"days": days, "ranking": [], "error": str(e)}
+
+
+@app.get("/api/equity/history", tags=["Metrics"])
+async def get_equity_history(days: int = Query(default=7, ge=1, le=30)):
+    """Retorna histórico de equity para gráficos"""
+    try:
+        from database.strategy_stats import StrategyStatsDB
+        
+        stats_db = StrategyStatsDB()
+        trades = stats_db.get_all_trades(days=days)
+        
+        # Calcular curva de equity
+        account_info = mt5_service.get_account_info()
+        current_balance = account_info.get('balance', 10000) if account_info else 10000
+        
+        # Reconstruir equity a partir dos trades
+        equity_points = []
+        running_balance = current_balance
+        
+        # Ordenar trades por data (mais recente primeiro para reconstruir)
+        sorted_trades = sorted(
+            [t for t in trades if t.get('close_time')],
+            key=lambda x: x['close_time'],
+            reverse=True
+        )
+        
+        # Subtrair profits para reconstruir histórico
+        for trade in sorted_trades:
+            profit = trade.get('profit', 0) or 0
+            running_balance -= profit  # Voltar no tempo
+            
+            equity_points.append({
+                'timestamp': trade['close_time'],
+                'equity': round(running_balance + profit, 2),  # Valor após este trade
+                'change': round(profit, 2)
+            })
+        
+        # Reverter ordem (mais antigo primeiro)
+        equity_points.reverse()
+        
+        # Adicionar ponto atual
+        equity_points.append({
+            'timestamp': datetime.now().isoformat(),
+            'equity': round(current_balance, 2),
+            'change': 0
+        })
+        
+        return {
+            "days": days,
+            "current_equity": round(current_balance, 2),
+            "data_points": equity_points
+        }
+    except Exception as e:
+        logger.error(f"Erro ao calcular histórico de equity: {e}")
+        return {"days": days, "current_equity": 0, "data_points": [], "error": str(e)}
 
 
 @app.post("/api/command", tags=["Control"])

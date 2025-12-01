@@ -20,20 +20,65 @@ interface DashboardProps {
   }
 }
 
+interface EquityPoint {
+  date: string
+  value: number
+  profit: number
+}
+
+interface DailyPerformance {
+  date: string
+  trades: number
+  wins: number
+  losses: number
+  profit: number
+}
+
 export default function Dashboard({ data }: DashboardProps) {
   const [metrics, setMetrics] = useState<any>(null)
+  const [chartData, setChartData] = useState<EquityPoint[]>([])
+  const [dailyPerformance, setDailyPerformance] = useState<DailyPerformance[]>([])
   const [loading, setLoading] = useState(true)
-  
-  // Mock data para o gráfico
-  const chartData = [
-    { date: '01/11', value: 5000, profit: 0 },
-    { date: '05/11', value: 5120, profit: 120 },
-    { date: '10/11', value: 5089, profit: 89 },
-    { date: '15/11', value: 5234, profit: 234 },
-    { date: '20/11', value: 5456, profit: 456 },
-    { date: '25/11', value: 5335, profit: 335 },
-    { date: '30/11', value: 5542, profit: 542 },
-  ]
+  const [chartPeriod, setChartPeriod] = useState<number>(7)
+
+  // Fetch equity history for chart
+  const fetchEquityHistory = async (days: number) => {
+    try {
+      const response = await axios.get(`/api/equity/history?days=${days}`)
+      if (response.data?.data_points?.length > 0) {
+        const formatted = response.data.data_points.map((point: any) => ({
+          date: point.timestamp?.slice(5, 10).replace('-', '/') || '',
+          value: point.equity || 0,
+          profit: point.change || 0
+        }))
+        setChartData(formatted)
+      }
+    } catch (error) {
+      console.log('Usando dados de fallback para equity')
+      // Fallback com dados mock se API falhar
+      setChartData([
+        { date: '01/11', value: 5000, profit: 0 },
+        { date: '05/11', value: 5120, profit: 120 },
+        { date: '10/11', value: 5089, profit: 89 },
+        { date: '15/11', value: 5234, profit: 234 },
+        { date: '20/11', value: 5456, profit: 456 },
+        { date: '25/11', value: 5335, profit: 335 },
+        { date: '30/11', value: 5542, profit: 542 },
+      ])
+    }
+  }
+
+  // Fetch daily performance
+  const fetchDailyPerformance = async () => {
+    try {
+      const response = await axios.get('/api/performance/daily?days=7')
+      if (response.data?.daily_data) {
+        setDailyPerformance(response.data.daily_data)
+      }
+    } catch (error) {
+      console.log('Performance diária não disponível')
+    }
+  }
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -55,8 +100,16 @@ export default function Dashboard({ data }: DashboardProps) {
       }
       setLoading(false)
     }
+    
     fetchMetrics()
+    fetchEquityHistory(chartPeriod)
+    fetchDailyPerformance()
   }, [])
+
+  // Atualizar gráfico quando período mudar
+  useEffect(() => {
+    fetchEquityHistory(chartPeriod)
+  }, [chartPeriod])
 
   const StatCard = ({ title, value, icon: Icon, trend, trendValue, color }: any) => (
     <div className="card animate-fade-in">
@@ -134,10 +187,30 @@ export default function Dashboard({ data }: DashboardProps) {
           <div className="card-header">
             <h3 className="font-semibold">Curva de Equity</h3>
             <div className="flex items-center gap-2">
-              <button className="px-3 py-1 text-xs rounded-lg bg-dark-100 text-gray-400 hover:text-white">1D</button>
-              <button className="px-3 py-1 text-xs rounded-lg bg-primary-500/20 text-primary-400">1W</button>
-              <button className="px-3 py-1 text-xs rounded-lg bg-dark-100 text-gray-400 hover:text-white">1M</button>
-              <button className="px-3 py-1 text-xs rounded-lg bg-dark-100 text-gray-400 hover:text-white">ALL</button>
+              <button 
+                onClick={() => setChartPeriod(1)}
+                className={`px-3 py-1 text-xs rounded-lg ${chartPeriod === 1 ? 'bg-primary-500/20 text-primary-400' : 'bg-dark-100 text-gray-400 hover:text-white'}`}
+              >
+                1D
+              </button>
+              <button 
+                onClick={() => setChartPeriod(7)}
+                className={`px-3 py-1 text-xs rounded-lg ${chartPeriod === 7 ? 'bg-primary-500/20 text-primary-400' : 'bg-dark-100 text-gray-400 hover:text-white'}`}
+              >
+                1W
+              </button>
+              <button 
+                onClick={() => setChartPeriod(30)}
+                className={`px-3 py-1 text-xs rounded-lg ${chartPeriod === 30 ? 'bg-primary-500/20 text-primary-400' : 'bg-dark-100 text-gray-400 hover:text-white'}`}
+              >
+                1M
+              </button>
+              <button 
+                onClick={() => setChartPeriod(90)}
+                className={`px-3 py-1 text-xs rounded-lg ${chartPeriod === 90 ? 'bg-primary-500/20 text-primary-400' : 'bg-dark-100 text-gray-400 hover:text-white'}`}
+              >
+                ALL
+              </button>
             </div>
           </div>
           <div className="h-64">
