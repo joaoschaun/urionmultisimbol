@@ -1,5 +1,5 @@
 """
-Estratégia: Scalping AVANÇADO
+Estratégia: Scalping AVANÇADO v2.1
 Opera em movimentos rápidos de preço com entrada/saída rápida
 
 MELHORIAS v2.0:
@@ -10,6 +10,12 @@ MELHORIAS v2.0:
 - Filtro de sessão de trading
 - Verificação de volatilidade
 - Divergências RSI/MACD
+
+🧠 MELHORIAS v2.1 (COMUNICAÇÃO ENTRE TIMEFRAMES):
+- OBRIGATÓRIO: H1 confirma direção antes de entrar
+- M15 como suporte adicional
+- Só opera na direção do timeframe maior
+- Filtro de regime (só em TRENDING)
 """
 
 from typing import Dict, Optional
@@ -19,10 +25,14 @@ from .base_strategy import BaseStrategy
 
 class ScalpingStrategy(BaseStrategy):
     """
-    Estratégia de Scalping OTIMIZADA v2.0
+    Estratégia de Scalping OTIMIZADA v2.1
+    
+    🧠 REGRA DE OURO:
+    "Scalping M5 SÓ OPERA na direção que H1 confirma"
     
     Regras:
     - Timeframe: M5 (mais estável que M1)
+    - 🧠 H1 DEVE confirmar a direção (MACD + EMA alignment)
     - Spread REAL do MT5 < 2.5 pips
     - RSI entre 35-65 (range expandido)
     - ATR para volatilidade adequada (3-15 pips)
@@ -51,6 +61,10 @@ class ScalpingStrategy(BaseStrategy):
         self.bb_overbought_threshold = config.get('bb_overbought', 0.75)  # >75% = overbought
         self.use_session_filter = config.get('use_session_filter', True)
         self.use_divergence = config.get('use_divergence', True)
+        
+        # 🧠 v2.1: Filtros de Higher Timeframe
+        self.require_h1_confirmation = config.get('require_h1_confirmation', True)
+        self.h1_trend_weight = config.get('h1_trend_weight', 0.3)  # Peso do H1 na confiança
     
     def analyze(self, technical_analysis: Dict,
                 news_analysis: Optional[Dict] = None) -> Dict:
@@ -108,6 +122,17 @@ class ScalpingStrategy(BaseStrategy):
                 return self.create_signal('HOLD', 0.0, f'high_volatility_{atr_pips:.1f}')
             
             # ========================================
+            # 🧠 2.5. VERIFICAR H1 (HIGHER TIMEFRAME)
+            # ========================================
+            h1_direction, h1_strength = self._get_h1_direction(technical_analysis)
+            
+            if self.require_h1_confirmation:
+                if h1_direction == 'NEUTRAL':
+                    return self.create_signal('HOLD', 0.0, 'h1_no_direction')
+            
+            logger.debug(f"[SCALPING] 🧠 H1 Direction: {h1_direction} (strength: {h1_strength:.2f})")
+            
+            # ========================================
             # 3. EXTRAIR INDICADORES
             # ========================================
             rsi = m5.get('rsi', 50)
@@ -156,28 +181,48 @@ class ScalpingStrategy(BaseStrategy):
             action = 'HOLD'
             reasons = []
             
+            # 🧠 PRIMEIRO: Verificar alinhamento com H1
+            # Se H1 é BULLISH, só considerar sinais BUY
+            # Se H1 é BEARISH, só considerar sinais SELL
+            allowed_action = None
+            if h1_direction == 'BULLISH':
+                allowed_action = 'BUY'
+            elif h1_direction == 'BEARISH':
+                allowed_action = 'SELL'
+            
             # MACD + Bollinger combinados
             if macd_hist > 0 and macd_line > macd_signal:
                 if bb_position < self.bb_oversold_threshold:
                     # Preço perto do fundo + MACD bullish = FORTE compra
-                    momentum_score += 3
-                    action = 'BUY'
-                    reasons.append('macd_bullish+bb_oversold')
+                    if allowed_action in [None, 'BUY']:  # 🧠 Verificar H1
+                        momentum_score += 3
+                        action = 'BUY'
+                        reasons.append('macd_bullish+bb_oversold')
                 else:
-                    momentum_score += 1
-                    action = 'BUY'
-                    reasons.append('macd_bullish')
+                    if allowed_action in [None, 'BUY']:  # 🧠 Verificar H1
+                        momentum_score += 1
+                        action = 'BUY'
+                        reasons.append('macd_bullish')
             
             elif macd_hist < 0 and macd_line < macd_signal:
                 if bb_position > self.bb_overbought_threshold:
                     # Preço perto do topo + MACD bearish = FORTE venda
-                    momentum_score += 3
-                    action = 'SELL'
-                    reasons.append('macd_bearish+bb_overbought')
+                    if allowed_action in [None, 'SELL']:  # 🧠 Verificar H1
+                        momentum_score += 3
+                        action = 'SELL'
+                        reasons.append('macd_bearish+bb_overbought')
                 else:
-                    momentum_score += 1
-                    action = 'SELL'
-                    reasons.append('macd_bearish')
+                    if allowed_action in [None, 'SELL']:  # 🧠 Verificar H1
+                        momentum_score += 1
+                        action = 'SELL'
+                        reasons.append('macd_bearish')
+            
+            # 🧠 Se ação determinada conflita com H1, abortar
+            if allowed_action and action != 'HOLD' and action != allowed_action:
+                return self.create_signal(
+                    'HOLD', 0.0, 
+                    f'h1_conflict_{action}_vs_{allowed_action}'
+                )
             
             # Stochastic confirma
             if action == 'BUY' and stoch_k > stoch_d and stoch_k < 80:
@@ -234,7 +279,7 @@ class ScalpingStrategy(BaseStrategy):
                 return self.create_signal('HOLD', confidence, f'low_momentum_{momentum_score}/{max_score}')
             
             # ========================================
-            # 9. CONFIRMAR COM M15
+            # 9. CONFIRMAR COM M15 E AJUSTAR COM H1
             # ========================================
             if 'M15' in technical_analysis:
                 m15 = technical_analysis['M15']
@@ -252,6 +297,14 @@ class ScalpingStrategy(BaseStrategy):
                 elif (action == 'BUY' and m15_hist < 0) or (action == 'SELL' and m15_hist > 0):
                     confidence -= 0.10
                     reasons.append('m15_diverges')
+            
+            # 🧠 BÔNUS H1: Se alinhado com H1, aumentar confiança
+            if h1_direction == 'BULLISH' and action == 'BUY':
+                confidence += self.h1_trend_weight * h1_strength
+                reasons.append(f'h1_bullish_{h1_strength:.2f}')
+            elif h1_direction == 'BEARISH' and action == 'SELL':
+                confidence += self.h1_trend_weight * h1_strength
+                reasons.append(f'h1_bearish_{h1_strength:.2f}')
             
             # ========================================
             # 10. VERIFICAR DIVERGÊNCIA (OPCIONAL)
@@ -303,3 +356,95 @@ class ScalpingStrategy(BaseStrategy):
         except Exception as e:
             logger.error(f"Erro em ScalpingStrategy.analyze: {e}")
             return self.create_signal('HOLD', 0.0, f'error: {e}')
+    
+    def _get_h1_direction(self, technical_analysis: Dict) -> tuple:
+        """
+        🧠 Obtém a direção do H1 para filtrar trades de scalping.
+        
+        Esta é a função chave que faz a COMUNICAÇÃO ENTRE TIMEFRAMES.
+        Scalping em M5 só pode operar na direção que H1 confirma.
+        
+        Returns:
+            tuple: (direction: str, strength: float)
+                direction: 'BULLISH', 'BEARISH', ou 'NEUTRAL'
+                strength: 0.0 a 1.0
+        """
+        try:
+            if 'H1' not in technical_analysis:
+                # Fallback: usar M15 se H1 não disponível
+                if 'M15' not in technical_analysis:
+                    return 'NEUTRAL', 0.0
+                tf_data = technical_analysis['M15']
+            else:
+                tf_data = technical_analysis['H1']
+            
+            # Extrair indicadores do H1
+            macd_data = tf_data.get('macd', {})
+            ema_data = tf_data.get('ema', {})
+            adx_data = tf_data.get('adx', {})
+            rsi = tf_data.get('rsi', 50)
+            current_price = tf_data.get('current_price', 0)
+            
+            macd_hist = macd_data.get('histogram', 0) if isinstance(macd_data, dict) else 0
+            macd_line = macd_data.get('macd', 0) if isinstance(macd_data, dict) else 0
+            macd_signal = macd_data.get('signal', 0) if isinstance(macd_data, dict) else 0
+            
+            ema_9 = ema_data.get('ema_9', 0) if isinstance(ema_data, dict) else 0
+            ema_21 = ema_data.get('ema_21', 0) if isinstance(ema_data, dict) else 0
+            ema_50 = ema_data.get('ema_50', 0) if isinstance(ema_data, dict) else 0
+            
+            adx = adx_data.get('adx', 0) if isinstance(adx_data, dict) else 0
+            di_plus = adx_data.get('di_plus', 0) if isinstance(adx_data, dict) else 0
+            di_minus = adx_data.get('di_minus', 0) if isinstance(adx_data, dict) else 0
+            
+            # Calcular score de direção
+            bullish_score = 0
+            bearish_score = 0
+            
+            # MACD (peso 3)
+            if macd_line > macd_signal and macd_hist > 0:
+                bullish_score += 3
+            elif macd_line < macd_signal and macd_hist < 0:
+                bearish_score += 3
+            
+            # EMA Alignment (peso 2)
+            if ema_9 > ema_21 > ema_50:
+                bullish_score += 2
+            elif ema_9 < ema_21 < ema_50:
+                bearish_score += 2
+            
+            # Price vs EMAs (peso 2)
+            if current_price > 0:
+                if current_price > ema_9 and current_price > ema_21:
+                    bullish_score += 2
+                elif current_price < ema_9 and current_price < ema_21:
+                    bearish_score += 2
+            
+            # ADX Directional (peso 2)
+            if adx > 25:
+                if di_plus > di_minus:
+                    bullish_score += 2
+                elif di_minus > di_plus:
+                    bearish_score += 2
+            
+            # RSI (peso 1)
+            if rsi > 55:
+                bullish_score += 1
+            elif rsi < 45:
+                bearish_score += 1
+            
+            # Determinar direção
+            max_score = 10
+            
+            if bullish_score > bearish_score and bullish_score >= 4:
+                strength = min(bullish_score / max_score, 1.0)
+                return 'BULLISH', strength
+            elif bearish_score > bullish_score and bearish_score >= 4:
+                strength = min(bearish_score / max_score, 1.0)
+                return 'BEARISH', strength
+            else:
+                return 'NEUTRAL', 0.0
+                
+        except Exception as e:
+            logger.error(f"Erro ao obter direção H1: {e}")
+            return 'NEUTRAL', 0.0

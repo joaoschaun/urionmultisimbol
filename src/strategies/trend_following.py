@@ -1,5 +1,5 @@
 """
-Estratégia: Trend Following v2.0
+Estratégia: Trend Following v2.1
 Opera seguindo tendências fortes identificadas por múltiplos indicadores
 
 Melhorias v2.0:
@@ -8,6 +8,12 @@ Melhorias v2.0:
 - Detector de divergências
 - Multi-timeframe analysis (H1, H4)
 - Volume profile confirmation
+
+🧠 Melhorias v2.1 (COMUNICAÇÃO ENTRE TIMEFRAMES):
+- D1 define a TENDÊNCIA MACRO obrigatória
+- H4 confirma a direção intermediária
+- Só opera se D1 e H4 estão alinhados
+- H1 é apenas para timing de entrada
 """
 
 from typing import Dict, Optional
@@ -18,7 +24,15 @@ from .base_strategy import BaseStrategy
 
 class TrendFollowingStrategy(BaseStrategy):
     """
-    Estratégia de seguimento de tendência v2.0
+    Estratégia de seguimento de tendência v2.1
+    
+    🧠 HIERARQUIA DE TIMEFRAMES:
+    - D1: Define a tendência MACRO (obrigatória)
+    - H4: Confirma a direção intermediária
+    - H1: Timing de entrada
+    
+    🧠 REGRA DE OURO:
+    "SÓ opera se D1 e H4 estão alinhados na mesma direção"
     
     Regras:
     - ADX > 25 (tendência forte)
@@ -26,7 +40,7 @@ class TrendFollowingStrategy(BaseStrategy):
     - MACD confirma direção
     - Preço acima/abaixo das médias móveis
     - RSI não em extremos (evita sobrecompra/sobrevenda)
-    - Confirmação H1/H4
+    - 🧠 D1 + H4 devem confirmar a direção
     - Volume acima da média
     - Sem divergência contra
     """
@@ -46,6 +60,10 @@ class TrendFollowingStrategy(BaseStrategy):
         self.use_session_filter = config.get('use_session_filter', True)
         self.use_divergence = config.get('use_divergence', True)
         self.min_volume_ratio = config.get('min_volume_ratio', 1.0)
+        
+        # 🧠 v2.1: Filtros de Higher Timeframe
+        self.require_d1_alignment = config.get('require_d1_alignment', True)
+        self.require_h4_alignment = config.get('require_h4_alignment', True)
         
         # Inicializar módulos avançados
         self._init_advanced_modules()
@@ -91,6 +109,42 @@ class TrendFollowingStrategy(BaseStrategy):
             
             tf_data = technical_analysis[primary_tf]
             symbol = tf_data.get('symbol', 'XAUUSD')
+            
+            # ========================================
+            # 🧠 FILTRO MACRO: D1 + H4 ALINHAMENTO
+            # ========================================
+            d1_direction, d1_strength = self._get_htf_direction(technical_analysis, 'D1')
+            h4_direction, h4_strength = self._get_htf_direction(technical_analysis, 'H4')
+            
+            logger.debug(
+                f"[TF] 🧠 Macro: D1={d1_direction}({d1_strength:.2f}), "
+                f"H4={h4_direction}({h4_strength:.2f})"
+            )
+            
+            # 🧠 Verificar alinhamento obrigatório
+            if self.require_d1_alignment and d1_direction == 'NEUTRAL':
+                return self.create_signal('HOLD', 0.0, 'd1_no_direction', {
+                    'd1_direction': d1_direction,
+                    'h4_direction': h4_direction
+                })
+            
+            if self.require_h4_alignment and h4_direction == 'NEUTRAL':
+                return self.create_signal('HOLD', 0.0, 'h4_no_direction', {
+                    'd1_direction': d1_direction,
+                    'h4_direction': h4_direction
+                })
+            
+            # 🧠 Verificar se D1 e H4 estão alinhados
+            if self.require_d1_alignment and self.require_h4_alignment:
+                if d1_direction != h4_direction and d1_direction != 'NEUTRAL' and h4_direction != 'NEUTRAL':
+                    return self.create_signal('HOLD', 0.0, 'd1_h4_conflict', {
+                        'd1_direction': d1_direction,
+                        'h4_direction': h4_direction,
+                        'message': 'D1 e H4 em conflito - aguardando alinhamento'
+                    })
+            
+            # 🧠 Determinar direção macro permitida
+            macro_direction = d1_direction if d1_direction != 'NEUTRAL' else h4_direction
             
             # === FILTRO DE SESSÃO ===
             if self.use_session_filter and self.session_manager:
@@ -245,12 +299,26 @@ class TrendFollowingStrategy(BaseStrategy):
             
             # Determinar ação
             if bullish_score > bearish_score and bullish_score >= self.min_confidence:
+                # 🧠 Verificar se macro permite BUY
+                if macro_direction == 'BEARISH':
+                    return self.create_signal('HOLD', bullish_score, 'macro_bearish_blocks_buy', {
+                        'bullish_score': bullish_score,
+                        'macro_direction': macro_direction
+                    })
+                
                 action = 'BUY'
                 confidence = bullish_score
                 reason = 'strong_uptrend_detected'
                 conditions = bullish_conditions
                 
             elif bearish_score > bullish_score and bearish_score >= self.min_confidence:
+                # 🧠 Verificar se macro permite SELL
+                if macro_direction == 'BULLISH':
+                    return self.create_signal('HOLD', bearish_score, 'macro_bullish_blocks_sell', {
+                        'bearish_score': bearish_score,
+                        'macro_direction': macro_direction
+                    })
+                
                 action = 'SELL'
                 confidence = bearish_score
                 reason = 'strong_downtrend_detected'
@@ -269,7 +337,13 @@ class TrendFollowingStrategy(BaseStrategy):
             # === CONFIRMAÇÃO MULTI-TIMEFRAME ===
             mtf_bonus = 0.0
             
-            # Confirmar com H4
+            # 🧠 Bonus por alinhamento D1 + H4
+            if macro_direction == 'BULLISH' and action == 'BUY':
+                mtf_bonus += 0.10 * max(d1_strength, h4_strength)
+            elif macro_direction == 'BEARISH' and action == 'SELL':
+                mtf_bonus += 0.10 * max(d1_strength, h4_strength)
+            
+            # Confirmar com H4 (legado - agora usa _get_htf_direction)
             if 'H4' in technical_analysis:
                 h4_data = technical_analysis['H4']
                 h4_ema = h4_data.get('ema', {})
@@ -363,3 +437,98 @@ class TrendFollowingStrategy(BaseStrategy):
             import traceback
             logger.error(f"Erro na estratégia TrendFollowing: {e}\n{traceback.format_exc()}")
             return self.create_signal('HOLD', 0.0, 'error')
+    
+    def _get_htf_direction(self, technical_analysis: Dict, timeframe: str) -> tuple:
+        """
+        🧠 Obtém a direção de um timeframe maior (D1, H4).
+        
+        Esta é a função chave que faz a COMUNICAÇÃO ENTRE TIMEFRAMES.
+        TrendFollowing em H1 só pode operar na direção que D1/H4 confirmam.
+        
+        Args:
+            technical_analysis: Análise técnica completa
+            timeframe: 'D1' ou 'H4'
+            
+        Returns:
+            tuple: (direction: str, strength: float)
+                direction: 'BULLISH', 'BEARISH', ou 'NEUTRAL'
+                strength: 0.0 a 1.0
+        """
+        try:
+            if timeframe not in technical_analysis:
+                return 'NEUTRAL', 0.0
+            
+            tf_data = technical_analysis[timeframe]
+            
+            # Extrair indicadores
+            macd_data = tf_data.get('macd', {})
+            ema_data = tf_data.get('ema', {})
+            adx_data = tf_data.get('adx', {})
+            rsi = tf_data.get('rsi', 50)
+            current_price = tf_data.get('current_price', 0)
+            
+            macd_hist = macd_data.get('histogram', 0) if isinstance(macd_data, dict) else 0
+            macd_line = macd_data.get('macd', 0) if isinstance(macd_data, dict) else 0
+            macd_signal = macd_data.get('signal', 0) if isinstance(macd_data, dict) else 0
+            
+            ema_9 = ema_data.get('ema_9', 0) if isinstance(ema_data, dict) else 0
+            ema_21 = ema_data.get('ema_21', 0) if isinstance(ema_data, dict) else 0
+            ema_50 = ema_data.get('ema_50', 0) if isinstance(ema_data, dict) else 0
+            ema_200 = ema_data.get('ema_200', ema_50) if isinstance(ema_data, dict) else ema_50
+            
+            adx = adx_data.get('adx', 0) if isinstance(adx_data, dict) else 0
+            di_plus = adx_data.get('di_plus', 0) if isinstance(adx_data, dict) else 0
+            di_minus = adx_data.get('di_minus', 0) if isinstance(adx_data, dict) else 0
+            
+            # Calcular score de direção
+            bullish_score = 0
+            bearish_score = 0
+            
+            # MACD (peso 3)
+            if macd_line > macd_signal and macd_hist > 0:
+                bullish_score += 3
+            elif macd_line < macd_signal and macd_hist < 0:
+                bearish_score += 3
+            
+            # EMA Alignment (peso 3 para D1, importante)
+            if ema_9 > ema_21 > ema_50:
+                bullish_score += 3
+            elif ema_9 < ema_21 < ema_50:
+                bearish_score += 3
+            
+            # Price vs EMA200 (peso 2)
+            if current_price > 0 and ema_200 > 0:
+                if current_price > ema_200:
+                    bullish_score += 2
+                elif current_price < ema_200:
+                    bearish_score += 2
+            
+            # ADX Directional (peso 2)
+            if adx > 20:  # ADX mínimo para considerar
+                if di_plus > di_minus * 1.1:  # 10% maior
+                    bullish_score += 2
+                elif di_minus > di_plus * 1.1:
+                    bearish_score += 2
+            
+            # RSI (peso 1)
+            if rsi > 55:
+                bullish_score += 1
+            elif rsi < 45:
+                bearish_score += 1
+            
+            # Determinar direção (threshold mais alto para D1)
+            max_score = 11
+            threshold = 5 if timeframe == 'D1' else 4
+            
+            if bullish_score > bearish_score and bullish_score >= threshold:
+                strength = min(bullish_score / max_score, 1.0)
+                return 'BULLISH', strength
+            elif bearish_score > bullish_score and bearish_score >= threshold:
+                strength = min(bearish_score / max_score, 1.0)
+                return 'BEARISH', strength
+            else:
+                return 'NEUTRAL', 0.0
+                
+        except Exception as e:
+            logger.error(f"Erro ao obter direção {timeframe}: {e}")
+            return 'NEUTRAL', 0.0

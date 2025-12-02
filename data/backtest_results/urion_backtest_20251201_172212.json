@@ -1,0 +1,65 @@
+{
+  "timestamp": "2025-12-01T17:22:12.020444",
+  "period": "5 years",
+  "strategies": [
+    "TrendFollowing",
+    "MeanReversion",
+    "Breakout",
+    "Scalping",
+    "RangeTrading"
+  ],
+  "results": {
+    "initial_capital": 10000,
+    "final_capital": 2247.8299999999226,
+    "total_return": -77.52170000000078,
+    "total_profit": -7752.170000000077,
+    "total_trades": 1389,
+    "wins": 453,
+    "losses": 936,
+    "win_rate": 32.6133909287257,
+    "avg_win": 359.49108167770424,
+    "avg_loss": 182.26669871794869,
+    "profit_factor": 0.9545598128224266,
+    "max_drawdown": 86.0306818605465,
+    "sharpe_ratio": -1.8525130469608435,
+    "calmar_ratio": -0.9010936368685469
+  },
+  "strategy_stats": {
+    "TrendFollowing": {
+      "trades": 1006,
+      "wins": 340,
+      "losses": 666,
+      "pnl": 1127.519999999989
+    },
+    "MeanReversion": {
+      "trades": 113,
+      "wins": 29,
+      "losses": 84,
+      "pnl": -3907.2300000000005
+    },
+    "Breakout": {
+      "trades": 226,
+      "wins": 68,
+      "losses": 158,
+      "pnl": -5925.470000000005
+    },
+    "Scalping": {
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "pnl": 0
+    },
+    "RangeTrading": {
+      "trades": 44,
+      "wins": 16,
+      "losses": 28,
+      "pnl": 953.0099999999995
+    }
+  },
+  "config": {
+    "initial_capital": 10000,
+    "risk_per_trade": 0.02,
+    "max_positions": 3,
+    "spread_pips": 2.5
+  }
+}

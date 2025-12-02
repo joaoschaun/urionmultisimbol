@@ -1,0 +1,171 @@
+{
+  "timestamp": "20251201_171444",
+  "backtest": {
+    "symbol": "XAUUSD",
+    "period_years": 5,
+    "initial_capital": 10000,
+    "final_capital": 13597.556863617105,
+    "total_profit": 3597.5568636171056,
+    "total_return_pct": 35.97556863617104,
+    "total_trades": 573,
+    "winning_trades": 224,
+    "losing_trades": 349,
+    "win_rate": 39.09249563699825,
+    "avg_win": 401.59959599760805,
+    "avg_loss": 247.45201329469077,
+    "profit_factor": 1.0416573125366348,
+    "max_drawdown_pct": 47.011142561218975,
+    "sharpe_ratio": 0.0740369935892172,
+    "calmar_ratio": 0.134838314627561,
+    "trades": "573 trades",
+    "equity_curve": "29544 points"
+  },
+  "walk_forward": {
+    "n_splits": 12,
+    "oos_results": [
+      {
+        "split": 1,
+        "test_start": "2021-07-06 15:00:00",
+        "test_end": "2021-10-05 01:00:00",
+        "trades": 32,
+        "win_rate": 43.75,
+        "profit_factor": 1.2843188061603477,
+        "total_return": 10.110253731224939,
+        "max_drawdown": 12.297330462053994
+      },
+      {
+        "split": 2,
+        "test_start": "2021-12-03 04:00:00",
+        "test_end": "2022-03-04 13:00:00",
+        "trades": 33,
+        "win_rate": 39.39393939393939,
+        "profit_factor": 1.058250146890409,
+        "total_return": 2.3319989195552226,
+        "max_drawdown": 12.957086072026925
+      },
+      {
+        "split": 3,
+        "test_start": "2022-05-05 09:00:00",
+        "test_end": "2022-08-03 20:00:00",
+        "trades": 28,
+        "win_rate": 32.142857142857146,
+        "profit_factor": 0.7710505104506092,
+        "total_return": -8.438783735490684,
+        "max_drawdown": 15.339641006496588
+      },
+      {
+        "split": 4,
+        "test_start": "2022-10-03 18:00:00",
+        "test_end": "2023-01-04 05:00:00",
+        "trades": 26,
+        "win_rate": 26.923076923076923,
+        "profit_factor": 0.603754820946215,
+        "total_return": -14.261745315791618,
+        "max_drawdown": 18.075905754303182
+      },
+      {
+        "split": 5,
+        "test_start": "2023-03-06 05:00:00",
+        "test_end": "2023-06-05 12:00:00",
+        "trades": 34,
+        "win_rate": 29.411764705882355,
+        "profit_factor": 0.6779813233050686,
+        "total_return": -14.471591913643877,
+        "max_drawdown": 22.893697888704025
+      },
+      {
+        "split": 6,
+        "test_start": "2023-08-03 12:00:00",
+        "test_end": "2023-11-01 19:00:00",
+        "trades": 20,
+        "win_rate": 60.0,
+        "profit_factor": 2.4806964257079045,
+        "total_return": 26.191496904247714,
+        "max_drawdown": 5.8807999999999305
+      },
+      {
+        "split": 7,
+        "test_start": "2024-01-03 20:00:00",
+        "test_end": "2024-04-04 06:00:00",
+        "trades": 32,
+        "win_rate": 46.875,
+        "profit_factor": 1.4669050208428605,
+        "total_return": 16.11013898555962,
+        "max_drawdown": 12.082149246398128
+      },
+      {
+        "split": 8,
+        "test_start": "2024-06-04 04:00:00",
+        "test_end": "2024-09-02 14:00:00",
+        "trades": 29,
+        "win_rate": 34.48275862068966,
+        "profit_factor": 0.8569312545513477,
+        "total_return": -5.380639112256391,
+        "max_drawdown": 7.988935994901553
+      },
+      {
+        "split": 9,
+        "test_start": "2024-10-31 12:00:00",
+        "test_end": "2025-02-03 05:00:00",
+        "trades": 30,
+        "win_rate": 33.33333333333333,
+        "profit_factor": 0.8181058092528822,
+        "total_return": -7.273026330011123,
+        "max_drawdown": 13.840506261470251
+      },
+      {
+        "split": 10,
+        "test_start": "2025-04-03 03:00:00",
+        "test_end": "2025-07-03 12:00:00",
+        "trades": 25,
+        "win_rate": 44.0,
+        "profit_factor": 1.277078913559396,
+        "total_return": 8.172804395636746,
+        "max_drawdown": 11.415761913599992
+      },
+      {
+        "split": 11,
+        "test_start": "2025-09-02 13:00:00",
+        "test_end": "2025-12-01 22:00:00",
+        "trades": 26,
+        "win_rate": 30.76923076923077,
+        "profit_factor": 0.725687989796859,
+        "total_return": -9.589885315652024,
+        "max_drawdown": 20.122845995975887
+      },
+      {
+        "split": 12,
+        "test_start": "2025-10-16 16:00:00",
+        "test_end": "2025-12-01 22:00:00",
+        "trades": 11,
+        "win_rate": 27.27272727272727,
+        "profit_factor": 0.5969408461132207,
+        "total_return": -6.111159178471026,
+        "max_drawdown": 11.415761913600054
+      }
+    ],
+    "avg_win_rate": 37.36289068014474,
+    "avg_profit_factor": 1.0514751556314266,
+    "avg_max_drawdown": 13.692535209127541,
+    "consistency": 41.66666666666667
+  },
+  "monte_carlo": {
+    "n_simulations": 1000,
+    "final_capital": {
+      "mean": 13597.556863617107,
+      "median": 13597.556863617107,
+      "std": 9.739325192367323e-12,
+      "min": 13597.556863617072,
+      "max": 13597.556863617163,
+      "p5": 13597.556863617096,
+      "p95": 13597.556863617125
+    },
+    "max_drawdown": {
+      "mean": 50.007186304431556,
+      "median": 46.61355539196788,
+      "p95": 77.15710150610545,
+      "max": 124.17358251261604
+    },
+    "ruin_probability": 0.0
+  }
+}

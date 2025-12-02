@@ -31,6 +31,22 @@ except ImportError:
     MACRO_AVAILABLE = False
     logger.debug("MacroContextAnalyzer não disponível")
 
+# 🛡️ PROFIT PROTECTOR: Sistema de proteção de lucros
+try:
+    from core.profit_protector import ProfitProtector
+    PROFIT_PROTECTOR_AVAILABLE = True
+except ImportError:
+    PROFIT_PROTECTOR_AVAILABLE = False
+    logger.debug("ProfitProtector não disponível")
+
+# ⏱️ ADAPTIVE TIME MANAGER: Gestão temporal de posições
+try:
+    from core.adaptive_time_manager import AdaptiveTimeManager, TimeAction
+    TIME_MANAGER_AVAILABLE = True
+except ImportError:
+    TIME_MANAGER_AVAILABLE = False
+    logger.debug("AdaptiveTimeManager não disponível")
+
 
 class OrderManager:
     """
@@ -82,7 +98,21 @@ class OrderManager:
         # 🚀 MELHORIA: Inicializar analisador macro
         self.macro_analyzer = MacroContextAnalyzer() if MACRO_AVAILABLE else None
         
-        # 🚀 NOVAS MELHORIAS: Proteção contra fechamento prematuro
+        # �️ PROFIT PROTECTOR: Sistema de proteção de lucros
+        if PROFIT_PROTECTOR_AVAILABLE:
+            self.profit_protector = ProfitProtector(self.config)
+            logger.info("🛡️ ProfitProtector ativado")
+        else:
+            self.profit_protector = None
+        
+        # ⏱️ ADAPTIVE TIME MANAGER: Gestão temporal de posições
+        if TIME_MANAGER_AVAILABLE:
+            self.time_manager = AdaptiveTimeManager(self.config)
+            logger.info("⏱️ AdaptiveTimeManager ativado")
+        else:
+            self.time_manager = None
+        
+        # �🚀 NOVAS MELHORIAS: Proteção contra fechamento prematuro
         self.MIN_TRADE_DURATION = {
             'scalping': 2,           # 2 minutos
             'range_trading': 5,      # 5 minutos
@@ -325,6 +355,14 @@ class OrderManager:
         # 🚨 PROCESSAMENTO FORA DO LOCK (evitar deadlock em chamadas MT5)
         for ticket in closed_tickets:
             logger.info(f"Posição {ticket} foi fechada")
+            
+            # 🛡️ Remover do ProfitProtector
+            if self.profit_protector:
+                self.profit_protector.remove_position(ticket)
+            
+            # ⏱️ Remover do TimeManager
+            if self.time_manager:
+                self.time_manager.cleanup(ticket)
             
             # 🤖 APRENDIZAGEM: Aprender com posições fechadas
             try:
@@ -1618,6 +1656,101 @@ class OrderManager:
         if current_rr > state['max_rr']:
             state['max_rr'] = current_rr
             self._save_states()  # 💾 Salvar após atualização importante
+        
+        # 🛡️ PROFIT PROTECTOR: Verificar proteção de lucros
+        if self.profit_protector and current_profit > 0:
+            should_protect, new_sl, reason = self.profit_protector.should_tighten_sl(
+                ticket, position
+            )
+            
+            if should_protect and new_sl:
+                current_sl = position.get('sl', 0)
+                
+                # Verificar se o novo SL é melhor que o atual
+                is_better_sl = False
+                if position['type'] == 'BUY':
+                    is_better_sl = new_sl > current_sl
+                else:  # SELL
+                    is_better_sl = new_sl < current_sl or current_sl == 0
+                
+                if is_better_sl:
+                    if self.modify_position(ticket, new_sl):
+                        logger.success(
+                            f"🛡️ #{ticket} PROTEÇÃO APLICADA | "
+                            f"Razão: {reason} | "
+                            f"Novo SL: {new_sl:.5f} | "
+                            f"Lucro protegido: ${current_profit:.2f}"
+                        )
+                        
+                        # Notificar via Telegram
+                        protection_status = self.profit_protector.get_protection_status(ticket)
+                        if protection_status:
+                            self.telegram.send_message_sync(
+                                f"🛡️ LUCRO PROTEGIDO\n\n"
+                                f"#{ticket} {position['symbol']}\n"
+                                f"Nível: {protection_status['protection_level'].upper()}\n"
+                                f"Lucro atual: ${current_profit:.2f}\n"
+                                f"Lucro protegido: ${protection_status['protected_profit']:.2f}\n"
+                                f"Novo SL: {new_sl:.5f}"
+                            )
+        
+        # ⏱️ ADAPTIVE TIME MANAGER: Verificar tempo vs performance
+        if self.time_manager:
+            try:
+                open_time = datetime.fromtimestamp(position.get('time', 0), tz=timezone.utc)
+                
+                time_analysis = self.time_manager.analyze_position(
+                    ticket=ticket,
+                    symbol=position['symbol'],
+                    strategy=strategy_name,
+                    open_time=open_time,
+                    entry_price=position['price_open'],
+                    current_price=position['price_current'],
+                    sl=position.get('sl', 0),
+                    position_type=position['type'],
+                    current_profit=current_profit,
+                    volume=position.get('volume', 0.1)
+                )
+                
+                # Aplicar ação recomendada
+                if time_analysis.action == TimeAction.TIGHTEN_SL and time_analysis.new_sl:
+                    current_sl = position.get('sl', 0)
+                    
+                    # Verificar se novo SL é melhor
+                    is_better_sl = False
+                    if position['type'] == 'BUY':
+                        is_better_sl = time_analysis.new_sl > current_sl
+                    else:
+                        is_better_sl = time_analysis.new_sl < current_sl or current_sl == 0
+                    
+                    if is_better_sl:
+                        if self.modify_position(ticket, time_analysis.new_sl):
+                            logger.success(
+                                f"⏱️ #{ticket} TIME PROTECTION | "
+                                f"Status: {time_analysis.status.value} | "
+                                f"Tempo: {time_analysis.time_open_minutes:.0f}min | "
+                                f"Razão: {time_analysis.reason}"
+                            )
+                
+                elif time_analysis.action == TimeAction.CLOSE_FULL:
+                    logger.warning(
+                        f"⏱️ #{ticket} RECOMENDA FECHAR | "
+                        f"Tempo: {time_analysis.time_open_minutes:.0f}min ({time_analysis.time_ratio:.1f}x esperado) | "
+                        f"RR: {time_analysis.current_rr:.2f} | "
+                        f"Razão: {time_analysis.reason}"
+                    )
+                    # Não fechamos automaticamente, apenas alertamos
+                    # O trader pode decidir fechar manualmente
+                
+                elif time_analysis.action == TimeAction.CLOSE_PARTIAL:
+                    logger.info(
+                        f"⏱️ #{ticket} Considerar fechamento parcial | "
+                        f"Tempo: {time_analysis.time_open_minutes:.0f}min | "
+                        f"Razão: {time_analysis.reason}"
+                    )
+                    
+            except Exception as e:
+                logger.debug(f"TimeManager erro para #{ticket}: {e}")
         
         # 🎯 LÓGICA POR ESTRATÉGIA
         

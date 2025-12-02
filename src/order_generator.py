@@ -96,10 +96,20 @@ class OrderGenerator:
         """
         Obtém ou cria StrategyManager para um símbolo específico
         Cada símbolo tem suas próprias instâncias de estratégias
+        🧠 v2.0: Passa TechnicalAnalyzer para habilitar Market Context
         """
         if symbol not in self.strategies_by_symbol:
             logger.info(f"🔧 Criando estratégias dedicadas para {symbol}")
-            self.strategies_by_symbol[symbol] = StrategyManager(self.config, symbol=symbol)
+            
+            # 🧠 Obter o TechnicalAnalyzer do símbolo para Market Context
+            analyzers = self._get_or_create_analyzers(symbol)
+            technical_analyzer = analyzers.get('technical')
+            
+            self.strategies_by_symbol[symbol] = StrategyManager(
+                self.config, 
+                symbol=symbol,
+                technical_analyzer=technical_analyzer  # 🧠 Para comunicação entre TFs
+            )
         return self.strategies_by_symbol[symbol]
     
     def _create_strategy_executors(self):

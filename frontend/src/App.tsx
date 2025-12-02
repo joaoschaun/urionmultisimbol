@@ -8,10 +8,11 @@ import History from './pages/History'
 import Strategies from './pages/Strategies'
 import Settings from './pages/Settings'
 import { useWebSocket } from './hooks/useWebSocket'
+import config from './config'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const { connected, data } = useWebSocket('ws://localhost:8080/ws')
+  const { connected, data } = useWebSocket(config.WS_URL)
   
   return (
     <BrowserRouter>
